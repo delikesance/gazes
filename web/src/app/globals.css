@@ -54,7 +54,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 button:disabled { cursor: default; opacity: .35; }
 .page-inset { padding-inline: var(--page-gutter); }
 .catalog-page { position: relative; min-height: 100vh; padding-bottom: 50px; }
-.anime-hero { position: relative; min-height: 640px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 48px; padding: 150px var(--page-gutter) 96px; isolation: isolate; overflow: hidden; }
+.anime-hero { position: relative; min-height: 90vh; max-height: 90vh; min-height: 90dvh; max-height: 90dvh; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 48px; padding: 150px var(--page-gutter) 96px; isolation: isolate; overflow: hidden; }
 .anime-hero-art, .anime-hero-shade, .anime-hero .page-grid, .anime-hero .scribble { z-index: -1; }
 .anime-hero-art, .anime-hero-shade { position: absolute; inset: 0; pointer-events: none; }
 /* The banner is a quiet backdrop: dimmed, fully visible at the top and fading to nothing at the bottom (alpha mask, no color). */
@@ -499,7 +499,7 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .hero-poster { width: clamp(220px, 22vw, 330px); aspect-ratio: 460 / 650; border-radius: 20px; overflow: hidden; transform: rotate(3deg); box-shadow: 0 40px 80px rgba(0, 0, 0, .55); background: var(--surface); }
 .hero-poster .hero-poster-art, .hero-poster img { width: 100%; height: 100%; object-fit: cover; }
 @media (max-width: 900px) { .anime-hero { grid-template-columns: minmax(0, 1fr); } .hero-poster { display: none; } }
-@media (max-width: 600px) { .anime-hero { min-height: 520px; padding-top: 130px; } }
+@media (max-width: 600px) { .anime-hero { padding-top: 130px; } }
 
 /* Glass over imagery: header controls and hero controls keep a full-blur translucent surface. */
 :root { --glass: rgba(28, 28, 32, .32); --glass-hover: rgba(28, 28, 32, .46); }
