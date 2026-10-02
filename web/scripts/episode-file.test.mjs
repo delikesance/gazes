@@ -4,6 +4,15 @@ import { readFileSync } from 'node:fs';
 import { episodeFile, episodeCandidates, episodeQualities, fileResolution } from '../src/lib/episode-file.ts';
 const source={episode_number:3,season_number:2};
 const file=(index,path)=>({index,path,is_video:true});
+test('ordinal catalog season titles match the real Apothecary Diaries release filename',()=>{
+ const identity={episode_number:1,season_number:3,anime_aliases:['The Apothecary Diaries Season 3','Kusuriya no Hitorigoto 3rd Season','薬屋のひとりごと 第3期'],excluded_titles:['Kusuriya no Hitorigoto 2nd Season Mini Anime']};
+ const path='[Trix] Kusuriya no Hitorigoto S03E01 [WEBRip 1080p AV1] (Multi Subs).mkv';
+ assert.equal(episodeFile([file(0,path)],identity),0);
+ for(const wrong of [path.replace('S03E01','S02E01'),path.replace('S03E01','S03E02'),'Kusuriya no Hitorigoto 2nd Season - 01.mkv','Kusuriya no Hitorigoto 2nd Season/01.mkv','Kusuriya no Hitorigoto 2nd Season Mini Anime S03E01.mkv']) {
+  assert.equal(episodeFile([file(0,wrong)],identity),null,wrong);
+ }
+ assert.equal(episodeFile([file(0,'Kusuriya no Hitorigoto 3rd Season - 01.mkv')],identity),0);
+});
 test('accented sibling titles cannot become original Naruto episodes',()=>{
  const identity={episode_number:1,season_number:1,anime_aliases:['Naruto'],excluded_titles:['Naruto Shippuden','Boruto Naruto Next Generations']};
  for (const path of ['Naruto Shippûden 001.mkv','Boruto - Naruto Next Générations 001.mkv']) assert.equal(episodeFile([file(0,path)],identity),null,path);
