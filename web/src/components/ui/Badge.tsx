@@ -16,7 +16,7 @@ export const Badge: React.FC<BadgeProps> = ({
   ...props
 }) => {
   const baseStyles =
-    "inline-flex items-center gap-1 px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded transition-colors select-none";
+    "inline-flex items-center gap-1 px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full transition-colors select-none";
 
   const variantStyles: Record<BadgeVariant, string> = {
     default: "bg-zinc-900 text-zinc-300 border border-zinc-800",

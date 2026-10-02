@@ -36,7 +36,7 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
             <button
               key={cat.id}
               onClick={() => onSelectCategory(cat.id)}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
                 isActive
                   ? "bg-zinc-100 text-zinc-950"
                   : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border border-zinc-800"
@@ -55,7 +55,7 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
         <select
           value={currentSort}
           onChange={(e) => onSelectSort(e.target.value)}
-          className="rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none"
+          className="rounded-full border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none"
         >
           <option value="seeders">{t("Seeders")}</option>
           <option value="id">{t("Latest")}</option>

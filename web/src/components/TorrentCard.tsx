@@ -26,7 +26,7 @@ export const TorrentCard: React.FC<TorrentCardProps> = ({ item, onPlay }) => {
   const canonicalTitle = anime?.display_title || anime?.title_english || anime?.title_romaji;
 
   return (
-    <div className="group flex flex-col justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/90 hover:border-zinc-700 transition-all duration-200 overflow-hidden">
+    <div className="group flex flex-col justify-between rounded-[20px] border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/90 hover:border-zinc-700 transition-all duration-200 overflow-hidden">
       {/* Media Box */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-950">
         <LazyImage
@@ -40,24 +40,24 @@ export const TorrentCard: React.FC<TorrentCardProps> = ({ item, onPlay }) => {
         <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between pointer-events-none">
           <div className="flex items-center gap-1">
             {is4k && (
-              <span className="rounded bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-200">
+              <span className="rounded-full bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-200">
                 4K
               </span>
             )}
             {is1080p && (
-              <span className="rounded bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-200">
+              <span className="rounded-full bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-200">
                 1080p
               </span>
             )}
             {is720p && (
-              <span className="rounded bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-200">
+              <span className="rounded-full bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[9px] font-mono text-zinc-200">
                 720p
               </span>
             )}
           </div>
 
           {anime?.average_score && anime.average_score > 0 ? (
-            <span className="rounded bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-200">
+            <span className="rounded-full bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-200">
               ★ {anime.average_score.toFixed(1)}
             </span>
           ) : null}
@@ -117,7 +117,7 @@ export const TorrentCard: React.FC<TorrentCardProps> = ({ item, onPlay }) => {
 
           <button
             onClick={() => onPlay(item)}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white transition-colors cursor-pointer"
           >
             <Play className="h-3 w-3 fill-current" />
             <span>{t("Stream")}</span>

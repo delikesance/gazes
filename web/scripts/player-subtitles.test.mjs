@@ -89,9 +89,10 @@ try {
  let visibleWhite=0;
  for(let i=0;i<pixels.stdout.length;i+=3) if(pixels.stdout[i]>240 && pixels.stdout[i+1]>240 && pixels.stdout[i+2]>240) visibleWhite++;
  assert.ok(visibleWhite>100,'caption pixels must remain after controls fade');
- const [captionBox, controlsBox] = await Promise.all([canvas.boundingBox(), page.locator('[data-player-controls]').boundingBox()]);
- assert.ok(captionBox.y+captionBox.height <= controlsBox.y+1, 'captions must not overlap controls');
  await page.locator('[data-player-stage]').hover();
+ await page.waitForTimeout(400);
+ const [captionBox, controlsBox] = await Promise.all([canvas.boundingBox(), page.locator('[data-player-controls]').boundingBox()]);
+ assert.ok(captionBox.y+captionBox.height <= controlsBox.y+1, 'captions must not overlap visible controls');
  await page.getByTitle('Choisir la piste audio').click();
  await page.getByRole('button', { name:'Japanese', exact:true }).click();
  await page.waitForFunction(()=>document.querySelector('video').src.includes('audio_track=1'));

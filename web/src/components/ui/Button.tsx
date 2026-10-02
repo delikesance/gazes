@@ -30,10 +30,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizeStyles: Record<ButtonSize, string> = {
-      sm: "h-8 px-3 text-xs rounded-md gap-1.5",
-      md: "h-9 px-4 text-xs sm:text-sm rounded-lg gap-2",
-      lg: "h-11 px-5 text-sm sm:text-base rounded-xl gap-2.5",
-      icon: "h-8 w-8 p-0 rounded-md",
+      sm: "h-8 px-3 text-xs rounded-full gap-1.5",
+      md: "h-9 px-4 text-xs sm:text-sm rounded-full gap-2",
+      lg: "h-11 px-5 text-sm sm:text-base rounded-full gap-2.5",
+      icon: "h-8 w-8 p-0 rounded-full",
     };
 
     return (

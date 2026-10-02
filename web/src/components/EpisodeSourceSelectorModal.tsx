@@ -103,7 +103,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
 
   const getLangBadge = (src: EpisodeSource) => {
     return (
-      <span className="inline-flex items-center rounded bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 text-[10px] font-mono text-zinc-300">
+      <span className="inline-flex items-center rounded-full bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 text-[10px] font-mono text-zinc-300">
         {src.language_tag || "OTHER"}
       </span>
     );
@@ -117,14 +117,14 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
       onClick={onClose}
     >
       <div
-        className="relative flex flex-col w-full max-w-4xl max-h-[88vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative flex flex-col w-full max-w-4xl max-h-[88vh] bg-zinc-950 border border-zinc-800 rounded-[28px] shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-4 sm:p-5 bg-zinc-900/40 border-b border-zinc-800 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-xs font-mono text-zinc-200">
+              <span className="rounded-full bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-xs font-mono text-zinc-200">
                 EP {episodeNumber}
               </span>
               <h2 className="text-base sm:text-lg font-semibold text-zinc-100 tracking-tight">
@@ -142,7 +142,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
           <button
             onClick={onClose}
             aria-label={t("Fermer")}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -157,7 +157,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
               <Filter className="h-3 w-3" /> {t("Lang:")}</span>
             <button
               onClick={() => setSelectedLang("all")}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
                 selectedLang === "all"
                   ? "bg-zinc-100 text-zinc-950"
                   : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
@@ -167,7 +167,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
             </button>
             <button
               onClick={() => setSelectedLang("french")}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
                 selectedLang === "french"
                   ? "bg-zinc-100 text-zinc-950"
                   : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
@@ -177,7 +177,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
             </button>
             <button
               onClick={() => setSelectedLang("vostfr")}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
                 selectedLang === "vostfr"
                   ? "bg-zinc-100 text-zinc-950"
                   : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
@@ -187,7 +187,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
             </button>
             <button
               onClick={() => setSelectedLang("vf")}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer ${
                 selectedLang === "vf"
                   ? "bg-zinc-100 text-zinc-950"
                   : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
@@ -202,7 +202,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
             <select
               value={selectedQuality}
               onChange={(e) => setSelectedQuality(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-zinc-500 font-mono"
+              className="bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-zinc-500 font-mono"
             >
               <option value="all">{t("All Qualities")}</option>
               <option value="1080p">1080p</option>
@@ -217,7 +217,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
                 placeholder={t("Filter releases...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded pl-8 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-full pl-8 pr-2.5 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
               />
             </div>
           </div>
@@ -241,12 +241,12 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
             filteredSources.map((source, idx) => (
               <div
                 key={source.info_hash || idx}
-                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/90 hover:border-zinc-700 transition-all"
+                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/90 hover:border-zinc-700 transition-all"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
                     {getLangBadge(source)}
-                    <span className="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
+                    <span className="rounded-full bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
                       {source.quality}
                     </span>
                     {source.provider && <span className="text-[11px] text-zinc-400">{source.provider}</span>}
@@ -282,7 +282,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
                   <button
                     disabled={source.info_hash === currentSourceHash}
                     onClick={() => onSelectSource(source)}
-                    className="flex items-center gap-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 rounded-full bg-zinc-100 hover:bg-white text-zinc-950 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
                   >
                     <Play className="h-3.5 w-3.5 fill-current" />
                     <span>{t(source.info_hash === currentSourceHash ? "Source actuelle" : "Stream")}</span>

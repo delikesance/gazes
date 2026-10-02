@@ -62,7 +62,7 @@ const pairs: [string, string][] = [
  ["Bientôt disponible","Coming soon"],["Fil d’Ariane","Breadcrumb"],["Anime","Anime"],["Saison","Season"],
  ["Saisons","Seasons"],["Films","Movies"],["Spéciaux et histoires annexes","Specials and side stories"],
  ["Voir les saisons","View seasons"],["Regarder l’épisode","Watch episode"],["Tous les épisodes","All episodes"],
- ["Épisodes","Episodes"],["Épisode","Episode"],["À venir","Coming soon"],["· À venir","· Coming soon"],
+ ["Épisodes","Episodes"],["En cours de lecture","Now playing"],["Ambilight","Ambilight"],["Réglages","Settings"],["Lueur autour de la vidéo","Soft glow around the video"],["Intensité","Intensity"],["Douce","Soft"],["Moyenne","Medium"],["Vive","Vivid"],["Atténuer en pause","Dim when paused"],["Fondu après 3 s","Fades after 3 s"],["Désactivé automatiquement en plein écran.","Turns off automatically in fullscreen."],["Épisodes précédents","Previous episodes"],["Épisodes suivants","Next episodes"],["Épisode","Episode"],["À venir","Coming soon"],["· À venir","· Coming soon"],
  ["Date inconnue","Unknown date"],["Nombre d’épisodes inconnu","Episode count unknown"],
  ["La liste des épisodes n’est pas encore disponible.","The episode list is not available yet."],
  ["La meilleure source est choisie automatiquement. Si elle ne démarre pas ou se bloque, la suivante est essayée.","The best source is selected automatically. If it fails to start or stalls, the next one is tried."],
