@@ -3,11 +3,24 @@
 import { useEffect, type RefObject } from "react";
 import type JASSUB from "jassub";
 
+class SubtitleError extends Error {
+  constructor(public code: string) { super(code); }
+}
+
+/** Short, greppable code for the failure: HTTP status, network, or the renderer's error name. */
+function subtitleErrorCode(error: unknown): string {
+  if (error instanceof SubtitleError) return error.code;
+  if (error instanceof TypeError) return "SUB_NETWORK";
+  if (error instanceof Error && error.name && error.name !== "Error") return `SUB_RENDER_${error.name.toUpperCase()}`;
+  return "SUB_RENDER_FAILED";
+}
+
 export function SubtitleRenderer({ videoRef, url, timeOffset, onError }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   url: string;
   timeOffset: number;
-  onError: (error: string | null) => void;
+  /** Receives a user-facing message and a short machine code, or `null` to clear. */
+  onError: (error: string | null, code?: string) => void;
 }) {
   useEffect(() => {
     const video = videoRef.current;
@@ -20,7 +33,7 @@ export function SubtitleRenderer({ videoRef, url, timeOffset, onError }: {
         const [{ default: JASSUB }, response] = await Promise.all([
           import("jassub"), fetch(url, { signal: controller.signal }),
         ]);
-        if (!response.ok) throw new Error("Subtitle extraction failed");
+        if (!response.ok) throw new SubtitleError(`SUB_HTTP_${response.status}`);
         const subContent = await response.text();
         if (controller.signal.aborted) return;
         renderer = new JASSUB({
@@ -32,9 +45,9 @@ export function SubtitleRenderer({ videoRef, url, timeOffset, onError }: {
           queryFonts: false,
         });
         await renderer.ready;
-      } catch {
+      } catch (error) {
         if (!controller.signal.aborted) {
-          onError("Impossible de charger les sous-titres. Désactivez puis resélectionnez la piste pour réessayer.");
+          onError("Impossible de charger les sous-titres. Désactivez puis resélectionnez la piste pour réessayer.", subtitleErrorCode(error));
           await renderer?.destroy();
         }
       }
