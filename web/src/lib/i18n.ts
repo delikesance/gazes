@@ -87,6 +87,7 @@ const pairs: [string, string][] = [
  ["La lecture a été interrompue. Réessayez ou choisissez une autre source.","Playback was interrupted. Retry or choose another source."],
  ["La lecture de cette source s’est interrompue avant la fin de l’épisode.","This source stopped playing before the episode ended."],
  ["Impossible de charger les sous-titres. Désactivez puis resélectionnez la piste pour réessayer.","Unable to load subtitles. Turn subtitles off and reselect the track to try again."],
+ ["Impossible d’afficher les sous-titres.","Unable to display subtitles."],
  ["Cet épisode ne peut pas être identifié dans ce pack. Essai de la source suivante…","This episode cannot be identified in this pack. Trying the next source…"],
  ["Choisissez le fichier correspondant à l’épisode {episode}. Aucun fichier n’a été lancé automatiquement.","Choose the file for episode {episode}. No file was started automatically."],
  ["Rechercher un fichier","Search files"],["Rechercher un fichier…","Search files…"],
