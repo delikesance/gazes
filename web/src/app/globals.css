@@ -54,12 +54,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 button:disabled { cursor: default; opacity: .35; }
 .page-inset { padding-inline: var(--page-gutter); }
 .catalog-page { position: relative; min-height: 100vh; padding-bottom: 50px; }
-.anime-hero { position: relative; min-height: 455px; display: flex; align-items: flex-end; padding: 225px var(--page-gutter) 33px; isolation: isolate; }
-.anime-hero-art, .anime-hero-shade { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.anime-hero { position: relative; min-height: 640px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 48px; padding: 150px var(--page-gutter) 96px; isolation: isolate; overflow: hidden; }
+.anime-hero-art, .anime-hero-shade, .anime-hero .page-grid, .anime-hero .scribble { z-index: -1; }
+.anime-hero-art, .anime-hero-shade { position: absolute; inset: 0; pointer-events: none; }
+.anime-hero-art { opacity: .22; }
 .anime-hero-art .hero-wide, .anime-hero-art .hero-portrait { position: absolute; inset: 0; height: 100%; width: 100%; border: 0; background: transparent; }
 .anime-hero-art .hero-wide img { object-position: center top; }
 .anime-hero-art .hero-portrait { display: none; }
-.anime-hero-shade { background: rgba(9,9,11,.58); }
+.anime-hero-shade { background: rgba(9,9,11,.35); }
 .anime-hero-copy { max-width: 760px; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
 .featured-carousel { position: relative; }
 .featured-controls { position: absolute; right: var(--page-gutter); bottom: 33px; display: flex; align-items: center; gap: 8px; color: var(--foreground); }
@@ -157,7 +159,7 @@ button:disabled { cursor: default; opacity: .35; }
   .anime-hero-art .hero-wide { display: none; }
   .anime-hero-art .hero-portrait { display: block; }
   .anime-hero-art .hero-portrait img { object-position: center top; }
-  .anime-hero-shade { background: rgba(9,9,11,.64); }
+  .anime-hero-shade { background: rgba(9,9,11,.5); }
   .anime-hero-copy { width: 100%; max-width: 380px; }
   .anime-hero h1 { font-size: 40px; line-height: 1.2; text-wrap: initial; }
   .hero-actions { margin-top: 28px; }
@@ -192,7 +194,7 @@ button:disabled { cursor: default; opacity: .35; }
 .light .theme-sun { display: none; }
 .light .theme-moon { display: block; }
 :root.light { --background: #f8f8fa; --foreground: #18181b; --design-muted: #62626d; --surface: #ececf0; --surface-hover: #e2e2e8; --surface-card: #f1f1f4; --surface-raised: #e8e8ec; --border: rgba(0,0,0,.09); --accent: #7c6af0; --clay-bg: #18181b; --clay-fg: #fafafa; color-scheme: light; }
-.light .anime-hero-shade { background: rgba(248,248,250,.66); }
+.light .anime-hero-shade { background: rgba(248,248,250,.4); }
 .light .catalog-header .site-wordmark, .light .catalog-search, .light .theme-toggle { color: #18181b; }
 .light .catalog-search input, .light .catalog-search input::placeholder { color: #3f3f46; }
 .light .heading-line { background: #d4d4d8; }
@@ -211,7 +213,7 @@ button:disabled { cursor: default; opacity: .35; }
 .light a:focus-visible, .light button:focus-visible, .light input:focus-visible, .light select:focus-visible, .light [tabindex]:focus-visible { outline-color: #18181b; }
 @media (max-width: 600px) {
   .header-actions { gap: 8px; }
-  .light .anime-hero-shade { background: rgba(248,248,250,.72); }
+  .light .anime-hero-shade { background: rgba(248,248,250,.6); }
 }
 
 /* Keep search focus on the pill rather than drawing a rectangle inside it. */
@@ -496,3 +498,21 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 
 .player-modal-card { background: #111113; border: 1px solid rgba(255, 255, 255, .09); border-radius: 28px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); color: #fafafa; }
 .player-source-row { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 16px; border-radius: 999px; background: #17171a; font-size: 13px; color: #e4e4e7; }
+
+/* Hero: title and copy on the left, tilted poster on the right */
+.hero-description { margin: 0; max-width: 560px; font-size: 16px; line-height: 1.65; color: var(--design-muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hero-poster { width: clamp(220px, 22vw, 330px); aspect-ratio: 460 / 650; border-radius: 20px; overflow: hidden; transform: rotate(3deg); box-shadow: 0 40px 80px rgba(0, 0, 0, .55); background: var(--surface); }
+.hero-poster .hero-poster-art, .hero-poster img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 900px) { .anime-hero { grid-template-columns: minmax(0, 1fr); } .hero-poster { display: none; } }
+@media (max-width: 600px) { .anime-hero { min-height: 520px; padding-top: 130px; } }
+
+/* Glass over imagery: header controls and hero controls keep a full-blur translucent surface. */
+:root { --glass: rgba(28, 28, 32, .32); --glass-hover: rgba(28, 28, 32, .46); }
+:root.light { --glass: rgba(235, 235, 233, .5); --glass-hover: rgba(235, 235, 233, .7); }
+.catalog-header .site-wordmark, .catalog-header .catalog-search, .catalog-header .theme-toggle, .catalog-header .header-search-toggle,
+.catalog-header .account-pill, .catalog-header .account-icon, .catalog-header .clay-secondary,
+.anime-hero .secondary-button, .anime-hero .chip, .featured-controls button, .featured-controls span,
+.header-breadcrumb-slot .detail-breadcrumb { background: var(--glass); -webkit-backdrop-filter: blur(80px) saturate(160%); backdrop-filter: blur(80px) saturate(160%); }
+.catalog-header .site-wordmark:hover, .catalog-header .catalog-search:focus-within, .catalog-header .theme-toggle:hover, .catalog-header .header-search-toggle:hover,
+.catalog-header .account-pill:hover, .catalog-header .account-pill[aria-expanded="true"], .catalog-header .clay-secondary:hover,
+.anime-hero .secondary-button:hover, .featured-controls button:hover { background: var(--glass-hover); }
