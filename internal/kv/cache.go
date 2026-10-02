@@ -39,6 +39,16 @@ var (
 type Policy[T any] struct {
 	TTL    time.Duration
 	TTLFor func(*T) time.Duration
+	// StaleFor says how long past its TTL a value may still be served while it refreshes in the
+	// background (default 7 days). Return 0 for values that must never be served stale.
+	StaleFor func(*T) time.Duration
+}
+
+func (p Policy[T]) staleFor(v *T) time.Duration {
+	if p.StaleFor != nil {
+		return p.StaleFor(v)
+	}
+	return staleWindow
 }
 
 func (p Policy[T]) ttl(v *T) time.Duration {
@@ -102,6 +112,9 @@ func (ca *Cache[T]) Get(ctx context.Context, key string, p Policy[T], fetch func
 		ca.c.stats.l2Hits.Add(1)
 		ca.l1.put(key, entry.val, min(ca.opts.L1TTL, entry.remaining()))
 		return entry.val, nil
+	}
+	if found && -entry.remaining() > p.staleFor(entry.val) {
+		found = false // too old to serve even as a stand-in: treat as a miss
 	}
 	if found { // stale: serve now, refresh behind
 		ca.c.stats.stale.Add(1)

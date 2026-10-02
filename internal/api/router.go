@@ -73,7 +73,6 @@ func NewServer(
 		animeService:    metadata.NewAnimeService(nil),
 		catalogService:  metadata.NewAnimeCatalogService(nil),
 		episodeResolver: indexer.NewEpisodeResolver(idx),
-		sourceCache:     newSourceCache(),
 	}
 
 	for _, opt := range opts {
@@ -165,7 +164,7 @@ func contextWithTimeout(parent context.Context, d time.Duration) (context.Contex
 func (s *Server) sources() *sourceCache {
 	s.sourceCacheOnce.Do(func() {
 		if s.sourceCache == nil {
-			s.sourceCache = newSourceCache()
+			s.sourceCache = newSourceCache(s.kv)
 		}
 	})
 	return s.sourceCache

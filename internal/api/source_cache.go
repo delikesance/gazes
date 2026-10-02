@@ -1,39 +1,38 @@
 package api
 
 import (
-	"context"
-	"sync"
+	"sync/atomic"
 	"time"
 
+	"context"
+
 	"github.com/gazes/gazes/internal/indexer"
-	"golang.org/x/sync/singleflight"
+	"github.com/gazes/gazes/internal/kv"
 )
 
-// Resolving an episode searches several trackers and takes up to 20 s. The
-// answer barely changes within minutes, so complete findings are remembered
-// and identical requests in flight share one resolution.
+// Resolving an episode searches several trackers and takes up to 20 s. The answer barely changes
+// within minutes, so findings are remembered in Redis (shared by every instance) and identical
+// requests in flight, across the whole fleet, share one resolution.
 const (
 	sourcesTTLComplete = 15 * time.Minute
 	sourcesTTLPartial  = 5 * time.Minute  // some providers failed: usable, but look again soon
 	sourcesTTLEmpty    = 30 * time.Second // nothing found yet: do not hammer the trackers
-	sourcesMaxEntries  = 512
+	sourcesStaleOK     = time.Hour        // a complete list stays a useful stand-in while it refreshes
 	sourcesWorkBudget  = 40 * time.Second
 )
 
-type cachedSources struct {
-	res     *indexer.EpisodeSourcesResponse
-	expires time.Time
-}
-
 type sourceCache struct {
-	mu      sync.Mutex
-	entries map[string]cachedSources
-	group   singleflight.Group
-	now     func() time.Time
+	cache *kv.Cache[indexer.EpisodeSourcesResponse]
 }
 
-func newSourceCache() *sourceCache {
-	return &sourceCache{entries: map[string]cachedSources{}, now: time.Now}
+// newSourceCache uses Redis when rc is set, process memory otherwise (tests).
+func newSourceCache(rc *kv.Client) *sourceCache {
+	return &sourceCache{cache: kv.NewCache[indexer.EpisodeSourcesResponse](rc, "sources", kv.CacheOptions{
+		L1TTL:        20 * time.Second,
+		L1Max:        512,
+		FetchTimeout: sourcesWorkBudget,
+		WaitBudget:   sourcesWorkBudget + 5*time.Second,
+	})}
 }
 
 func sourcesTTL(res *indexer.EpisodeSourcesResponse) time.Duration {
@@ -47,40 +46,27 @@ func sourcesTTL(res *indexer.EpisodeSourcesResponse) time.Duration {
 	}
 }
 
-// resolve returns the cached findings for key or runs fn once for all callers.
-// The shared work is detached from any single caller's cancellation (one viewer
-// leaving must not fail the others) but each caller still honours its own ctx.
-func (c *sourceCache) resolve(ctx context.Context, key string, fn func(context.Context) (*indexer.EpisodeSourcesResponse, error)) (*indexer.EpisodeSourcesResponse, bool, error) {
-	c.mu.Lock()
-	if entry, ok := c.entries[key]; ok && c.now().Before(entry.expires) {
-		c.mu.Unlock()
-		return entry.res, true, nil
-	}
-	c.mu.Unlock()
+// sourcesPolicy never serves an empty or partial answer stale: those mean "look again", not "no".
+var sourcesPolicy = kv.Policy[indexer.EpisodeSourcesResponse]{
+	TTLFor: sourcesTTL,
+	StaleFor: func(res *indexer.EpisodeSourcesResponse) time.Duration {
+		if len(res.Sources) == 0 || res.Partial {
+			return 0
+		}
+		return sourcesStaleOK
+	},
+}
 
-	work := context.WithoutCancel(ctx)
-	ch := c.group.DoChan(key, func() (any, error) {
-		workCtx, cancel := context.WithTimeout(work, sourcesWorkBudget)
-		defer cancel()
-		res, err := fn(workCtx)
-		if err != nil {
-			return nil, err
-		}
-		c.mu.Lock()
-		if len(c.entries) >= sourcesMaxEntries {
-			clear(c.entries)
-		}
-		c.entries[key] = cachedSources{res: res, expires: c.now().Add(sourcesTTL(res))}
-		c.mu.Unlock()
-		return res, nil
+// resolve returns the cached findings for key or runs fn once for all callers on all instances.
+// hit reports that fn did not run for this call.
+func (c *sourceCache) resolve(ctx context.Context, key string, fn func(context.Context) (*indexer.EpisodeSourcesResponse, error)) (*indexer.EpisodeSourcesResponse, bool, error) {
+	var ran atomic.Bool
+	res, err := c.cache.Get(ctx, key, sourcesPolicy, func(ctx context.Context) (*indexer.EpisodeSourcesResponse, error) {
+		ran.Store(true)
+		return fn(ctx)
 	})
-	select {
-	case <-ctx.Done():
-		return nil, false, ctx.Err()
-	case result := <-ch:
-		if result.Err != nil {
-			return nil, false, result.Err
-		}
-		return result.Val.(*indexer.EpisodeSourcesResponse), false, nil
+	if err != nil {
+		return nil, false, err
 	}
+	return res, !ran.Load(), nil
 }

@@ -3,6 +3,9 @@ package api
 import (
 	"context"
 	"errors"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/gazes/gazes/internal/kv"
+	"github.com/redis/go-redis/v9"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,7 +19,7 @@ func sources(n int, partial bool) *indexer.EpisodeSourcesResponse {
 }
 
 func TestSourceCacheServesRepeatLookups(t *testing.T) {
-	c := newSourceCache()
+	c := newSourceCache(nil)
 	var calls atomic.Int32
 	fn := func(context.Context) (*indexer.EpisodeSourcesResponse, error) {
 		calls.Add(1)
@@ -33,10 +36,15 @@ func TestSourceCacheServesRepeatLookups(t *testing.T) {
 	}
 }
 
+func redisSources(t *testing.T, mr *miniredis.Miniredis) *sourceCache {
+	t.Helper()
+	return newSourceCache(kv.New(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "test"))
+}
+
 func TestSourceCacheTTLDependsOnQuality(t *testing.T) {
-	now := time.Now()
-	c := newSourceCache()
-	c.now = func() time.Time { return now }
+	mr := miniredis.RunT(t)
+	c := redisSources(t, mr)
+	stale := 7 * 24 * time.Hour // Redis keeps entries past their soft TTL as a fallback
 	for key, tc := range map[string]struct {
 		res   *indexer.EpisodeSourcesResponse
 		alive time.Duration
@@ -49,27 +57,63 @@ func TestSourceCacheTTLDependsOnQuality(t *testing.T) {
 		if _, _, err := c.resolve(context.Background(), key, func(context.Context) (*indexer.EpisodeSourcesResponse, error) { return res, nil }); err != nil {
 			t.Fatal(err)
 		}
-		c.mu.Lock()
-		got := c.entries[key].expires.Sub(now)
-		c.mu.Unlock()
-		if got != tc.alive {
-			t.Errorf("%s: ttl %v, want %v", key, got, tc.alive)
+		ttl := mr.TTL("gz:v1:up:sources:" + key)
+		low, high := time.Duration(float64(tc.alive)*0.9)+stale-time.Second, time.Duration(float64(tc.alive)*1.1)+stale+time.Second
+		if ttl < low || ttl > high {
+			t.Errorf("%s: redis ttl %v, want about %v (+jitter, +stale window)", key, ttl, tc.alive+stale)
 		}
 	}
-	// After the empty TTL a fresh resolution runs.
-	now = now.Add(sourcesTTLEmpty + time.Second)
+}
+
+func TestSourceCacheIsSharedAcrossInstances(t *testing.T) {
+	mr := miniredis.RunT(t)
+	a, b := redisSources(t, mr), redisSources(t, mr)
 	var calls atomic.Int32
-	_, hit, _ := c.resolve(context.Background(), "empty", func(context.Context) (*indexer.EpisodeSourcesResponse, error) {
+	fn := func(context.Context) (*indexer.EpisodeSourcesResponse, error) {
 		calls.Add(1)
-		return sources(1, false), nil
+		time.Sleep(100 * time.Millisecond)
+		return sources(3, false), nil
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			c := a
+			if i%2 == 1 {
+				c = b
+			}
+			if _, _, err := c.resolve(context.Background(), "k", fn); err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if calls.Load() != 1 {
+		t.Fatalf("10 requests across 2 instances must resolve once, got %d", calls.Load())
+	}
+	if _, hit, _ := b.resolve(context.Background(), "k", fn); !hit {
+		t.Fatal("a later request on the other instance must be a cache hit")
+	}
+}
+
+func TestSourceCacheNeverServesEmptyAnswersStale(t *testing.T) {
+	mr := miniredis.RunT(t)
+	c := redisSources(t, mr)
+	c.cache.Put(context.Background(), "k", sources(0, false), time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
+	var calls atomic.Int32
+	res, hit, err := c.resolve(context.Background(), "k", func(context.Context) (*indexer.EpisodeSourcesResponse, error) {
+		calls.Add(1)
+		return sources(2, false), nil
 	})
-	if hit || calls.Load() != 1 {
-		t.Fatalf("expired entry must be resolved again: hit=%v calls=%d", hit, calls.Load())
+	if err != nil || hit || calls.Load() != 1 || len(res.Sources) != 2 {
+		t.Fatalf("an expired empty answer must be re-resolved, not served: hit=%v calls=%d res=%+v err=%v", hit, calls.Load(), res, err)
 	}
 }
 
 func TestSourceCacheDoesNotCacheErrors(t *testing.T) {
-	c := newSourceCache()
+	c := newSourceCache(nil)
 	var calls atomic.Int32
 	fn := func(context.Context) (*indexer.EpisodeSourcesResponse, error) {
 		if calls.Add(1) == 1 {
@@ -86,7 +130,7 @@ func TestSourceCacheDoesNotCacheErrors(t *testing.T) {
 }
 
 func TestSourceCacheSharesConcurrentResolutions(t *testing.T) {
-	c := newSourceCache()
+	c := newSourceCache(nil)
 	var calls atomic.Int32
 	release := make(chan struct{})
 	fn := func(context.Context) (*indexer.EpisodeSourcesResponse, error) {
@@ -113,7 +157,7 @@ func TestSourceCacheSharesConcurrentResolutions(t *testing.T) {
 }
 
 func TestSourceCacheCallerCancellationDoesNotFailOthers(t *testing.T) {
-	c := newSourceCache()
+	c := newSourceCache(nil)
 	release := make(chan struct{})
 	fn := func(ctx context.Context) (*indexer.EpisodeSourcesResponse, error) {
 		<-release
