@@ -57,11 +57,12 @@ button:disabled { cursor: default; opacity: .35; }
 .anime-hero { position: relative; min-height: 640px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 48px; padding: 150px var(--page-gutter) 96px; isolation: isolate; overflow: hidden; }
 .anime-hero-art, .anime-hero-shade, .anime-hero .page-grid, .anime-hero .scribble { z-index: -1; }
 .anime-hero-art, .anime-hero-shade { position: absolute; inset: 0; pointer-events: none; }
-.anime-hero-art { opacity: .22; }
+/* The banner is a quiet backdrop: dimmed, fully visible at the top and fading to nothing at the bottom (alpha mask, no color). */
+.anime-hero-art { opacity: .3; -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); }
 .anime-hero-art .hero-wide, .anime-hero-art .hero-portrait { position: absolute; inset: 0; height: 100%; width: 100%; border: 0; background: transparent; }
 .anime-hero-art .hero-wide img { object-position: center top; }
 .anime-hero-art .hero-portrait { display: none; }
-.anime-hero-shade { background: rgba(9,9,11,.35); }
+.anime-hero-shade { background: rgba(9,9,11,.2); }
 .anime-hero-copy { max-width: 760px; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
 .featured-carousel { position: relative; }
 .featured-controls { position: absolute; right: var(--page-gutter); bottom: 33px; display: flex; align-items: center; gap: 8px; color: var(--foreground); }
@@ -194,7 +195,7 @@ button:disabled { cursor: default; opacity: .35; }
 .light .theme-sun { display: none; }
 .light .theme-moon { display: block; }
 :root.light { --background: #f8f8fa; --foreground: #18181b; --design-muted: #62626d; --surface: #ececf0; --surface-hover: #e2e2e8; --surface-card: #f1f1f4; --surface-raised: #e8e8ec; --border: rgba(0,0,0,.09); --accent: #7c6af0; --clay-bg: #18181b; --clay-fg: #fafafa; color-scheme: light; }
-.light .anime-hero-shade { background: rgba(248,248,250,.4); }
+.light .anime-hero-shade { background: rgba(248,248,250,.2); }
 .light .catalog-header .site-wordmark, .light .catalog-search, .light .theme-toggle { color: #18181b; }
 .light .catalog-search input, .light .catalog-search input::placeholder { color: #3f3f46; }
 .light .heading-line { background: #d4d4d8; }
