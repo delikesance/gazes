@@ -7,6 +7,7 @@ import { loadTorrent } from "@/lib/api";
 import { playbackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
 import { EpisodeSourceSelectorModal } from './EpisodeSourceSelectorModal';
+import type { FailoverInfo } from './PlayerFailover';
 
 interface Props {
  sources: EpisodeSource[];
@@ -35,6 +36,8 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  const candidates = useMemo(() => playbackSources(sources), [sources]);
  const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:crypto.randomUUID() });
  const [choosingSource, setChoosingSource] = useState(false);
+ const [tried, setTried] = useState<{ label: string }[]>([]);
+ const sourceLabel = (s?: EpisodeSource) => s ? [s.release_group || s.provider, s.quality].filter(Boolean).join(' · ') || s.title : '';
  const positionRef = useRef(props.initialTime || 0);
  const source = candidates[attempt.index];
  const diagnostic=useMemo(()=>({playback_session_id:session,attempt_id:attempt.id,anime_id:animeId?String(animeId):undefined,season_id:seasonId?String(seasonId):undefined,episode:String(props.episodeNumber),infohash:source?.info_hash}),[session,attempt.id,animeId,seasonId,props.episodeNumber,source?.info_hash]);
@@ -46,10 +49,11 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
   return()=>{window.removeEventListener('error',error);window.removeEventListener('unhandledrejection',rejection);};
  },[diagnostic]);
  const failed = useCallback((failure: { reason: string; position: number }) => {
+  setTried(list => [...list, { label: sourceLabel(candidates[attempt.index]) }]);
   setAttempt(current => current.id === attempt.id
    ? { index: current.index + 1, position: Math.max(0, failure.position), reason: failure.reason, id:crypto.randomUUID() }
    : current);
- }, [attempt.id]);
+ }, [attempt.id, attempt.index, candidates]); // eslint-disable-line react-hooks/exhaustive-deps
  // Warm the next candidates' metadata in the background: a failing source then hands over to a ready one.
  useEffect(()=>{
   const upcoming=candidates.slice(attempt.index+1,attempt.index+3);
@@ -82,11 +86,13 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    if(index<0)return;
    setChoosingSource(false);
    if(index===attempt.index)return;
+   setTried([]);
    setAttempt({index,position:positionRef.current,reason:'',id:crypto.randomUUID()});
   }} />;
  return <VideoPlayerModal key={attempt.id} {...props}
   onChangeSource={()=>setChoosingSource(true)} sourcePicker={picker}
   onProgress={(position,duration)=>{positionRef.current=position;props.onProgress?.(position,duration);}}
+  failover={tried.length?({tried,current:sourceLabel(source)} satisfies FailoverInfo):undefined}
   item={source} initialTime={attempt.position} onPlaybackFailure={failed} diagnostic={diagnostic}
 
  />;

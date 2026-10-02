@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { EpisodeInfo } from "@/types/api";
+import { Scribble } from "./ui/Scribble";
 
 interface PlayerEpisodePickerProps {
   episodes: EpisodeInfo[];
@@ -29,15 +30,16 @@ export function PlayerEpisodePicker({ episodes, currentEpisode, onSelect, onClos
   const scroll = (direction: number) => railRef.current?.scrollBy({ left: direction * railRef.current.clientWidth * 0.8, behavior: "smooth" });
 
   return (
-    <div role="dialog" aria-label={t("Épisodes")} className="player-panel absolute inset-x-0 bottom-full mb-3 flex flex-col gap-4 !p-5 animate-in fade-in duration-100" style={{ borderRadius: "var(--radius-panel)" }}>
-      <div className="flex items-center justify-between">
+    <div role="dialog" aria-label={t("Épisodes")} className="player-panel absolute inset-x-0 bottom-full mb-3 flex flex-col gap-4 overflow-hidden !p-5 animate-in fade-in duration-100" style={{ borderRadius: "var(--radius-panel)" }}>
+      <Scribble shape="b" width={300} rotate={8} style={{ right: -80, top: -90 }} />
+      <div className="relative flex items-center justify-between">
         <span className="player-panel-title !p-0">{t("Épisodes")} · {episodes.length}</span>
         <div className="flex gap-2">
           <button type="button" className="player-pill player-pill--sm player-pill--icon" aria-label={t("Épisodes précédents")} onClick={() => scroll(-1)}><ChevronLeft className="h-4 w-4" /></button>
           <button type="button" className="player-pill player-pill--sm player-pill--icon" aria-label={t("Épisodes suivants")} onClick={() => scroll(1)}><ChevronRight className="h-4 w-4" /></button>
         </div>
       </div>
-      <div ref={railRef} className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+      <div ref={railRef} className="relative flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
         {episodes.map(episode => {
           const current = episode.episode_number === currentEpisode;
           return (
