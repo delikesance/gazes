@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { Check, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { Scribble } from "./ui/Scribble";
 
 export type PlayerOptionsTab = "audio" | "subtitles" | "ambilight";
 
@@ -38,8 +39,9 @@ export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, se
 
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/45 p-4 sm:p-8" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={t("Réglages")} onClick={(event) => event.stopPropagation()} className="player-panel player-modal flex max-h-full w-full max-w-[520px] flex-col gap-4 !p-4 sm:!p-5 animate-in fade-in duration-150">
-        <div className="flex items-center justify-between gap-3">
+      <div role="dialog" aria-modal="true" aria-label={t("Réglages")} onClick={(event) => event.stopPropagation()} className="player-panel player-modal relative flex max-h-full w-full max-w-[520px] flex-col gap-4 overflow-hidden !p-4 sm:!p-5 animate-in fade-in duration-150">
+        <Scribble shape="a" width={240} rotate={14} style={{ right: -70, top: -70 }} />
+        <div className="relative flex items-center justify-between gap-3">
           <div role="tablist" className="flex gap-1 rounded-full bg-white/[.08] p-1">
             {tabs.map(([id, label]) => (
               <button key={id} role="tab" aria-selected={tab === id} data-active={tab === id} onClick={() => onTabChange(id)} className="player-row !min-h-9 !w-auto shrink-0 !justify-center whitespace-nowrap !px-5">{t(label)}</button>
@@ -48,7 +50,7 @@ export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, se
           <button type="button" className="player-pill player-pill--sm player-pill--icon" aria-label={t("Fermer")} onClick={onClose}><X className="h-4 w-4" /></button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="relative min-h-0 flex-1 overflow-y-auto">
           {tab === "audio" && (
             <div className="flex flex-col gap-1">
               <p className="player-panel-title">{t("Audio Tracks")}</p>

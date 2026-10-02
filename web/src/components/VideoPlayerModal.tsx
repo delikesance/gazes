@@ -5,6 +5,7 @@ import { mediaTrackLabel, trackLanguageCode } from "@/lib/media-tracks";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
+import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } from "./PlayerOptionsModal";
 import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
 import { episodeFile, episodeCandidates } from "@/lib/episode-file";
@@ -54,6 +55,7 @@ interface VideoPlayerModalProps {
   sourcePicker?: React.ReactNode;
   episodes?: EpisodeInfo[];
   onSelectEpisode?: (episode: number) => void;
+  failover?: FailoverInfo;
 }
 
 const AMBILIGHT_KEY = "gazes-ambilight";
@@ -91,6 +93,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   sourcePicker,
   episodes,
   onSelectEpisode,
+  failover,
   pageMode = false,
   initialTime = 0,
   onPlaybackFailure,
@@ -114,6 +117,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // Audio and Subtitle Tracks
   const [selectedAudioTrack, setSelectedAudioTrack] = useState<number>(0);
   const [selectedSubTrack, setSelectedSubTrack] = useState<number | null>(null);
+  const [started, setStarted] = useState(false);
   const [optionsTab, setOptionsTab] = useState<PlayerOptionsTab | null>(null);
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [ambilight, setAmbilight] = useState<AmbilightSettings>(loadAmbilight);
@@ -716,7 +720,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   onPlay={(event) => { if (event.currentTarget === videoRef.current) {resumePlaybackRef.current=true;setNeedsPlaybackGesture(false);setIsPlaying(true);} }}
                   onPause={(event) => { if (event.currentTarget === videoRef.current) setIsPlaying(false); }}
                   onWaiting={(event) => { if (event.currentTarget === videoRef.current) {setIsBuffering(true);diagnosticEvent(diagnostic,"playback.buffering",{position:timeOffset+event.currentTarget.currentTime,ready_state:event.currentTarget.readyState});} }}
-                  onPlaying={(event) => { if (event.currentTarget === videoRef.current) setIsBuffering(false); }}
+                  onPlaying={(event) => { if (event.currentTarget === videoRef.current) { setIsBuffering(false); setStarted(true); } }}
                   onCanPlay={(event) => {
                     const video = event.currentTarget;
                     if (video !== videoRef.current) return;
@@ -812,10 +816,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         className="group/bar relative flex h-5 flex-1 cursor-pointer items-center"
                       >
                         <div className="relative h-1.5 w-full rounded-full bg-white/20 transition-all group-hover/bar:h-2">
-                          <div ref={playedBarRef} className="absolute left-0 top-0 h-full rounded-full bg-white" style={{ width: "0%" }} />
+                          <div ref={playedBarRef} className="absolute left-0 top-0 h-full rounded-full bg-[var(--accent)]" style={{ width: "0%" }} />
                           <div
                             ref={knobRef}
-                            className="absolute top-1/2 -ml-2 -mt-2 h-4 w-4 rounded-full bg-white shadow-[0_0_0_5px_rgba(255,255,255,.18)]"
+                            className="absolute top-1/2 -ml-2 -mt-2 h-4 w-4 rounded-full bg-white shadow-[0_0_0_5px_color-mix(in_srgb,var(--accent)_30%,transparent)]"
                             style={{ left: "0%" }}
                           />
                         </div>
@@ -902,6 +906,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {failover && !started && <PlayerFailover info={failover} onChangeSource={onChangeSource} />}
 
                 {optionsTab && (
                   <PlayerOptionsModal
