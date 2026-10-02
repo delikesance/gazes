@@ -17,8 +17,8 @@ export function AnimeHero({ title, banner, poster, episodes, year, children }: P
   const { t } = useI18n();
   return <section className="anime-hero" aria-label={t("À la une")}>
     <div className="anime-hero-art" aria-hidden="true">
-      <LazyImage key={`wide:${banner || poster}`} src={banner || poster} alt="" priority aspectRatio="" className="hero-wide" />
-      <LazyImage key={`portrait:${poster || banner}`} src={poster || banner} alt="" priority aspectRatio="" className="hero-portrait" />
+      <LazyImage key={`wide:${banner}:${poster}`} src={banner || poster} fallbackSrc={poster} alt="" priority aspectRatio="" className="hero-wide" />
+      <LazyImage key={`portrait:${poster}:${banner}`} src={poster || banner} fallbackSrc={banner} alt="" priority aspectRatio="" className="hero-portrait" />
     </div>
     <div className="anime-hero-shade" />
     <div className="anime-hero-copy">

@@ -1,11 +1,13 @@
 "use client";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
+import { mediaTrackLabel, trackLanguageCode } from "@/lib/media-tracks";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
 import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
 import { episodeFile, episodeCandidates, episodeQualities } from "@/lib/episode-file";
 import type { EpisodeSource } from "@/types/api";
+import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
 import { loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
@@ -45,6 +47,7 @@ interface VideoPlayerModalProps {
   onNextEpisode?: () => void;
   onPrevEpisode?: () => void;
   onChangeSource?: () => void;
+  sourcePicker?: React.ReactNode;
 }
 
 function formatTime(seconds: number): string {
@@ -67,13 +70,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   onNextEpisode,
   onPrevEpisode,
   onChangeSource,
+  sourcePicker,
   pageMode = false,
   initialTime = 0,
   onPlaybackFailure,
   onProgress,
   diagnostic,
 }) => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(null);
@@ -400,7 +404,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // 4. Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement).tagName)) {
+      if ((e.target as HTMLElement).closest('[role="dialog"]') || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes((e.target as HTMLElement).tagName)) {
         return;
       }
 
@@ -565,17 +569,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {onChangeSource && (
-              <button
-                onClick={onChangeSource}
-                title={t("Change source for this episode")}
-                className="flex items-center gap-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t("Sources")}</span>
-              </button>
-            )}
-
             <button
               aria-label={t(pageMode?"Voir les saisons":"Fermer le lecteur")}
               onClick={onClose}
@@ -839,6 +832,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                       </div>
                     </div>
 
+                    {onChangeSource && <button onClick={onChangeSource} aria-label={t("Changer de source pour cet épisode")} title={t("Changer de source pour cet épisode")} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"><Layers className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t("Sources")}</span></button>}
                     {/* Right: Audio, Subtitles, Quality, Fullscreen */}
                     <div className="flex items-center gap-1.5">
                       {/* Audio */}
@@ -861,6 +855,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                           <div className="absolute bottom-8 right-0 w-52 rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-2xl z-30 animate-in fade-in duration-100">
                             <p className="px-2.5 py-1 text-[10px] font-mono text-zinc-400 border-b border-zinc-800 mb-1">
                               {t("Audio Tracks")}</p>
+                            {videoMeta?.audio_tracks?.length && !videoMeta.audio_tracks.some(track => trackLanguageCode(track.language) === "fr") ? <p className="px-2.5 py-2 text-xs text-zinc-400">{t(videoMeta.audio_tracks.some(track => !track.language || track.language === "und") ? "VF non confirmée pour ce fichier." : "VF indisponible dans ce fichier.")}</p> : null}
                             {videoMeta?.audio_tracks && videoMeta.audio_tracks.length > 0 ? (
                               videoMeta.audio_tracks.map((track) => (
                                 <button
@@ -872,7 +867,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                                       : "hover:bg-zinc-800/60 text-zinc-300"
                                   }`}
                                 >
-                                  <span className="truncate">{track.title}</span>
+                                  <span className="truncate" title={track.title}>{mediaTrackLabel(track, videoMeta.audio_tracks || [], locale)}</span>
                                   {selectedAudioTrack === track.index && <Check className="h-3.5 w-3.5 ml-1 shrink-0" />}
                                 </button>
                               ))
@@ -930,7 +925,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                                       : "hover:bg-zinc-800/60 text-zinc-300"
                                   }`}
                                 >
-                                  <span className="truncate">{track.title}</span>
+                                  <span className="truncate" title={track.title}>{mediaTrackLabel(track, videoMeta.subtitle_tracks || [], locale)}</span>
                                   {selectedSubTrack === track.index && <Check className="h-3.5 w-3.5 ml-1 shrink-0" />}
                                 </button>
                               ))
@@ -1054,6 +1049,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           )}
         </div>
       </div>
+      {sourcePicker && typeof document !== "undefined" && createPortal(sourcePicker, document.fullscreenElement || document.body)}
     </div>
   );
 };

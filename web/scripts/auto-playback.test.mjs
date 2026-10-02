@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 const root=resolve(import.meta.dirname,'..'), temp=await mkdtemp(resolve(tmpdir(),'gazes-auto-'));
 const ids=['ambiguous','offline','metadata-stalled','stalled','good','last'];
-const sources=ids.map((id,index)=>({id,info_hash:id,magnet_uri:`magnet:?xt=urn:btih:${id}`,title:id,score_rank:100-index*10,seeders:5,is_batch:true,episode_number:14,season_number:1,size_bytes:1000,anime_aliases:['Example']}));
+const sources=ids.map((id,index)=>({id,info_hash:id,magnet_uri:`magnet:?xt=urn:btih:${id}`,title:id,quality:'1080p',release_group:'Test',language_tag:id==='last'?'VF':'VOSTFR',is_french:true,score_rank:100-index*10,seeders:5,is_batch:true,episode_number:14,season_number:1,size_bytes:1000,anime_aliases:['Example']}));
 // Reverse input and include a duplicate: attempts must still follow ranking.
 const entry=`import React from 'react'; import {createRoot} from 'react-dom/client'; import {AutoEpisodePlayer} from './src/components/AutoEpisodePlayer'; import {PLAYBACK_TIMEOUTS} from './src/lib/playback-sources'; Object.assign(PLAYBACK_TIMEOUTS,{metadata:1000,startup:2500,stall:1000}); const root=createRoot(document.getElementById('root')); root.render(<AutoEpisodePlayer sources={${JSON.stringify([...sources].reverse().concat(sources[4]))}} animeTitle="Example" episodeNumber={14} onClose={()=>{document.body.dataset.closed='true';root.unmount();}}/>);`;
 await build({absWorkingDir:root,stdin:{contents:entry,loader:'tsx',resolveDir:root},outfile:resolve(temp,'app.js'),bundle:true,format:'esm',platform:'browser',alias:{'@':resolve(root,'src')},define:{'process.env.NODE_ENV':'"production"','process.env.NEXT_PUBLIC_API_BASE':'"/api/v1"'}});
@@ -94,6 +94,32 @@ try {
  assert.ok(diagnosticEvents.filter(e=>e.event==='playback.failed').length>=5,'source failures must be recorded');
  assert.equal(new Set(diagnosticEvents.map(e=>e.playback_session_id)).size,1,'all attempts must share one session');
  assert.ok(new Set(diagnosticEvents.filter(e=>e.event==='playback.attempt').map(e=>e.attempt_id)).size>=6,'attempts must have distinct IDs');
+ // Manual source selection uses the existing player and preserves absolute time.
+ failedLast=false;
+ await page.goto(`http://127.0.0.1:${server.address().port}`);
+ await page.waitForFunction(()=>document.querySelector('video')?.src.includes('ih=good'));
+ await page.locator('video').evaluate(video=>{video.dispatchEvent(new Event('canplay'));video.currentTime=23;video.dispatchEvent(new Event('timeupdate'));video.pause();});
+ await page.getByRole('button',{name:'Changer de source pour cet épisode',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.waitFor();
+ assert.equal(await dialog.getByRole('button',{name:'Source actuelle',exact:true}).isDisabled(),true);
+ await page.keyboard.press('Escape');
+ await dialog.waitFor({state:'hidden'});
+ assert.ok((await page.locator('video').getAttribute('src')).includes('ih=good'),'closing source picker keeps playback');
+ await page.getByRole('button',{name:'Changer de source pour cet épisode',exact:true}).click();
+ await dialog.getByRole('button',{name:'VF',exact:true}).click();
+ assert.equal(await dialog.locator('.group').count(),1,'VF filter isolates French dubbed releases');
+ await dialog.locator('.group').filter({has:page.getByText('last',{exact:true})}).getByRole('button').click();
+ await page.waitForFunction(()=>document.querySelector('video')?.src.includes('ih=last'));
+ assert.equal(new URL(await page.locator('video').getAttribute('src'),'http://localhost').searchParams.get('time_offset'),'23','manual switch resumes at the current position');
+ assert.equal(await dialog.count(),0);
+ await page.locator('video').evaluate(video=>{video.dispatchEvent(new Event('canplay'));video.pause();});
+ await page.getByTitle('Plein écran (F)',{exact:true}).click();
+ await page.waitForFunction(()=>Boolean(document.fullscreenElement));
+ await page.getByRole('button',{name:'Changer de source pour cet épisode',exact:true}).click();
+ assert.equal(await dialog.evaluate(element=>document.fullscreenElement.contains(element)),true,'source selector remains visible in fullscreen');
+ await page.keyboard.press('Escape');
+ await dialog.waitFor({state:'hidden'});
  assert.deepEqual(errors,[]);
- console.log('PASS: score ranking, pack matching, metadata-only load, errors/startup/stall fallback, paused state, resume position, deduplication, exhaustion and retry.');
+ console.log('PASS: score ranking, pack matching, metadata-only load, errors/startup/stall fallback, paused state, resume position, deduplication, exhaustion, retry, manual source selection, VF filter, resume position and fullscreen.');
 }finally{await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(temp,{recursive:true,force:true});}

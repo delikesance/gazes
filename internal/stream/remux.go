@@ -126,11 +126,6 @@ func findFFmpegPath() string {
 		return p
 	}
 	candidates := []string{
-		".devenv/profile/bin/ffmpeg",
-		"./.devenv/profile/bin/ffmpeg",
-		"/nix/store/lr68rpf9546mrzk6frfksb9ca9cnksib-ffmpeg-full-9.0.1-bin/bin/ffmpeg",
-		"/nix/var/nix/profiles/default/bin/ffmpeg",
-		"/run/current-system/sw/bin/ffmpeg",
 		"/usr/local/bin/ffmpeg",
 		"/usr/bin/ffmpeg",
 	}

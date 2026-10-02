@@ -60,6 +60,11 @@ button:disabled { cursor: default; opacity: .35; }
 .anime-hero-art .hero-portrait { display: none; }
 .anime-hero-shade { background: linear-gradient(180deg, rgba(9,9,11,.12) 0%, rgba(9,9,11,.36) 35%, #09090b 78%, #09090b 100%); }
 .anime-hero-copy { max-width: 660px; }
+.featured-carousel { position: relative; }
+.featured-controls { position: absolute; right: var(--page-gutter); bottom: 33px; display: flex; align-items: center; gap: 8px; color: var(--foreground); }
+.featured-controls button { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 1px solid #52525b; background: var(--background); }
+.featured-controls span { font-size: 12px; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) { .featured-carousel .anime-hero { padding-bottom: 70px; } .featured-controls { bottom: 20px; } }
 .hero-meta { display: flex; gap: 12px; font-size: 14px; line-height: 20px; margin: 0 0 12px; }
 .anime-hero h1 { font-size: 40px; line-height: 1.2; letter-spacing: -.02em; font-weight: 700; margin: 0; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 27px; }

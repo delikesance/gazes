@@ -195,6 +195,42 @@ host videos; the streaming bridge and its ephemeral buffers remain unchanged.
 and localized dates against a frontend on port 4392 (`TEST_BASE_URL` overrides it).
 Player harnesses also support `PLAYWRIGHT_BROWSER=chromium` when Firefox is absent.
 
+Le bouton **Sources** du lecteur permet de choisir le torrent pour l’épisode
+courant, avec filtres VF/VOSTFR et qualité, titre complet, fournisseur et seeders.
+Le changement conserve la position de lecture et fonctionne en plein écran.
+La source actuelle est indiquée ; une recherche partielle est signalée.
+
+### Docker development environment
+
+Install Docker Engine, Docker Compose v2.24+, and GNU Make. No local Go, Node,
+pnpm, FFmpeg, Nix, or devenv installation is required for this workflow.
+
+```sh
+make dev          # Build development images, install dependencies, wait for health
+make dev-logs     # Follow service logs
+make dev-check    # Run Go vet, ESLint, TypeScript checks, and tests
+make dev-test     # Run Go tests and frontend file-selection tests
+make dev-restart  # Recompile and restart the backend after Go changes
+make dev-down     # Stop the environment, preserving volumes
+```
+
+Open [http://localhost:8080](http://localhost:8080). Frontend source is mounted
+into the Next.js development container and changes reload automatically. Backend
+source is mounted read-only; use `make dev-restart` after Go edits. First startup
+can take several minutes to download images/modules and compile the backend.
+`DEV_WAIT_TIMEOUT` defaults to 600 seconds and can be increased on slower machines.
+After changing frontend dependencies, restart the web container with
+`docker compose -p gazes-dev -f compose.yaml -f compose.dev.yaml restart web`.
+
+The development project uses separate `gazes-dev` containers and volumes for
+Prowlarr configuration, diagnostics, Go/pnpm caches, and frontend build output.
+It shares port 8080 with the production stack: stop that stack first or use
+`GAZES_PORT=8081 make dev`. Configure provider and logging options in `.env` as
+described below. `make dev-build` builds production images; `make up` starts the
+production stack. `make help` lists all targets, including optional native
+commands that require locally installed toolchains. Browser integration tests
+remain opt-in and require Playwright browsers and their documented test server.
+
 ### Indexers and one-command deployment
 
 With Docker Engine and Compose v2.24+ installed:
@@ -203,10 +239,9 @@ With Docker Engine and Compose v2.24+ installed:
 docker compose up -d --build --wait
 ```
 
-`devenv up` runs the same Docker Compose command from the project root.
-Docker Engine must be running and accessible to your user. Containers run detached;
-use `docker compose down` to stop them. For native development with live reload,
-run `go run -tags=nosqlite ./cmd/server` and `pnpm --prefix web dev` manually.
+Docker Engine must be running and accessible to your user. `make up` runs the
+same command. Containers run detached; use `make down` to stop them. For
+development, use `make dev` as described above.
 
 Open `http://SERVER:8080` (`GAZES_PORT` changes this port). The production
 frontend, FFmpeg-enabled backend and Prowlarr start automatically. Initialization
@@ -347,7 +382,8 @@ batch and rate-limited; they are diagnostic evidence, not trusted server facts.
 Local Go builds/tests use `-tags=nosqlite` to make the torrent engine use its
 maintained BoltDB piece-completion backend. Diagnostic SQLite remains enabled.
 This avoids linking two different bundled C SQLite runtimes into one binary.
-`devenv` supplies this tag through `GOFLAGS`; Docker builds supply it explicitly.
+The Makefile supplies this tag to native commands; development containers set
+`GOFLAGS`, and production Docker builds supply it explicitly.
 No additional database service is needed.
 
 ```sh

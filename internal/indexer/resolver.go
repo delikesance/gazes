@@ -172,6 +172,10 @@ var releaseRange = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])0*(\d+)[\s_]*[-~][
 var extraVideoTag = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])(?:OP|ED|OST|NCOP|NCED|opening|ending|soundtrack|trailer|sample)(?:$|[^\p{L}\p{N}])`)
 var movieTag = regexp.MustCompile(`(?i)\b(?:movies?|films?|gekijouban)\b`)
 var seasonSetTag = regexp.MustCompile(`(?i)\bS0*(\d+)((?:\+0*\d+)+)\b`)
+
+// A season explicitly bundled with extras is a pack even without "Batch" or
+// "Complete". A separately numbered OVA remains an extra, not a TV episode.
+var seasonExtrasPackTag = regexp.MustCompile(`(?i)\bS0*\d+\s*\+\s*(?:OADs?|OVAs?|OAVs?|Extras?|Bonus)\b`)
 var batchTag = regexp.MustCompile(`(?i)\b(batch|complete|integrale|intégrale|collection)\b`)
 var partTag = regexp.MustCompile(`(?i)\b(?:part|cour|partie)\s*0*(\d+)\b`)
 var releaseSeason = regexp.MustCompile(`(?i)\bS0*(\d+)(?:E\d+)?\b|\b(?:season|saison)\s*0*(\d+)\b|\b(\d+)(?:st|nd|rd|th)(?:\s*season|\s*[-_ ]|\b)`)
@@ -246,6 +250,8 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 	if season > 0 && season != identity.SeasonNumber {
 		return false, false, fmt.Sprintf("rejected: season mismatch (got S%02d, want S%02d)", season, identity.SeasonNumber)
 	}
+	seasonExtrasPack := season == identity.SeasonNumber && season > 0 &&
+		seasonExtrasPackTag.MatchString(title) && !releaseEpisode.MatchString(title)
 
 	// 1. Excluded titles rejection
 	for _, other := range identity.ExcludedTitles {
@@ -267,7 +273,7 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 		return false, false, "rejected: movie tag on standard TV target"
 	}
 	if !identity.Standalone && !identity.IsOVA && ovaTag.MatchString(title) {
-		isTVBatchWithOAD := multiSeasonPack || (season == identity.SeasonNumber && batchTag.MatchString(title)) ||
+		isTVBatchWithOAD := multiSeasonPack || seasonExtrasPack || (season == identity.SeasonNumber && batchTag.MatchString(title)) ||
 			(len(rangeMatch) > 2 && number(rangeMatch[2])-number(rangeMatch[1]) >= 5)
 		if !isTVBatchWithOAD {
 			return false, false, "rejected: OVA/OAD tag on standard TV target"
@@ -382,7 +388,7 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 		return true, false, "matched: standalone movie"
 	}
 
-	if (multiSeasonPack || batchTag.MatchString(title)) && (season > 0 || identity.AllowUnqualified) {
+	if (multiSeasonPack || seasonExtrasPack || batchTag.MatchString(title)) && (season > 0 || identity.AllowUnqualified) {
 		return true, true, fmt.Sprintf("matched: batch pack for season %d", identity.SeasonNumber)
 	}
 

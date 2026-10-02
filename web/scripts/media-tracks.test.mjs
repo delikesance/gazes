@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { mediaTrackLabel, trackLanguageCode } from '../src/lib/media-tracks.ts';
+const track = (language, title = 'CR', index = 0) => ({ language, title, index, stream_index: index + 2, codec: 'ass', is_default: false, is_forced: false });
+const subtitles = [track('eng'), track('fre', 'CR', 1), track('por', 'Brazilian_CR', 2), track('por', 'CR', 3), track('chi', 'Simplified_CR', 4), track('chi', 'Traditional_CR', 5)];
+assert.equal(mediaTrackLabel(subtitles[0], subtitles, 'fr'), 'Anglais');
+assert.equal(mediaTrackLabel(subtitles[1], subtitles, 'fr'), 'Français');
+assert.match(mediaTrackLabel(subtitles[2], subtitles, 'fr'), /Portugais.*brésil.*Piste 3/);
+assert.notEqual(mediaTrackLabel(subtitles[4], subtitles, 'fr'), mediaTrackLabel(subtitles[5], subtitles, 'fr'));
+assert.equal(new Set(subtitles.map(t => mediaTrackLabel(t, subtitles, 'fr'))).size, subtitles.length);
+const audio = { ...track('jpn', '[Erai-raws]_AAC_CR'), codec: 'aac', channels: 2 };
+assert.equal(mediaTrackLabel(audio, [audio], 'fr'), 'Japonais · AAC · 2 canaux');
+assert.equal(mediaTrackLabel(audio, [audio], 'en'), 'Japanese · AAC · 2 channels');
+assert.equal(trackLanguageCode('FRA'), 'fr');
+assert.equal(mediaTrackLabel(track('und'), [], 'fr'), 'Langue inconnue');
+assert.match(mediaTrackLabel({ ...track('fre'), is_forced: true }, [], 'fr'), /Français · Forcés/);
+console.log('PASS: localized languages, CR labels, regions, duplicate tracks, Japanese audio, forced subtitles, unknown languages.');

@@ -339,11 +339,6 @@ func findFFprobePath() string {
 		return p
 	}
 	candidates := []string{
-		".devenv/profile/bin/ffprobe",
-		"./.devenv/profile/bin/ffprobe",
-		"/nix/store/lr68rpf9546mrzk6frfksb9ca9cnksib-ffmpeg-full-9.0.1-bin/bin/ffprobe",
-		"/nix/var/nix/profiles/default/bin/ffprobe",
-		"/run/current-system/sw/bin/ffprobe",
 		"/usr/local/bin/ffprobe",
 		"/usr/bin/ffprobe",
 	}

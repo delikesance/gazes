@@ -124,3 +124,23 @@ func TestResolveSourcesCancellationAndInvalidIdentity(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveSeasonAndExtrasPack(t *testing.T) {
+	const title = "One Punch Man S01 + OAV + OAD - MULTi VF/VOSTFR [BD 1080p Opus] v2 (Darki) | FRENCH"
+	const hash = "20bcf004aaffcff0b868edc0c8f45fa4dc316794"
+	identity := indexer.EpisodeIdentity{Titles: []string{"One Punch Man"}, ExcludedTitles: []string{"One Punch Man OVA"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true}
+	provider := sourceProvider{search: func(_ context.Context, _ indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+		return []indexer.TorrentItem{{InfoHash: hash, Title: title, Seeders: 10}}, nil
+	}}
+	result, err := indexer.NewEpisodeResolver(provider).ResolveSeasonSources(context.Background(), identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.TotalSources != 1 {
+		t.Fatalf("season-plus-extras pack missing: %v", result.DebugLog)
+	}
+	source := result.Sources[0]
+	if !source.IsBatch || source.LanguageTag != indexer.LangVF || source.InfoHash != hash {
+		t.Fatalf("incorrect pack classification: %+v", source)
+	}
+}

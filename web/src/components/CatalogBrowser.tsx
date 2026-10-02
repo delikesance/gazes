@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarDays, Sparkles } from "lucide-react";
 import { AnimeCatalogCard } from "./AnimeCatalogCard";
-import { FeaturedAnime } from "./AnimeHero";
+import { FeaturedAnimeCarousel } from "./FeaturedAnimeCarousel";
 import { SeasonalGrid } from "./SeasonalGrid";
 import type { CatalogResponse } from "@/types/api";
 import { getCatalogPopular, getCatalogSeasonal, searchCatalog } from "@/lib/api";
@@ -96,14 +96,14 @@ export function CatalogBrowser({
     return () => { active = false; };
   }, [discovery, retry]);
 
-  const featured = discovery ? popular?.items.find(anime => anime.banner_image && anime.status === "FINISHED")
-    || popular?.items.find(anime => anime.banner_image && anime.status !== "NOT_YET_RELEASED") : undefined;
+  const featured = discovery ? (popular?.items || []).filter(anime =>
+    anime.status !== "NOT_YET_RELEASED" && (anime.banner_image || anime.media_poster_image || anime.poster_image)) : [];
   const heroLoading = discovery && !popular && !featuredUnavailable;
   const seasonLabel = data?.season ? ({WINTER:"Hiver", SPRING:"Printemps", SUMMER:"Été", FALL:"Automne"} as Record<string,string>)[data.season] : "";
   const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && tab !== "popular"} />);
 
-  return <main className={`catalog-page ${discovery && !error && (featured || heroLoading) ? "has-feature" : ""}`}>
-    {featured && <FeaturedAnime anime={featured} />}
+  return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
+    {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
     {heroLoading && !error && <div className="hero-skeleton" role="status" aria-label={t("Chargement du catalogue")}><div /><div /></div>}
     {discovery && data && data.items && data.items.length > 0 && <section className="season-discovery" aria-labelledby="season-heading">
       <div className="section-heading">{tab === "popular" ? <Sparkles size={23} strokeWidth={1.5} aria-hidden="true" /> : <CalendarDays size={23} strokeWidth={1.5} aria-hidden="true" />}<h2 id="season-heading">{tab === "popular" ? t("Les incontournables") : t("Cette saison")}</h2>{tab !== "popular" && seasonLabel && <span className="season-period">{t(seasonLabel)} {data?.season_year}</span>}<span className="heading-line" />

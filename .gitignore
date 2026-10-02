@@ -1,9 +1,3 @@
-# Devenv & Nix
-.devenv*
-devenv.local.nix
-devenv.local.yaml
-.direnv
-
 # Go
 bin/
 dist/

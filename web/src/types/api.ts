@@ -79,6 +79,7 @@ export interface CatalogResponse {
 export type LanguageTag = "VF" | "VOSTFR" | "MULTI" | "VOSTEN" | "RAW" | "OTHER";
 
 export interface EpisodeSource extends TorrentItem {
+ provider?: string;
  anime_title?: string;
  anime_aliases?: string[];
  excluded_titles?: string[];
