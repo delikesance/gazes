@@ -211,3 +211,28 @@ func TestRenewWithinRefreshesEntriesAboutToExpire(t *testing.T) {
 		t.Fatalf("entry about to expire must be renewed in the background, fetches=%d", version.Load())
 	}
 }
+
+func TestBreakerFailsFastDuringOutageAndRecovers(t *testing.T) {
+	c, mr := newClient(t)
+	ca := NewCache[doc](c, "d", CacheOptions{L1TTL: time.Millisecond})
+	fetch := func(context.Context) (*doc, error) { return &doc{N: 1}, nil }
+	pol := Policy[doc]{TTL: time.Minute}
+
+	mr.Close()
+	// First request pays the connection failure once, then the circuit opens.
+	if got, err := ca.Get(context.Background(), "a", pol, fetch); err != nil || got.N != 1 {
+		t.Fatalf("an outage must degrade to a direct fetch: %v %v", got, err)
+	}
+	start := time.Now()
+	for i := 0; i < 20; i++ {
+		if got, err := ca.Get(context.Background(), "b"+string(rune('a'+i)), pol, fetch); err != nil || got.N != 1 {
+			t.Fatalf("degraded fetch %d: %v %v", i, got, err)
+		}
+	}
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("with the circuit open, 20 requests must not wait on Redis timeouts: %v", elapsed)
+	}
+	if err := c.Raw().Ping(context.Background()).Err(); err == nil {
+		t.Fatal("operations must fail at once while the circuit is open")
+	}
+}

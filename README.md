@@ -447,9 +447,10 @@ make up            # (or make dev) then starts the app, which refuses to boot wi
 |---|---|
 | AniList catalog, details, franchises, calendar, title lookups | Two-level cache (process memory 15 s, then Redis) with stale-while-revalidate: an expired entry is served at once while one instance refreshes it. Entries stay in Redis 7 days past their TTL as a stand-in if AniList is down. |
 | Episode sources and indexer searches | One resolution per episode / query across the whole fleet (distributed lock); complete source lists may be served stale for 1 h, empty or partial ones never. |
-| Upstream rate limits | A token bucket per upstream (AniList: 25 req/min, burst 10) shared by all instances. A `429` starts a cooldown (its `Retry-After`) honoured by everyone; the API answers `503` with `Retry-After` instead of hammering. |
+| Upstream rate limits | A token bucket per upstream (AniList: `ANILIST_PER_MINUTE`, default 60, burst 30) shared by all instances. A `429` starts a cooldown (its `Retry-After`) honoured by everyone; the API answers `503` with `Retry-After` instead of hammering. |
 | Warm-up | One instance per 9 minutes (elected through Redis) renews the home-page data before it expires. |
 | Auth state | KEM nonces (single use), captcha replay protection and login/IP rate limits live in Redis, so several backends behave as one. It **fails closed**: if Redis is unreachable, `/auth/kem` answers `503` and no login is accepted. |
+| Redis outage | A circuit breaker skips Redis for 5 s after a network failure, so requests do not stall on timeouts: caches degrade to direct upstream calls (each instance keeping its own 429 cooldown) and recover on their own when Redis returns. |
 
 Keys are `gz:v1:up:<domain>:…` (shared by stacks, same upstreams) and
 `gz:v1:<REDIS_NAMESPACE>:auth:…` (per stack: each stack has its own KEM key; the dev stack uses
