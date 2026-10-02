@@ -1,8 +1,56 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { episodeFile, episodeCandidates, episodeQualities, fileResolution } from '../src/lib/episode-file.ts';
 const source={episode_number:3,season_number:2};
 const file=(index,path)=>({index,path,is_video:true});
+test('accented sibling titles cannot become original Naruto episodes',()=>{
+ const identity={episode_number:1,season_number:1,anime_aliases:['Naruto'],excluded_titles:['Naruto Shippuden','Boruto Naruto Next Generations']};
+ for (const path of ['Naruto Shippûden 001.mkv','Boruto - Naruto Next Générations 001.mkv']) assert.equal(episodeFile([file(0,path)],identity),null,path);
+ assert.equal(episodeFile([file(0,'Naruto 001.mkv')],identity),0);
+});
+const narutoPack = JSON.parse(readFileSync(new URL('./fixtures/naruto-dvdrip.json', import.meta.url), 'utf8'));
+
+const tensuraPacks = JSON.parse(readFileSync(new URL('./fixtures/tensura-files.json', import.meta.url), 'utf8'));
+test('all 24 Tensura season one episodes select the correct file in real mixed and 10-bit packs',()=>{
+ for(let episode=1;episode<=24;episode++) {
+  const identity={episode_number:episode,season_number:1,anime_aliases:['That Time I Got Reincarnated as a Slime','Tensei Shitara Slime Datta Ken']};
+  for(const [hash,files] of Object.entries(tensuraPacks)) {
+   const candidates=episodeCandidates(files,identity);
+   assert.equal(candidates.length,1,`${hash} episode ${episode}`);
+   assert.equal(candidates[0].index,episode-1,`${hash} episode ${episode}`);
+  }
+ }
+});
+
+test('all 220 Naruto episodes match the real Nyaa DVDRIP file list, excluding its 24 extras',()=>{
+ for (let episode=1;episode<=220;episode++) {
+  const identity={episode_number:episode,season_number:1,anime_aliases:['Naruto']};
+  const expected=narutoPack.files.find(f=>f.path===`Naruto ${String(episode).padStart(3,'0')}.mkv`);
+  assert.ok(expected,`fixture episode ${episode}`);
+  assert.deepEqual(episodeCandidates(narutoPack.files,identity).map(f=>f.index),[expected.index],`episode ${episode}`);
+  assert.equal(episodeFile(narutoPack.files,identity),expected.index,`episode ${episode}`);
+ }
+ assert.equal(episodeFile(narutoPack.files,{episode_number:221,season_number:1,anime_aliases:['Naruto']}),null);
+});
+
+test('combined extra folders and full opening/ending names cannot become episodes',()=>{
+ const identity={episode_number:1,season_number:1,anime_aliases:['Naruto']};
+ for(const path of ['Opening & Ending/Naruto - EndinG 1.mkv','Opening & Ending/Naruto - OpeninG 1.mkv','OP & ED/Naruto 001.mkv','NCOP + NCED/Naruto 001.mkv','OPED/Naruto 001.mkv','Naruto Ending 1.mkv','Naruto Opening 1.mkv']) {
+  assert.equal(episodeFile([file(0,path)],identity),null,path);
+ }
+});
+
+test('ambiguous same-episode files do not silently select the first candidate',()=>{
+ assert.equal(episodeFile([file(0,'Naruto 001 VF.mkv'),file(1,'Naruto 001 VOSTFR.mkv')],{episode_number:1,season_number:1}),null);
+});
+
+test('Naruto Yabai and Kai recuts do not use standard TV episode numbering',()=>{
+ for(const path of ['[Triggerforce]Naruto Yabaï 01 - L\'épreuve de survie.mkv','Naruto Yabai 01.mkv','Naruto Kai 01.mkv','Naruto FullEdit 01.mkv','Naruto SD 01.mkv','Naruto Spin-Off - Rock Lee 01.mkv']) {
+  assert.equal(episodeFile([file(0,path)],{episode_number:1,season_number:1,anime_aliases:['Naruto']}),null,path);
+ }
+ assert.equal(episodeFile([file(0,'Naruto Kai 01.mkv')],{episode_number:1,season_number:1,anime_aliases:['Naruto Kai']}),0);
+});
 test('season packs select the requested file rather than the largest',()=>{
  assert.equal(episodeFile([file(0,'Example S02E01.mkv'),file(1,'Example S01E03.mkv'),file(2,'Example S02E03.mkv')],source),2);
 });

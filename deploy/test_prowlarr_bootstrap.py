@@ -83,6 +83,20 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(b.provision(api, "http://prowlarr:9696", "secret"), [])
         self.assertEqual(api.creates, 0)
 
+    def test_enabled_extra_torrent_gateways_are_exported(self):
+        api = FakeAPI()
+        api.existing = [
+            {"implementation": "Cardigann", "definitionName": "ext", "id": 31, "enable": True, "protocol": "torrent"},
+            {"implementation": "Other", "id": 32, "enable": True, "protocol": "torrent"},
+            {"implementation": "Other", "id": 33, "enable": False, "protocol": "torrent"},
+            {"implementation": "Other", "id": 34, "enable": True, "protocol": "usenet"},
+        ]
+        original = [dict(row) for row in api.existing]
+        result = b.provision(api, "http://prowlarr:9696", "secret")
+        self.assertEqual({r["name"] for r in result}, {"anidex", "thepiratebay", "ext", "prowlarr-32"})
+        self.assertEqual(api.existing[:4], original)
+        self.assertEqual(b.provision(api, "http://prowlarr:9696", "secret"), result)
+
     def test_api_failure_does_not_leak_key(self):
         api = b.API("http://gateway", "sensitive-key")
         with patch.object(b.urllib.request, "urlopen", side_effect=OSError("sensitive-key")):

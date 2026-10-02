@@ -1,15 +1,52 @@
 package metadata
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+type unlimitedProbeReader struct{ bytes atomic.Int64 }
+
+func (r *unlimitedProbeReader) Read(p []byte) (int, error) {
+	return r.ReadContext(context.Background(), p)
+}
+func (r *unlimitedProbeReader) ReadContext(ctx context.Context, p []byte) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	clear(p)
+	r.bytes.Add(int64(len(p)))
+	return len(p), nil
+}
+func TestProbeStopsAfterHeaderInsteadOfWaitingForEntireTorrent(t *testing.T) {
+	executable := filepath.Join(t.TempDir(), "ffprobe")
+	script := `#!/bin/sh
+cat >/dev/null
+printf '%s' '{"streams":[{"index":0,"codec_type":"video","codec_name":"h264"},{"index":1,"codec_type":"audio","codec_name":"mp3","tags":{"language":"fre"}}],"format":{"duration":"1370"}}'
+`
+	if err := os.WriteFile(executable, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FFPROBE_PATH", executable)
+	reader := &unlimitedProbeReader{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	result, err := NewFFprobeAnalyzer(slog.New(slog.NewTextHandler(io.Discard, nil))).ProbeReader(ctx, reader, 200*1024*1024)
+	if err != nil || result == nil || result.ProbeStatus != "complete" || len(result.AudioTracks) != 1 || result.AudioTracks[0].Language != "fre" {
+		t.Fatalf("%+v %v", result, err)
+	}
+	if read := reader.bytes.Load(); read != 64*1024 {
+		t.Fatalf("probe read %d bytes instead of a bounded header", read)
+	}
+}
 
 type waitingProbeReader struct{ done chan struct{} }
 
@@ -63,5 +100,27 @@ func TestProbeMissingPieceHonorsRequestTimeout(t *testing.T) {
 	case <-reader.done:
 	default:
 		t.Fatal("timed out probe left a torrent read active")
+	}
+}
+
+func TestProbeRetriesLargerHeadersWithinBoundedRead(t *testing.T) {
+	executable := filepath.Join(t.TempDir(), "ffprobe")
+	script := `#!/bin/sh
+size=$(wc -c)
+if [ "$size" -lt 100000 ]; then exit 1; fi
+printf '%s' '{"streams":[{"index":0,"codec_type":"video","codec_name":"h264"},{"index":1,"codec_type":"audio","codec_name":"aac","tags":{"language":"fra"}}],"format":{"duration":"1370"}}'
+`
+	if err := os.WriteFile(executable, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FFPROBE_PATH", executable)
+	reader := bytes.NewReader(make([]byte, 2*1000000))
+	result, err := NewFFprobeAnalyzer(slog.New(slog.NewTextHandler(io.Discard, nil))).ProbeReader(context.Background(), reader, reader.Size())
+	if err != nil || result == nil || len(result.AudioTracks) != 1 || result.AudioTracks[0].Language != "fra" {
+		t.Fatalf("%+v %v", result, err)
+	}
+	position, _ := reader.Seek(0, io.SeekCurrent)
+	if position != 1000000 {
+		t.Fatalf("larger header read %d bytes", position)
 	}
 }

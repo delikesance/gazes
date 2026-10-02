@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"net/http"
 	"strconv"
@@ -122,7 +123,7 @@ func (s *Server) HandleMetadata(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	probeCtx, cancel := contextWithTimeout(r.Context(), 5*time.Second)
+	probeCtx, cancel := contextWithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 
 	reader, fileInfo, err := s.torrentEngine.GetFileStream(probeCtx, ih, fileIdx)
@@ -135,8 +136,16 @@ func (s *Server) HandleMetadata(w http.ResponseWriter, r *http.Request) {
 	meta, err := s.analyzer.ProbeReader(probeCtx, reader, fileInfo.Length)
 	if err != nil || meta == nil {
 		meta = &metadata.VideoMetadata{
-			TotalBytes: fileInfo.Length,
+			TotalBytes:     fileInfo.Length,
+			ProbeStatus:    "failed",
+			ProbeErrorCode: "probe_failed",
 		}
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || probeCtx.Err() != nil {
+			meta.ProbeStatus = "timeout"
+			meta.ProbeErrorCode = "probe_timeout"
+		}
+	} else {
+		meta.ProbeStatus = "complete"
 	}
 
 	w.Header().Set("Content-Type", "application/json")

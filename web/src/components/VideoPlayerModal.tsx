@@ -1,7 +1,7 @@
 "use client";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
-import { mediaTrackLabel, trackLanguageCode } from "@/lib/media-tracks";
+import { mediaTrackLabel, trackLanguageCode, preferredAudioTrack } from "@/lib/media-tracks";
 import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
@@ -18,6 +18,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata, SubtitleTrack } from "@/types/api";
 import { loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
 import {
+  ArrowLeft,
   X,
   Play,
   Pause,
@@ -36,7 +37,7 @@ import {
   SkipBack,
   Layers,
   Loader2,
-  SlidersHorizontal,
+  Settings,
   List,
   Sun,
 } from "lucide-react";
@@ -48,6 +49,7 @@ interface VideoPlayerModalProps {
   initialTime?: number;
   onProgress?: (position:number, duration:number)=>void;
   onPlaybackFailure?: (failure: { reason: string; position: number }) => void;
+  onVideoMetadata?: (metadata: VideoMetadata) => void;
   onClose: () => void;
   animeTitle?: string;
   episodeNumber?: number;
@@ -119,6 +121,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   pageMode = false,
   initialTime = 0,
   onPlaybackFailure,
+  onVideoMetadata,
   onProgress,
   diagnostic,
 }) => {
@@ -171,6 +174,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const hasStartedRef = useRef(false);
   const lastProgressRef = useRef({ time: 0, at: 0 });
   const subtitleSelectionRef = useRef(false);
+  const audioSelectionRef = useRef(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const playedBarRef = useRef<HTMLDivElement>(null);
   const bufferedBarRef = useRef<HTMLDivElement>(null);
@@ -269,7 +273,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     let lastBytes = 0;
     const check = setInterval(() => {
       getTorrentStats(item.info_hash, diagnostic).then((s) => {
-        if (s.active_seeders > 0 || s.completed_bytes > lastBytes) lastActivity = Date.now();
+        // A connected peer alone does not prove metadata is arriving.
+        if (s.completed_bytes > lastBytes) lastActivity = Date.now();
         lastBytes = s.completed_bytes;
       }).catch(() => {});
       const now = Date.now();
@@ -384,6 +389,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     resumePlaybackRef.current = true;
     subtitleSelectionRef.current = false;
+    audioSelectionRef.current = false;
     let isMounted = true;
     const controller = new AbortController();
     setLoadData(null);
@@ -409,18 +415,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
             subtitleSelectionRef.current = true;
             setSelectedSubTrack(pickDefaultSubtitle(textSubtitleTracks(data.main_video_metadata.subtitle_tracks)).index);
           }
-          if (data.main_video_metadata.audio_tracks && data.main_video_metadata.audio_tracks.length > 0) {
-            const frenchAudio = data.main_video_metadata.audio_tracks.find((t) =>
-              t.language.toLowerCase().includes("fre") ||
-              t.language.toLowerCase().includes("fra") ||
-              t.title.toLowerCase().includes("french") ||
-              t.title.toLowerCase().includes("français") ||
-              t.title.toLowerCase().includes("vf")
-            );
-            if (frenchAudio) {
-              setSelectedAudioTrack(frenchAudio.index);
-            }
-          }
+
         }
         setLoading(false);
       })
@@ -484,11 +479,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(!!containerRef.current && document.fullscreenElement === containerRef.current);
+      triggerShowControls();
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
+  }, [triggerShowControls]);
 
   // 4. Global Keyboard Shortcuts
   useEffect(() => {
@@ -563,7 +559,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     if (video) video.volume = volume;
   }, [streamUrl, volume, loading, needsFileSelection]);
 
-  const handleAudioTrackSelect = (trackIdx: number) => {
+  const handleAudioTrackSelect = (trackIdx: number, manual = true) => {
+    if (manual) audioSelectionRef.current = true;
     setOptionsTab(null);
     if (trackIdx === selectedAudioTrack) return;
     const currentAbsoluteTime = timeOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
@@ -577,6 +574,16 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     triggerShowControls();
   };
+
+  useEffect(() => {
+    if (!videoMeta || selectedFileIdx < 0) return;
+    const preferred = preferredAudioTrack(videoMeta.audio_tracks || [], selectedAudioTrack, audioSelectionRef.current);
+    if (preferred !== selectedAudioTrack) handleAudioTrackSelect(preferred, false);
+  }, [videoMeta, selectedFileIdx, selectedAudioTrack]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selectedFileIdx >= 0 && videoMeta?.probe_status === 'complete') onVideoMetadata?.(videoMeta);
+  }, [videoMeta, selectedFileIdx, onVideoMetadata]);
 
   const handleSubtitleTrackSelect = (trackIdx: number | null) => {
     subtitleSelectionRef.current = true;
@@ -682,6 +689,41 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   if (!item) return null;
 
+  // Fullscreen only paints descendants of the video box. Keep the heading
+  // inside that layer while fullscreen, without remounting the video itself.
+  const topBar = (
+    <div onMouseMove={triggerShowControls} className={`player-heading player-topbar${!showControls?" watch-heading-hidden":""}`}>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <button
+          aria-label={t(pageMode?"Voir les saisons":"Fermer le lecteur")}
+          onClick={onClose}
+          className="player-frost player-pill player-pill--icon shrink-0"
+        >
+          {pageMode ? <ArrowLeft className="h-5 w-5" aria-hidden="true" /> : <X className="h-5 w-5" aria-hidden="true" />}
+        </button>
+        <div className="player-frost player-pill player-episode-pill min-w-0">
+          {episodeNumber && <span className="player-chip player-chip--solid">EP {episodeNumber}</span>}
+          <h2 className="min-w-0 truncate text-[13px] font-medium" title={animeTitle || item.title}>
+            {animeTitle || item.anime_details?.display_title || item.title}
+          </h2>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2.5">
+        {stats && (
+          <div className="player-frost player-pill hidden !gap-2 sm:inline-flex" role="status">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+            <span className="font-mono text-xs">{stats.active_seeders} {t("Seeders")} · {formatBytes(stats.download_rate_bps)}/s</span>
+          </div>
+        )}
+        {onChangeSource && (
+          <button onClick={onChangeSource} aria-label={t("Changer de source pour cet épisode")} title={t("Changer de source pour cet épisode")} className="player-frost player-pill player-pill--collapse">
+            <Layers className="h-4 w-4" /><span className="player-label">{t("Sources")}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={pageMode?"watch-player fixed inset-0 z-50 bg-black":"fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-6 animate-in fade-in duration-150"}
@@ -691,37 +733,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         className={pageMode?"watch-player-shell":"relative flex flex-col w-full max-w-5xl max-h-[95vh] rounded-[28px] border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl"}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Floating top bar */}
-        <div className={`player-heading player-topbar${!showControls?" watch-heading-hidden":""}`}>
-          <div className="flex min-w-0 items-center gap-2.5">
-            <button
-              aria-label={t(pageMode?"Voir les saisons":"Fermer le lecteur")}
-              onClick={onClose}
-              className="player-frost player-pill player-pill--icon"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="player-frost player-pill min-w-0 !gap-2.5 !pl-2 !pr-5">
-              {episodeNumber && <span className="player-chip player-chip--solid">EP {episodeNumber}</span>}
-              <h2 className="truncate text-sm font-semibold" title={animeTitle || item.title}>
-                {animeTitle || item.anime_details?.display_title || item.title}
-              </h2>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            {stats && (
-              <div className="player-frost player-pill hidden !gap-2 sm:inline-flex" role="status">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
-                <span className="font-mono text-xs">{stats.active_seeders} {t("Seeders")} · {formatBytes(stats.download_rate_bps)}/s</span>
-              </div>
-            )}
-            {onChangeSource && (
-              <button onClick={onChangeSource} aria-label={t("Changer de source pour cet épisode")} title={t("Changer de source pour cet épisode")} className="player-frost player-pill player-pill--collapse">
-                <Layers className="h-4 w-4" /><span className="player-label">{t("Sources")}</span>
-              </button>
-            )}
-          </div>
-        </div>
+        {isFullscreen && containerRef.current ? createPortal(topBar, containerRef.current) : topBar}
 
         {/* Player & Content Area */}
         <div className="player-content flex-1 overflow-y-auto">
@@ -955,7 +967,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                             step="0.05"
                             value={isMuted ? 0 : volume}
                             onChange={handleVolumeChange}
-                            className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-white/20 accent-white"
+                            style={{ background: `linear-gradient(to right, var(--accent) ${(isMuted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(isMuted ? 0 : volume) * 100}%)` }}
+                            className="h-1.5 w-20 cursor-pointer appearance-none rounded-full accent-white"
                           />
                         </div>
                       </div>
@@ -980,7 +993,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                           className="player-pill player-pill--collapse"
                           title={t("Select Audio Track")}
                         >
-                          <SlidersHorizontal className="h-4 w-4" /><span className="player-label">{t("Réglages")}</span>
+                          <Settings className="h-4 w-4" /><span className="player-label">{t("Réglages")}</span>
                         </button>
                         <button onClick={toggleFullscreen} className="player-pill player-pill--icon" aria-label={t("Toggle Fullscreen (F)")} title={t("Toggle Fullscreen (F)")}>
                           {isFullscreen ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
@@ -1057,7 +1070,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                       value={selectedFileIdx}
                       onChange={(e) => {
                         subtitleSelectionRef.current = false;
+                        audioSelectionRef.current = false;
                         resumePlaybackRef.current = true;
+                        setVideoMeta(null);
                         setSelectedFileIdx(parseInt(e.target.value, 10));
                         setTimeOffset(0);
                         currentTimeRef.current = 0;

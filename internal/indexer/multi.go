@@ -2,8 +2,10 @@ package indexer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/kv"
 	"log/slog"
 	"sort"
 	"strings"
@@ -32,6 +34,14 @@ type providerState struct {
 	cache    map[string]cachedResult
 	pending  map[string]chan struct{}
 	retry    time.Time
+	// With Redis, results and the cooldown are shared by every instance (see SetRedis).
+	rcache *kv.Cache[idxResult]
+	gov    *kv.Governor
+}
+
+// idxResult is what the shared cache stores for one provider query.
+type idxResult struct {
+	Items []TorrentItem `json:"items"`
 }
 
 // MultiProvider keeps provider latency, parallelism and memory bounded independently.
@@ -44,6 +54,16 @@ func NewMultiProvider(providers ...Provider) *MultiProvider {
 	}
 	return m
 }
+
+// SetRedis shares provider results, single-flight and the 429/error cooldown across instances,
+// so several backends do not multiply the load on the trackers.
+func (m *MultiProvider) SetRedis(c *kv.Client) {
+	for _, s := range m.states {
+		s.rcache = kv.NewCache[idxResult](c, "idx:"+s.provider.Name(), kv.CacheOptions{L1TTL: 10 * time.Second, L1Max: 256, FetchTimeout: 25 * time.Second, WaitBudget: 25 * time.Second})
+		s.gov = c.NewGovernor("idx:"+s.provider.Name(), 600, 600, 0)
+	}
+}
+
 func (m *MultiProvider) Name() string { return "public indexers" }
 func (m *MultiProvider) Search(ctx context.Context, o SearchOptions) ([]TorrentItem, error) {
 	return m.run(ctx, o, false)
@@ -58,7 +78,9 @@ func (m *MultiProvider) run(ctx context.Context, o SearchOptions, latest bool) (
 		err   error
 	}
 	ch := make(chan result, len(m.states))
+	remaining := map[string]int{}
 	for _, s := range m.states {
+		remaining[s.provider.Name()]++
 		go func(s *providerState) {
 			items, err := s.search(ctx, o, latest)
 			ch <- result{items, s.provider.Name(), err}
@@ -68,11 +90,23 @@ func (m *MultiProvider) run(ctx context.Context, o SearchOptions, latest bool) (
 	failed := []string{}
 	causes := map[string]string{}
 	successes := 0
+collect:
 	for range m.states {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			// A slow provider must not erase sources already returned by healthy ones.
+			if !errors.Is(ctx.Err(), context.DeadlineExceeded) || len(unique) == 0 {
+				return nil, ctx.Err()
+			}
+			for name, count := range remaining {
+				if count > 0 {
+					failed = append(failed, name)
+					causes[name] = ctx.Err().Error()
+				}
+			}
+			break collect
 		case r := <-ch:
+			remaining[r.name]--
 			if r.err != nil {
 				failed = append(failed, r.name)
 				causes[r.name] = diagnostics.Redact(r.err.Error())
@@ -129,6 +163,12 @@ func (s *providerState) search(ctx context.Context, o SearchOptions, latest bool
 		keyOptions.Order = ""
 	}
 	key := fmt.Sprintf("%t:%s:%s:%d:%s:%s", latest, strings.ToLower(strings.Join(strings.Fields(o.Query), " ")), keyOptions.Category, o.Page, keyOptions.SortBy, keyOptions.Order)
+	if s.provider.Name() == "nyaa.si" && (o.SortBy == "seeders" || o.Page > 1) {
+		key = "listing-v2:" + key
+	}
+	if s.rcache != nil {
+		return s.searchShared(ctx, o, latest, key, started)
+	}
 	for {
 		s.mu.Lock()
 		if c, ok := s.cache[key]; ok && time.Now().Before(c.expires) {
@@ -208,4 +248,57 @@ func (s *providerState) search(ctx context.Context, o SearchOptions, latest bool
 		s.mu.Unlock()
 		return items, err
 	}
+}
+
+// searchShared is search() on Redis: one fetch per query across the whole fleet, results kept for
+// 2 min (15 s when empty), stale answers (up to 10 min) stand in while a refresh runs or the
+// provider is cooling down.
+func (s *providerState) searchShared(ctx context.Context, o SearchOptions, latest bool, key string, started time.Time) ([]TorrentItem, error) {
+	policy := kv.Policy[idxResult]{
+		TTLFor: func(r *idxResult) time.Duration {
+			if len(r.Items) == 0 {
+				return 15 * time.Second
+			}
+			return 2 * time.Minute
+		},
+		StaleFor: func(r *idxResult) time.Duration {
+			if len(r.Items) == 0 {
+				return 0
+			}
+			return 10 * time.Minute
+		},
+	}
+	res, err := s.rcache.Get(ctx, key, policy, func(fetchCtx context.Context) (*idxResult, error) {
+		if s.gov.Cooldown(fetchCtx) > 0 {
+			diagnostics.Log(ctx, slog.LevelDebug, "provider.cooldown", "provider", s.provider.Name())
+			return nil, fmt.Errorf("provider cooling down")
+		}
+		select {
+		case <-fetchCtx.Done():
+			return nil, fetchCtx.Err()
+		case s.slots <- struct{}{}:
+		}
+		defer func() { <-s.slots }()
+		callCtx, cancel := context.WithTimeout(fetchCtx, 4*time.Second)
+		defer cancel()
+		diagnostics.Log(ctx, slog.LevelDebug, "provider.slot_acquired", "provider", s.provider.Name(), "wait_ms", time.Since(started).Milliseconds())
+		var items []TorrentItem
+		var err error
+		if latest {
+			items, err = s.provider.GetLatest(callCtx, o.Category, o.Page)
+		} else {
+			items, err = s.provider.Search(callCtx, o)
+		}
+		if err != nil {
+			if fetchCtx.Err() == nil {
+				s.gov.Penalize(fetchCtx, 30*time.Second) // every instance backs off together
+			}
+			return nil, err
+		}
+		return &idxResult{Items: items}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return append([]TorrentItem(nil), res.Items...), nil
 }

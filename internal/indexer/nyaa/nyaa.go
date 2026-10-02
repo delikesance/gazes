@@ -1,10 +1,12 @@
 package nyaa
 
 import (
+	"bufio"
 	"context"
 	"encoding/xml"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -94,7 +96,13 @@ func (c *Client) buildURL(opts indexer.SearchOptions) (string, error) {
 	}
 
 	q := u.Query()
-	q.Set("page", "rss")
+	// RSS is a latest-release feed: Nyaa ignores its sorting and pagination.
+	// Discovery needs the sorted, paginated listing to reach older season packs.
+	if opts.SortBy != "seeders" && opts.Page <= 1 {
+		q.Set("page", "rss")
+	} else {
+		q.Del("page")
+	}
 
 	if opts.Query != "" {
 		q.Set("q", opts.Query)
@@ -136,8 +144,13 @@ func (c *Client) fetchAndParse(ctx context.Context, reqURL string) ([]indexer.To
 		return nil, fmt.Errorf("nyaa returned status %d", resp.StatusCode)
 	}
 
+	reader := bufio.NewReader(io.LimitReader(resp.Body, 4<<20))
+	prefix, _ := reader.Peek(256)
+	if !strings.HasPrefix(strings.TrimSpace(string(prefix)), "<?xml") && !strings.HasPrefix(strings.TrimSpace(string(prefix)), "<rss") {
+		return c.parseListing(reader)
+	}
 	var rssDoc NyaaRSS
-	if err := xml.NewDecoder(resp.Body).Decode(&rssDoc); err != nil {
+	if err := xml.NewDecoder(reader).Decode(&rssDoc); err != nil {
 		return nil, fmt.Errorf("failed to decode rss xml: %w", err)
 	}
 
@@ -188,9 +201,13 @@ func (c *Client) mapItem(item NyaaItem) indexer.TorrentItem {
 }
 
 func extractIDFromLink(link string) string {
-	parts := strings.Split(strings.TrimRight(link, "/"), "/")
+	u, err := url.Parse(link)
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(strings.TrimRight(u.Path, "/"), "/")
 	if len(parts) > 0 {
-		return parts[len(parts)-1]
+		return strings.TrimSuffix(parts[len(parts)-1], ".torrent")
 	}
 	return ""
 }

@@ -1,0 +1,128 @@
+{
+  "infohash": "b5958b477fea5223e33109fa094754294ed49b04",
+  "file_index": 201,
+  "metadata": {
+    "probe_status": "complete",
+    "duration_sec": 1375.541,
+    "formatted_duration": "22:55",
+    "width": 1920,
+    "height": 1080,
+    "resolution": "1080p",
+    "video_codec": "hevc",
+    "audio_codec": "opus",
+    "bitrate_bps": 0,
+    "total_bytes": 265673774,
+    "audio_tracks": [
+      {
+        "index": 0,
+        "stream_index": 1,
+        "language": "jpn",
+        "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+        "codec": "opus",
+        "channels": 2,
+        "is_default": false
+      },
+      {
+        "index": 1,
+        "stream_index": 2,
+        "language": "eng",
+        "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+        "codec": "opus",
+        "channels": 2,
+        "is_default": false
+      },
+      {
+        "index": 2,
+        "stream_index": 3,
+        "language": "fre",
+        "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+        "codec": "opus",
+        "channels": 2,
+        "is_default": false
+      }
+    ],
+    "subtitle_tracks": [
+      {
+        "index": 0,
+        "stream_index": 4,
+        "language": "eng",
+        "title": "English",
+        "codec": "ass",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 1,
+        "stream_index": 5,
+        "language": "fre",
+        "title": "French",
+        "codec": "ass",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 2,
+        "stream_index": 6,
+        "language": "ger",
+        "title": "German",
+        "codec": "ass",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 3,
+        "stream_index": 7,
+        "language": "ita",
+        "title": "Italian",
+        "codec": "ass",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 4,
+        "stream_index": 8,
+        "language": "spa",
+        "title": "Spanish[ESP]",
+        "codec": "ass",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 5,
+        "stream_index": 9,
+        "language": "spa",
+        "title": "Spanish[LAT]",
+        "codec": "ass",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 6,
+        "stream_index": 10,
+        "language": "por",
+        "title": "Brazilian Portuguese",
+        "codec": "ass",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 7,
+        "stream_index": 11,
+        "language": "fre",
+        "title": "French [Full] (PGS)",
+        "codec": "hdmv_pgs_subtitle",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 8,
+        "stream_index": 12,
+        "language": "jpn",
+        "title": "French [Signs/Songs] (PGS)",
+        "codec": "hdmv_pgs_subtitle",
+        "is_default": false,
+        "is_forced": false
+      }
+    ]
+  }
+}

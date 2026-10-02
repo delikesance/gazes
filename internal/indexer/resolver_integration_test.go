@@ -58,12 +58,12 @@ func (p *renamedProvider) Search(_ context.Context, o SearchOptions) ([]TorrentI
 		{InfoHash: "wrong-episode", Title: "Naruto Shippuden S01E02 VF", Seeders: 100},
 	}, nil
 }
-func TestNarutoShippudenExactSearch(t *testing.T) {
+func TestNarutoShippudenSeasonFirstSearch(t *testing.T) {
 	provider := &renamedProvider{}
 	identity := EpisodeIdentity{Titles: []string{"Naruto Shippuden", "Naruto: Shippuden"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true}
 	queries := EpisodeSearchQueries(identity)
-	if len(queries) == 0 || queries[0] != "Naruto Shippuden S01E01" {
-		t.Fatalf("wrong exact query: %v", queries)
+	if len(queries) == 0 || queries[0] != "Naruto Shippuden S01" {
+		t.Fatalf("wrong season-first query: %v", queries)
 	}
 	result, err := NewEpisodeResolver(provider).ResolveSeasonSources(context.Background(), identity)
 	if err != nil || len(result.Sources) != 1 || result.Sources[0].InfoHash != "correct" {

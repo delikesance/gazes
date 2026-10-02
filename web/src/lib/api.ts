@@ -31,8 +31,8 @@ export async function getCatalogTrending(page: number = 1, perPage: number = 20)
   return data;
 }
 
-export async function getCatalogPopular(page: number = 1, perPage: number = 20): Promise<CatalogResponse> {
-  const res = await fetch(`${getApiBase()}/catalog/popular?page=${page}&per_page=${perPage}`);
+export async function getCatalogPopular(page: number = 1, perPage: number = 20, signal?: AbortSignal): Promise<CatalogResponse> {
+  const res = await fetch(`${getApiBase()}/catalog/popular?page=${page}&per_page=${perPage}`, { signal });
   if (!res.ok) {
     throw httpError("Impossible de charger les animes populaires.", "CAT", res);
   }
@@ -182,8 +182,8 @@ export async function getFranchise(id: number, signal?: AbortSignal): Promise<im
 export async function getSeason(id: number, season: number, signal?: AbortSignal): Promise<AnimeCatalogItem> {
  return catalogFetch(`/catalog/anime/${id}/seasons/${season}`, signal);
 }
-export async function getSeasonSources(id: number, season: number, episode: number, signal?: AbortSignal, session?:string): Promise<EpisodeSourcesResponse> {
- return catalogFetch(`/catalog/anime/${id}/seasons/${season}/episodes/${episode}/sources`, signal,session?{playback_session_id:session}:undefined);
+export async function getSeasonSources(id: number, season: number, episode: number, signal?: AbortSignal, session?:string, discovery: 'fast' | 'full' = 'fast'): Promise<EpisodeSourcesResponse> {
+ return catalogFetch(`/catalog/anime/${id}/seasons/${season}/episodes/${episode}/sources${discovery==='full'?'?discovery=full':''}`, signal,session?{playback_session_id:session}:undefined);
 }
 async function catalogFetch<T>(path: string, signal?: AbortSignal,diagnostic?:PlaybackDiagnostic): Promise<T> {
  const response = await fetch(`${getApiBase()}${path}`, { signal,headers:diagnosticHeaders(diagnostic) });

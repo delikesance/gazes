@@ -7,7 +7,25 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func TestMultiDeadlinePreservesHealthySources(t *testing.T) {
+	good := sourceProvider{search: func(context.Context, indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+		return []indexer.TorrentItem{{InfoHash: "vf", Title: "Naruto VF", Seeders: 2}}, nil
+	}}
+	slow := sourceProvider{search: func(ctx context.Context, _ indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	items, err := indexer.NewMultiProvider(good, slow).Search(ctx, indexer.SearchOptions{Query: "Naruto VF"})
+	var partial *indexer.PartialError
+	if len(items) != 1 || items[0].InfoHash != "vf" || !errors.As(err, &partial) || partial.AllFailed {
+		t.Fatalf("slow indexer erased healthy VF results: %+v %v", items, err)
+	}
+}
 
 func TestMultiDeduplicatesCachesAndKeepsPartialResults(t *testing.T) {
 	var calls atomic.Int32

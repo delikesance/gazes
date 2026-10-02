@@ -1,7 +1,7 @@
 import type { EpisodeSource, FileInfo } from "../types/api";
 
 function normalized(value: string): string {
- return value.toLowerCase().replace(/uu/g,"u").replace(/\b(?:season|saison|part|cour)\s*\d+\b/gi," ").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+ return value.normalize('NFKD').replace(/(\p{Script=Latin})\p{M}+/gu,'$1').normalize('NFC').toLowerCase().replace(/uu/g,"u").replace(/\b(?:season|saison|part|cour)\s*\d+\b/gi," ").replace(/[^\p{L}\p{N}]+/gu," ").trim();
 }
 
 /** Avoid original-series files in mixed packs while accepting numbered-only filenames. */
@@ -29,13 +29,22 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
   if (!file.is_video) return false;
   const path = file.path.replace(/[_.]/g," ");
   const name = (file.path.replace(/\\/g,"/").split("/").pop() || file.path).replace(/[_.]/g," ");
+	  const rawName = file.path.replace(/\\/g,"/").split("/").pop() || file.path;
+	  // Decimal episodes are recaps/specials, not the preceding integer episode.
+	  if (/\bS\d+E\d+\.\d+\b/i.test(rawName)) return false;
 
   const normalizedName=` ${normalized(name)} `;
+  // Naruto recuts and spin-offs do not share the catalog's TV episode numbering.
+  if (/\bnaruto\s+(?:shippuden\s+)?(?:yaba[iï]|kai|full\s*edit|sd|spin\s*off)(?=\s|$)/i.test(normalized(file.path)) &&
+      !(source.anime_aliases?.length ? source.anime_aliases : [source.anime_title || ""]).some(alias => /\b(?:yaba[iï]|kai|full\s*edit|sd|spin\s*off)(?=\s|$)/i.test(normalized(alias)))) return false;
   if(source.excluded_titles?.some(alias=>{const key=normalized(alias);return key&&normalizedName.includes(` ${key} `);}))return false;
 
   // Reject OVA / OAD / Special files and folders unless target is explicitly an OVA
   if (!("is_ova" in source && Boolean(source.is_ova)) &&
-      (/\b(oad|ova|oav|sp|special|specials|ncop|nced|op|ed|ost|sample|trailer|bonus|extra)\b/i.test(name) ||
+      (/\b(oad|ova|oav|sp|special|specials|ncop|nced|op|ed|openings?|endings?|oped|ost|sample|trailer|bonus|extra)\b/i.test(name) ||
+	       /\b(?:S\d+)?(?:OAD|OVA|OAV)\d+\b/i.test(name) ||
+	       path.replace(/\\/g,"/").split("/").slice(0,-1).some(segment => /^(?:oads?|ovas?|oavs?|movies?|films?|extras?|bonus)$/.test(normalized(segment).replace(/^\d+\s+/,""))) ||
+       path.replace(/\\/g,"/").split("/").slice(0,-1).some(segment => /^(?:(?:openings?|endings?|op|ed|ncop|nced|oped|ost|soundtrack|extras?|bonus|samples?|trailers?)\s*)+(?:\d+)?$/i.test(normalized(segment))) ||
        /(?:^|[/\\])(?:oads?|ovas?|oavs?|movies?|films?|extras|bonus|openings?|endings?|ost|nc)(?:[/\\]|$)/i.test(path))) {
     return false;
   }
@@ -78,6 +87,7 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
   const cleanedName = name
     .replace(/^\s*\[[^\]]*\]/, " ") // leading release-group tag: a numeric group such as "[224]" is not an episode
     .replace(/\[[0-9A-Fa-f]{8}\]/g, " ")
+	    .replace(/\b(?:8|10|12)[ -]?bits?\b/gi, " ")
     .replace(/\b(10bit|8bit|12bit|x264|x265|h264|h265|hevc|avc|2160p|1080p|810p|720p|576p|480p|360p|4k|aac|flac|dts|ac3)\b/gi, " ");
 
   const candidates = [...cleanedName.matchAll(/(?:^|[\s\-\[(])0*(\d{1,4})(?:v\d+)?(?=$|[\s\[\(\)\]-])/gi)]
@@ -101,10 +111,7 @@ export function episodeFile(files: FileInfo[], source: EpisodeSource): number | 
   console.log(`[Gazes:EpisodeMatcher] -> Selected highest resolution variant [${best.index}]: ${best.path}`);
   return best.index;
  }
- if (matches.length > 0) {
-  console.log(`[Gazes:EpisodeMatcher] -> Selected first candidate [${matches[0].index}]: ${matches[0].path}`);
-  return matches[0].index;
- }
+ if (matches.length > 1) console.log(`[Gazes:EpisodeMatcher] -> Ambiguous episode; viewer selection required`);
  return null;
 }
 

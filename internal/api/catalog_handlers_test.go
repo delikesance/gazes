@@ -46,6 +46,40 @@ func (transport catalogTransport) RoundTrip(r *http.Request) (*http.Response, er
 
 type catalogIndexer struct{}
 
+type discoveryIndexer struct{ catalogIndexer }
+
+func (discoveryIndexer) Search(_ context.Context, opts indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+	items := []indexer.TorrentItem{{InfoHash: "vf", Title: "Example S02 Complete VF", Seeders: 2}}
+	if opts.Query == "Example S02E01" {
+		items = append(items, indexer.TorrentItem{InfoHash: "sub", Title: "Example S02E01 VOSTFR", Seeders: 10})
+	}
+	return items, nil
+}
+
+func TestFullDiscoveryHasIndependentCacheAndIncludesAdditionalSources(t *testing.T) {
+	s := &Server{catalogService: metadata.NewAnimeCatalogService(&http.Client{Transport: catalogTransport{}}), episodeResolver: indexer.NewEpisodeResolver(discoveryIndexer{})}
+	router := chi.NewRouter()
+	router.Get("/anime/{id}/seasons/{season}/episodes/{ep}/sources", s.HandleSeasonSources)
+	for _, tc := range []struct {
+		mode   string
+		count  int
+		status int
+	}{{"", 1, 200}, {"full", 2, 200}, {"fast", 1, 200}, {"invalid", 0, 400}} {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest("GET", "/anime/1/seasons/2/episodes/1/sources?discovery="+tc.mode, nil))
+		if rr.Code != tc.status {
+			t.Fatalf("mode %s: %d %s", tc.mode, rr.Code, rr.Body.String())
+		}
+		if tc.status == 200 {
+			var result indexer.EpisodeSourcesResponse
+			json.Unmarshal(rr.Body.Bytes(), &result)
+			if result.TotalSources != tc.count {
+				t.Fatalf("mode %s: %+v", tc.mode, result)
+			}
+		}
+	}
+}
+
 func (catalogIndexer) Name() string { return "fixture" }
 func (catalogIndexer) GetLatest(context.Context, string, int) ([]indexer.TorrentItem, error) {
 	return nil, nil

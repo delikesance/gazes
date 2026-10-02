@@ -2,12 +2,119 @@ package indexer_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gazes/gazes/internal/indexer"
 )
+
+func TestPlaybackDiscoveryStopsAtSeededVF(t *testing.T) {
+	var mu sync.Mutex
+	var queries []string
+	provider := sourceProvider{search: func(_ context.Context, opts indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+		mu.Lock()
+		queries = append(queries, opts.Query)
+		mu.Unlock()
+		return []indexer.TorrentItem{{InfoHash: "vf", Title: "Naruto DVDRIP VostFr/Vf", Seeders: 2}, {InfoHash: "wrong", Title: "Naruto Yabai Complete VF", Seeders: 100}}, nil
+	}}
+	result, err := indexer.NewEpisodeResolver(provider).ResolvePlaybackSources(context.Background(), indexer.EpisodeIdentity{Titles: []string{"Naruto"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true})
+	if err != nil || len(result.Sources) != 1 || result.Sources[0].InfoHash != "vf" || !result.Partial {
+		t.Fatalf("%+v %v", result, err)
+	}
+	if len(queries) != 6 {
+		t.Fatalf("expected 6 initial searches, got %d: %v", len(queries), queries)
+	}
+	for _, query := range queries {
+		if strings.Contains(query, "E01") {
+			t.Fatalf("episode query ran before a usable season pack: %s", query)
+		}
+	}
+}
+
+func TestSeasonDiscoveryReusesQueriesAcrossEpisodesAndFallsBackToSingles(t *testing.T) {
+	identity := indexer.EpisodeIdentity{Titles: []string{"Naruto"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true}
+	first := indexer.SeasonPlaybackOptions(identity)
+	identity.EpisodeNumber = 20
+	if !reflect.DeepEqual(first, indexer.SeasonPlaybackOptions(identity)) {
+		t.Fatal("season discovery changed with the episode")
+	}
+	provider := sourceProvider{search: func(_ context.Context, opts indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+		if opts.Query == "Naruto S01E20" {
+			return []indexer.TorrentItem{{InfoHash: "single", Title: "Naruto S01E20 VF 720p", Seeders: 2}}, nil
+		}
+		return nil, nil
+	}}
+	result, err := indexer.NewEpisodeResolver(provider).ResolvePlaybackSources(context.Background(), identity)
+	if err != nil || len(result.Sources) != 1 || result.Sources[0].InfoHash != "single" || result.Sources[0].IsBatch {
+		t.Fatalf("single episode fallback failed: %+v %v", result, err)
+	}
+}
+
+func TestPlaybackDiscoveryContinuesUntilVFSearchesAreCovered(t *testing.T) {
+	for _, seeders := range []int{0, 2} {
+		provider := sourceProvider{search: func(_ context.Context, opts indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+			items := []indexer.TorrentItem{{InfoHash: "sub", Title: "Naruto Complete VOSTFR", Seeders: 10}}
+			if opts.Query == "Naruto VF" {
+				items = append(items, indexer.TorrentItem{InfoHash: "dead-vf", Title: "Naruto Complete VF", Seeders: 0})
+			}
+			if opts.Query == "Naruto MULTI" {
+				items = append(items, indexer.TorrentItem{InfoHash: "vf", Title: "Naruto Complete VF", Seeders: seeders})
+			}
+			return items, nil
+		}}
+		result, err := indexer.NewEpisodeResolver(provider).ResolvePlaybackSources(context.Background(), indexer.EpisodeIdentity{Titles: []string{"Naruto"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true})
+		if err != nil || len(result.Sources) != 3 {
+			t.Fatalf("fallback discovery incomplete: %+v %v", result, err)
+		}
+		want := "sub"
+		if seeders > 0 {
+			want = "vf"
+		}
+		if result.Sources[0].InfoHash != want {
+			t.Fatalf("language/swarm ranking changed: %+v", result.Sources)
+		}
+	}
+}
+
+func TestResolveNarutoLiveNyaaSnapshots(t *testing.T) {
+	data, err := os.ReadFile("testdata/naruto-nyaa.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Episodes []struct {
+			Episode int                   `json:"episode"`
+			Sources []indexer.TorrentItem `json:"sources"`
+		} `json:"episodes"`
+	}
+	if err := json.Unmarshal(data, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	for _, snapshot := range fixture.Episodes {
+		provider := sourceProvider{search: func(context.Context, indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+			return snapshot.Sources, nil
+		}}
+		identity := indexer.EpisodeIdentity{Titles: []string{"Naruto"}, ExcludedTitles: []string{"Naruto Shippuden", "Boruto"}, SeasonNumber: 1, EpisodeNumber: snapshot.Episode, AllowUnqualified: true}
+		result, err := indexer.NewEpisodeResolver(provider).ResolveSeasonSources(context.Background(), identity)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Sources) == 0 || result.Sources[0].InfoHash != "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc" {
+			t.Fatalf("episode %d: original VF TV pack must lead: %+v", snapshot.Episode, result.Sources)
+		}
+		for _, source := range result.Sources {
+			if source.InfoHash == "3bb2afd33f6cf8ba94cfb2bb17e3960531756562" || source.Title == "[Judas] Naruto - Movies 01-03 [BD 1080p][HEVC x265 10bit][Dual-Audio][Eng-Subs]" {
+				t.Errorf("episode %d retained non-TV source %s", snapshot.Episode, source.Title)
+			}
+		}
+		t.Logf("episode %d: %d captured sources -> %d valid TV sources; VF first", snapshot.Episode, len(snapshot.Sources), len(result.Sources))
+	}
+}
 
 type sourceProvider struct {
 	search func(context.Context, indexer.SearchOptions) ([]indexer.TorrentItem, error)
@@ -29,10 +136,10 @@ func TestResolveTensuraFrenchDiscoveryAndRanking(t *testing.T) {
 	identity := tensuraIdentity()
 	pack := "[Trix] Tensei Shitara Slime Datta Ken - S01+02+OADs+Tensura Nikki [Dual Audio] [Multi Subs] (BD 1080p AV1) VOSTFR"
 	provider := sourceProvider{search: func(_ context.Context, opts indexer.SearchOptions) ([]indexer.TorrentItem, error) {
-		if opts.Query == identity.Titles[0]+" VOSTFR" && opts.Category == "1_2" {
+		if opts.Query == identity.Titles[0]+" VOSTFR" && opts.Category == "1_0" {
 			return []indexer.TorrentItem{{InfoHash: "FR", Title: pack, Seeders: 189}}, nil
 		}
-		if opts.Query == identity.Titles[0]+" VF" && opts.Category == "1_3" {
+		if opts.Query == identity.Titles[0]+" VF" && opts.Category == "1_0" {
 			return []indexer.TorrentItem{{InfoHash: "vf", Title: identity.Titles[0] + " S01E01 VF 720p", Seeders: 2}}, nil
 		}
 		return []indexer.TorrentItem{

@@ -1,8 +1,11 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -46,6 +49,29 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unsupported subtitle format", http.StatusBadRequest)
 		return
 	}
+	// Read only the requested playback window. Input-side -t also stops at the
+	// boundary when subtitle packets are sparse; output-side -t alone may not.
+	start, duration := 0.0, 120.0
+	windowed := r.URL.Query().Has("start") || r.URL.Query().Has("duration")
+	if windowed {
+		for _, field := range []struct {
+			name  string
+			value *float64
+		}{{"start", &start}, {"duration", &duration}} {
+			if raw := r.URL.Query().Get(field.name); raw != "" {
+				value, err := strconv.ParseFloat(raw, 64)
+				if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+					http.Error(w, "invalid subtitle window", http.StatusBadRequest)
+					return
+				}
+				*field.value = value
+			}
+		}
+		if start < 0 || start > 604800 || duration < 1 || duration > 120 {
+			http.Error(w, "invalid subtitle window", http.StatusBadRequest)
+			return
+		}
+	}
 	contentType := "text/vtt; charset=utf-8"
 	switch format {
 	case "ass":
@@ -65,7 +91,8 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 
 	// Timeout context for subtitle extraction
-	ctx, cancel := contextWithTimeout(r.Context(), 30*time.Second)
+	// Return a useful timeout before the frontend proxy's 30-second deadline.
+	ctx, cancel := contextWithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
 
 	codec := format
@@ -79,12 +106,21 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 		"-loglevel", "error",
 		"-probesize", "1000000",
 		"-analyzeduration", "1000000",
+	}
+	if windowed {
+		// Retain episode timestamps for both ASS and PGS, including after seeks.
+		args = append(args, "-copyts", "-start_at_zero", "-ss", strconv.FormatFloat(start, 'f', -1, 64), "-t", strconv.FormatFloat(duration, 'f', -1, 64))
+	}
+	args = append(args,
 		"-i", inputURL,
 		"-map", fmt.Sprintf("0:s:%d", trackIdx),
 		"-c:s", codec,
-		"-f", format,
-		"pipe:1",
+	)
+	if windowed {
+		// Some text decoders return buffered cues beyond the input limit.
+		args = append(args, "-to", strconv.FormatFloat(start+duration, 'f', -1, 64))
 	}
+	args = append(args, "-f", format, "pipe:1")
 
 	cmd := exec.CommandContext(ctx, ffmpegBin, args...)
 	cmd.Stdout = output
@@ -98,6 +134,11 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 		}
 		diagnostics.Logger(r.Context(), s.logger).Error("failed to extract subtitles", "err", err, "stderr", stderrBuf.String())
 		w.Header().Set("Cache-Control", "no-store")
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			w.Header().Set("Retry-After", "1")
+			http.Error(w, "Les sous-titres ne sont pas encore disponibles. Réessayez.", http.StatusGatewayTimeout)
+			return
+		}
 		http.Error(w, "Impossible d’extraire les sous-titres.", http.StatusBadGateway)
 		return
 	}

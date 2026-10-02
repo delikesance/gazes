@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"golang.org/x/text/unicode/norm"
 	"log/slog"
 	"math"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // LanguageTag represents the audio/subtitle language classification.
@@ -62,18 +64,21 @@ type EpisodeSourcesResponse struct {
 }
 
 var (
-	vfRegex          = regexp.MustCompile(`(?i)\b(VF|FRENCH|TRUEFRENCH|DOUBLAGE\s*FR)\b`)
+	vfRegex          = regexp.MustCompile(`(?i)\b(VF|VFF|VFQ|VF2|FRENCH|TRUEFRENCH|DOUBLAGE\s*FR|AUDIO\s*FR)\b`)
 	vostfrRegex      = regexp.MustCompile(`(?i)\b(VOSTFR|SUBFRENCH|STFR|SOUS-TITRES\s*FR)\b`)
 	multiRegex       = regexp.MustCompile(`(?i)\b(MULTI|MULTi-AUDIO|MULTISUB|MULTI-SUB|DUAL\s*AUDIO)\b`)
 	vostenRegex      = regexp.MustCompile(`(?i)\b(VOSTEN|SUBBED|ENG\s*SUB|ENGLISH)\b`)
 	rawRegex         = regexp.MustCompile(`(?i)\b(RAW|RAW-HD|JAP\s*RAW)\b`)
 	seasonRegex      = regexp.MustCompile(`(?i)\b(?:season|saison|part|cour)\s*0*(\d+)\b|\bS0*(\d+)\b|\b(\d+)(?:st|nd|rd|th)\s*Season\b`)
-	ovaTag           = regexp.MustCompile(`(?i)\b(OAD|OVA|OAV|SP|Specials?|Extra|Extras|Bonus)\b`)
+	ovaTag           = regexp.MustCompile(`(?i)\b(OADs?|OVAs?|OAVs?|SP|Specials?|Extra|Extras|Bonus)\b`)
 	cleanSpacesRegex = regexp.MustCompile(`\s+`)
 )
 
+var frenchSubtitleWords = regexp.MustCompile(`(?i)\b(?:(?:french|francais)\s+(?:subs?|subtitles?)|(?:subs?|subtitles?)\s+in\s+(?:french|francais))\b`)
+
 func languageTitle(title string) string {
-	return strings.ReplaceAll(normalize(title), "vfvostfr", "vf vostfr")
+	title = frenchSubtitleWords.ReplaceAllString(normalize(title), "vostfr")
+	return strings.ReplaceAll(title, "vfvostfr", "vf vostfr")
 }
 
 // ClassifyLanguage detects the language profile from the release title.
@@ -170,23 +175,42 @@ type EpisodeIdentity struct {
 	AllowUnqualified  bool
 }
 
+var leadingReleaseGroup = regexp.MustCompile(`^\s*\[[^\]]+\]\s*`)
+var taggedRangeTail = regexp.MustCompile(`(?i)^\s*[-~]\s*(?:E|EP)?0*(\d+)(?:\s|\[|\(|\.|$)`)
+var latinSearchTitle = regexp.MustCompile(`[A-Za-z]`)
+
 var releaseEpisode = regexp.MustCompile(`(?i)\bS0*(\d+)E0*(\d+)(?:v\d+)?\b|\b(?:EP?|episode)\s*0*(\d+)(?:v\d+)?\b|(?:^|\s)-\s*0*(\d+)(?:v\d+)?(?:\s|\[|\(|\.|$)`)
 var releaseRange = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])0*(\d+)[\s_]*[-~][\s_]*0*(\d+)(?:$|[^\p{L}\p{N}])`)
 var extraVideoTag = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])(?:OP|ED|OST|NCOP|NCED|opening|ending|soundtrack|trailer|sample)(?:$|[^\p{L}\p{N}])`)
+var narutoVariantTag = regexp.MustCompile(`(?i)\bnaruto\s+(?:shippu?den\s+)?(?:yaba[iï]|kai|full\s*edit|sd|spin\s*off)(?:\s|$)`)
 var movieTag = regexp.MustCompile(`(?i)\b(?:movies?|films?|gekijouban)\b`)
-var seasonSetTag = regexp.MustCompile(`(?i)\bS0*(\d+)((?:\+0*\d+)+)\b`)
+var seasonSetTag = regexp.MustCompile(`(?i)\bS0*(\d+)((?:\+(?:S)?0*\d+)+)\b`)
 
 // A season explicitly bundled with extras is a pack even without "Batch" or
 // "Complete". A separately numbered OVA remains an extra, not a TV episode.
-var seasonExtrasPackTag = regexp.MustCompile(`(?i)\bS0*\d+\s*\+\s*(?:OADs?|OVAs?|OAVs?|Extras?|Bonus)\b`)
+var seasonExtrasPackTag = regexp.MustCompile(`(?i)\b(?:S0*\d+|(?:season|saison)\s*(?:\d+|one|two|three|four|un|une|deux|trois|quatre))\s*\+\s*(?:\d+\s+)?(?:OADs?|OVAs?|OAVs?|Extras?|Bonus)\b`)
 var batchTag = regexp.MustCompile(`(?i)\b(batch|complete|integrale|intégrale|collection)\b`)
 var partTag = regexp.MustCompile(`(?i)\b(?:part|cour|partie)\s*0*(\d+)\b`)
+var wordSeason = regexp.MustCompile(`(?i)\b(?:season|saison)\s+(one|two|three|four|un|une|deux|trois|quatre)\b`)
+var wordSeasonNumbers = map[string]int{"one": 1, "un": 1, "une": 1, "two": 2, "deux": 2, "three": 3, "trois": 3, "four": 4, "quatre": 4}
+
 var releaseSeason = regexp.MustCompile(`(?i)\bS0*(\d+)(?:E\d+)?\b|\b(?:season|saison)\s*0*(\d+)\b|\b(\d+)(?:st|nd|rd|th)(?:\s*season|\s*[-_ ]|\b)`)
 var normalizedTitle = regexp.MustCompile(`[^\p{L}\p{N}]+`)
 
 func number(s string) int { var n int; fmt.Sscanf(s, "%d", &n); return n }
 func normalize(s string) string {
-	return strings.TrimSpace(normalizedTitle.ReplaceAllString(strings.ToLower(s), " "))
+	latin := false
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsMark(r) {
+			if latin {
+				return -1
+			}
+			return r
+		}
+		latin = unicode.Is(unicode.Latin, r)
+		return r
+	}, norm.NFKD.String(s))
+	return strings.TrimSpace(normalizedTitle.ReplaceAllString(strings.ToLower(norm.NFC.String(s)), " "))
 }
 
 // UniqueSeasonAliases excludes generic franchise aliases from unqualified episode matches.
@@ -224,15 +248,62 @@ func ExtractPartNumber(title string) int {
 // completePackTag marks a release as a bundle of many episodes rather than a single unnumbered one.
 var completePackTag = regexp.MustCompile(`(?i)\b(?:complete|complet|compl[eè]te|int[eé]grale|bd|bdrip|blu-?ray|bdmv|dual[ -]audio|multi[ -]?(?:audio|subs?)|vf|vostfr)\b`)
 
+type preparedAlias struct {
+	original, clean, key string
+	bare                 *regexp.Regexp
+}
+
+// EpisodeMatcher prepares identity-dependent work once for a whole candidate set.
+type EpisodeMatcher struct {
+	identity    EpisodeIdentity
+	aliases     []preparedAlias
+	excluded    []string
+	unqualified []string
+}
+
+func NewEpisodeMatcher(identity EpisodeIdentity) *EpisodeMatcher {
+	m := &EpisodeMatcher{identity: identity}
+	for _, alias := range identity.Titles {
+		clean := CleanTitleForSearch(alias)
+		a := preparedAlias{original: normalize(alias), clean: normalize(clean), key: alias}
+		if clean != "" {
+			a.bare = regexp.MustCompile(`(?i)` + regexp.QuoteMeta(clean) + `\s+0*(\d{1,4})(?:v\d+)?(?:\s|\[|\(|\.|$)`)
+		}
+		m.aliases = append(m.aliases, a)
+	}
+	for _, alias := range identity.ExcludedTitles {
+		m.excluded = append(m.excluded, normalize(CleanTitleForSearch(alias)))
+	}
+	for _, alias := range identity.UnqualifiedTitles {
+		m.unqualified = append(m.unqualified, normalize(alias))
+	}
+	return m
+}
+
 func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, string) {
+	return NewEpisodeMatcher(identity).Match(title)
+}
+
+func (matcher *EpisodeMatcher) Match(title string) (bool, bool, string) {
+	identity := matcher.identity
 	title = strings.NewReplacer("_", " ", ".", " ").Replace(title)
-	matchTitle := regexp.MustCompile(`^\s*\[[^\]]+\]\s*`).ReplaceAllString(title, "")
+	matchTitle := leadingReleaseGroup.ReplaceAllString(title, "")
 	normalized := " " + normalize(matchTitle) + " "
+	// Recuts and spin-offs have numbering distinct from standard Naruto TV episodes.
+	if narutoVariantTag.MatchString(normalized) {
+		requestedRecut := false
+		for _, alias := range identity.Titles {
+			requestedRecut = requestedRecut || narutoVariantTag.MatchString(normalize(alias))
+		}
+		if !requestedRecut {
+			return false, false, "rejected: Naruto variant numbering differs from TV episodes"
+		}
+	}
 
 	multiSeasonPack := false
 	if set := seasonSetTag.FindStringSubmatch(title); len(set) > 0 {
 		for _, entry := range strings.Split(set[1]+set[2], "+") {
-			if number(entry) == identity.SeasonNumber {
+			if number(strings.TrimPrefix(strings.ToUpper(entry), "S")) == identity.SeasonNumber {
 				multiSeasonPack = true
 			}
 		}
@@ -250,6 +321,11 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 			}
 		}
 	}
+	if season == 0 {
+		if m := wordSeason.FindStringSubmatch(title); len(m) > 1 {
+			season = wordSeasonNumbers[strings.ToLower(m[1])]
+		}
+	}
 	if multiSeasonPack {
 		season = identity.SeasonNumber
 	}
@@ -260,8 +336,8 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 		seasonExtrasPackTag.MatchString(title) && !releaseEpisode.MatchString(title)
 
 	// 1. Excluded titles rejection
-	for _, other := range identity.ExcludedTitles {
-		base := normalize(CleanTitleForSearch(other))
+	for i, other := range identity.ExcludedTitles {
+		base := matcher.excluded[i]
 		if base != "" && strings.Contains(normalized, " "+base+" ") {
 			if multiSeasonPack || (season == identity.SeasonNumber && season > 0 && ovaTag.MatchString(other)) {
 				continue
@@ -275,7 +351,8 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 	if extraVideoTag.MatchString(title) && len(rangeMatch) == 0 {
 		return false, false, "rejected: extra/OST/OP/ED video tag"
 	}
-	if !identity.Standalone && movieTag.MatchString(title) && len(rangeMatch) == 0 {
+	if !identity.Standalone && movieTag.MatchString(title) &&
+		(len(rangeMatch) == 0 || movieTag.FindStringIndex(title)[0] < releaseRange.FindStringIndex(title)[0]) {
 		return false, false, "rejected: movie tag on standard TV target"
 	}
 	if !identity.Standalone && !identity.IsOVA && ovaTag.MatchString(title) {
@@ -289,11 +366,11 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 	// 3. Title match against allowed aliases
 	titleMatch := false
 	matchedAlias := ""
-	for _, alias := range identity.Titles {
-		base := normalize(CleanTitleForSearch(alias))
+	for _, alias := range matcher.aliases {
+		base := alias.clean
 		if base != "" && strings.Contains(normalized, " "+base+" ") {
 			titleMatch = true
-			matchedAlias = alias
+			matchedAlias = alias.key
 			break
 		}
 	}
@@ -312,13 +389,13 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 
 	if season == 0 && !identity.AllowUnqualified {
 		exact := false
-		for _, alias := range identity.Titles {
-			if normalize(alias) != normalize(CleanTitleForSearch(alias)) && strings.Contains(normalized, " "+normalize(alias)+" ") {
+		for _, alias := range matcher.aliases {
+			if alias.original != alias.clean && strings.Contains(normalized, " "+alias.original+" ") {
 				exact = true
 			}
 		}
-		for _, alias := range identity.UnqualifiedTitles {
-			if normalize(alias) != "" && strings.Contains(normalized, " "+normalize(alias)+" ") {
+		for _, alias := range matcher.unqualified {
+			if alias != "" && strings.Contains(normalized, " "+alias+" ") {
 				exact = true
 			}
 		}
@@ -348,7 +425,7 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 				}
 			}
 		}
-		if tail := regexp.MustCompile(`(?i)^\s*[-~]\s*(?:E|EP)?0*(\d+)(?:\s|\[|\(|\.|$)`).FindStringSubmatch(title[strings.Index(title, m[0])+len(m[0]):]); len(tail) > 1 {
+		if tail := taggedRangeTail.FindStringSubmatch(title[strings.Index(title, m[0])+len(m[0]):]); len(tail) > 1 {
 			end := number(tail[1])
 			if ep > 0 && end >= ep && target >= ep && target <= end {
 				return true, true, fmt.Sprintf("matched: tagged range %02d-%02d (contains ep %d)", ep, end, target)
@@ -373,13 +450,11 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 	}
 
 	// Bare episode numbers
-	for _, alias := range identity.Titles {
-		base := strings.TrimSpace(CleanTitleForSearch(alias))
-		if base == "" {
+	for _, alias := range matcher.aliases {
+		if alias.bare == nil {
 			continue
 		}
-		pattern := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(base) + `\s+0*(\d{1,4})(?:v\d+)?(?:\s|\[|\(|\.|$)`)
-		if m := pattern.FindStringSubmatch(title); len(m) > 1 {
+		if m := alias.bare.FindStringSubmatch(title); len(m) > 1 {
 			n := number(m[1])
 			if n != 480 && n != 720 && n != 1080 && n != 2160 && (n < 1900 || n > 2099) {
 				if n == target {
@@ -405,7 +480,12 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 	}
 
 	if season > 0 && len(rangeMatch) == 0 {
-		return false, true, fmt.Sprintf("rejected: season %d release without episode number", season)
+		return true, true, fmt.Sprintf("candidate: season %d pack; episode file must be verified", season)
+	}
+	// Absence of numbering or language tags is not evidence of absence. Keep an
+	// unqualified first-season release for the player's exact file/track checks.
+	if season == 0 && identity.SeasonNumber <= 1 && identity.AllowUnqualified {
+		return true, true, "candidate: unnumbered series release; episode file must be verified"
 	}
 
 	return false, false, fmt.Sprintf("rejected: no episode number matching %d found in '%s' (alias '%s')", target, title, matchedAlias)
@@ -472,50 +552,33 @@ func (r *EpisodeResolver) ResolveEpisodeSources(ctx context.Context, titles []st
 	return r.ResolveSeasonSources(ctx, EpisodeIdentity{Titles: titles, SeasonNumber: season, EpisodeNumber: ep, AllowUnqualified: season == 1})
 }
 
-// EpisodeSearchQueries prioritizes exact title/SxxExx identity for every alias.
+// EpisodeSearchQueries searches season packs before individually tagged episodes.
 func EpisodeSearchQueries(identity EpisodeIdentity) []string {
-	queries := []string{}
 	episode := identity.EpisodeNumber
 	if identity.TaggedEpisode > 0 {
 		episode = identity.TaggedEpisode
 	}
+	queries := []string{}
 	seen := map[string]bool{}
 	add := func(q string) {
-		q = strings.TrimSpace(q)
-		if q != "" && !seen[q] {
+		if !seen[q] {
 			seen[q] = true
 			queries = append(queries, q)
 		}
 	}
-
-	relevantTitles := []string{}
-	for _, alias := range identity.Titles {
-		clean := CleanTitleForSearch(strings.TrimSpace(alias))
-		if clean != "" && regexp.MustCompile(`[A-Za-z]`).MatchString(clean) {
-			norm := strings.ToLower(clean)
-			if !seen[norm] {
-				seen[norm] = true
-				relevantTitles = append(relevantTitles, clean)
-			}
+	for i, base := range searchAliases(identity, 6) {
+		if i >= 2 {
+			// A single broad query covers alternate localized/acronym titles; avoid
+			// multiplying every season and episode spelling across all aliases.
+			add(base)
+			continue
 		}
-		if len(relevantTitles) >= 4 {
-			break
-		}
-	}
-	if len(relevantTitles) == 0 && len(identity.Titles) > 0 {
-		relevantTitles = append(relevantTitles, CleanTitleForSearch(identity.Titles[0]))
-	}
-
-	for _, base := range relevantTitles {
-		add(fmt.Sprintf("%s S%02dE%02d", base, identity.SeasonNumber, episode))
-		add(fmt.Sprintf("%s %02d", base, episode))
 		add(fmt.Sprintf("%s S%02d", base, identity.SeasonNumber))
 		add(fmt.Sprintf("%s Season %d", base, identity.SeasonNumber))
-		add(fmt.Sprintf("%s Season %d batch", base, identity.SeasonNumber))
-		add(fmt.Sprintf("%s Judas", base))
-		add(fmt.Sprintf("%s Dual Audio", base))
-		add(fmt.Sprintf("%s Multi-Subs", base))
+		add(base)
 		add(base + " batch")
+		add(fmt.Sprintf("%s S%02dE%02d", base, identity.SeasonNumber, episode))
+		add(fmt.Sprintf("%s %02d", base, episode))
 		if identity.AbsoluteEpisode > 0 {
 			add(fmt.Sprintf("%s %02d", base, identity.AbsoluteEpisode))
 		}
@@ -523,40 +586,86 @@ func EpisodeSearchQueries(identity EpisodeIdentity) []string {
 	return queries
 }
 
+// SeasonPlaybackOptions are shared by all episodes in a season, so provider
+// caches can reuse discovery. Exact episode queries are reserved for fallback.
+func SeasonPlaybackOptions(identity EpisodeIdentity) []SearchOptions {
+	aliases := searchAliases(identity, 2)
+	if len(aliases) == 0 {
+		return nil
+	}
+	base := aliases[0]
+	options := []SearchOptions{
+		{Query: fmt.Sprintf("%s S%02d VF", base, identity.SeasonNumber), Category: "1_0"},
+		{Query: base + " VF", Category: "1_0"},
+		{Query: base + " MULTI", Category: "1_0"},
+		{Query: fmt.Sprintf("%s S%02d", base, identity.SeasonNumber), Category: "1_0"},
+		{Query: base + " VOSTFR", Category: "1_0"},
+		{Query: base + " batch", Category: "1_0"},
+	}
+	if len(aliases) > 1 {
+		// Romanised releases can omit their English catalog title entirely.
+		options = append(options, SearchOptions{Query: aliases[1] + " VF", Category: "1_0"}, SearchOptions{Query: fmt.Sprintf("%s S%02d", aliases[1], identity.SeasonNumber), Category: "1_0"})
+	}
+	return options
+}
+
 // FrenchSearchOptions run independently so broad English packs cannot consume their budget.
 func FrenchSearchOptions(identity EpisodeIdentity) []SearchOptions {
+	aliases := searchAliases(identity, 6)
+	options := []SearchOptions{}
+	// All-anime queries include both translated categories and miscategorised packs.
+	// Suffix-first ordering lets every alias reach VF before subtitle fallbacks.
+	for _, suffix := range []string{"VF", "FRENCH", "MULTI", "VOSTFR"} {
+		for i, base := range aliases {
+			if suffix != "VF" && i >= 2 {
+				continue
+			}
+			options = append(options, SearchOptions{Query: base + " " + suffix, Category: "1_0"})
+		}
+	}
+	for _, base := range aliases {
+		// Numberless releases without language tags remain candidates for track inspection.
+		options = append(options, SearchOptions{Query: base, Category: "1_3"})
+	}
+	return options
+}
+
+func searchAliases(identity EpisodeIdentity, limit int) []string {
 	aliases := []string{}
 	seen := map[string]bool{}
 	for _, alias := range identity.Titles {
 		base := CleanTitleForSearch(alias)
 		key := normalize(base)
-		if key != "" && regexp.MustCompile(`[A-Za-z]`).MatchString(base) && !seen[key] && len(aliases) < 6 {
+		if key != "" && latinSearchTitle.MatchString(base) && !seen[key] {
 			seen[key] = true
 			aliases = append(aliases, base)
-		}
-
-	}
-	options := []SearchOptions{}
-	for _, suffix := range []string{"VF", "VOSTFR", "FRENCH", "MULTI", fmt.Sprintf("S%02d VOSTFR", identity.SeasonNumber), fmt.Sprintf("S%02d VF", identity.SeasonNumber), fmt.Sprintf("S%02dE%02d VOSTFR", identity.SeasonNumber, identity.EpisodeNumber), fmt.Sprintf("S%02dE%02d VF", identity.SeasonNumber, identity.EpisodeNumber), fmt.Sprintf("%d VOSTFR", identity.EpisodeNumber), fmt.Sprintf("%d VF", identity.EpisodeNumber)} {
-		for _, base := range aliases {
-			// French subtitles also appear in the English-translated category
-			// on multilingual packs; search it separately from French releases.
-			for _, category := range []string{"1_2", "1_3"} {
-				options = append(options, SearchOptions{Query: base + " " + suffix, Category: category})
+			if len(aliases) == limit {
+				break
 			}
 		}
 	}
-	for _, base := range aliases {
-		options = append(options, SearchOptions{Query: fmt.Sprintf("%s %d", base, identity.EpisodeNumber), Category: "1_3"})
+	if len(aliases) == 0 && len(identity.Titles) > 0 {
+		aliases = append(aliases, CleanTitleForSearch(identity.Titles[0]))
 	}
-	return options
+	return aliases
 }
 
 func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity EpisodeIdentity) (*EpisodeSourcesResponse, error) {
+	return r.resolveSeasonSources(ctx, identity, false)
+}
+
+// ResolvePlaybackSources starts with shared season-pack queries.
+// A seeded VF or multilingual pack can be inspected before exhaustive discovery.
+func (r *EpisodeResolver) ResolvePlaybackSources(ctx context.Context, identity EpisodeIdentity) (*EpisodeSourcesResponse, error) {
+	return r.resolveSeasonSources(ctx, identity, true)
+}
+
+func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity EpisodeIdentity, playback bool) (*EpisodeSourcesResponse, error) {
 	if len(identity.Titles) == 0 || identity.EpisodeNumber <= 0 {
 		return nil, fmt.Errorf("invalid episode search arguments")
 	}
 	start := time.Now()
+	matcher := NewEpisodeMatcher(identity)
 	diagnostics.Log(ctx, slog.LevelInfo, "resolver.started", "titles", identity.Titles, "excluded_titles", identity.ExcludedTitles, "season_number", identity.SeasonNumber, "episode_number", identity.EpisodeNumber)
 	queries := EpisodeSearchQueries(identity)
 	var mu sync.Mutex
@@ -566,8 +675,10 @@ func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity Epi
 	searchParent, cancelSearch := context.WithTimeout(ctx, 20*time.Second)
 	defer cancelSearch()
 	var wg sync.WaitGroup
+	phaseParent := searchParent
+	searched := map[string]bool{}
 	runSearch := func(opts SearchOptions) {
-		searchCtx, cancel := context.WithTimeout(searchParent, 8*time.Second)
+		searchCtx, cancel := context.WithTimeout(phaseParent, 8*time.Second)
 		defer cancel()
 		querySeen := map[string]bool{}
 		for page := 1; page <= 2; page++ {
@@ -627,6 +738,11 @@ func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity Epi
 	runGroup := func(options []SearchOptions) {
 		jobs := make(chan SearchOptions, len(options))
 		for _, option := range options {
+			key := option.Category + "|" + normalize(option.Query)
+			if searched[key] {
+				continue
+			}
+			searched[key] = true
 			jobs <- option
 		}
 		close(jobs)
@@ -635,6 +751,12 @@ func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity Epi
 			go func() {
 				defer wg.Done()
 				for option := range jobs {
+					if phaseParent.Err() != nil {
+						mu.Lock()
+						truncated = true
+						mu.Unlock()
+						return
+					}
 					runSearch(option)
 				}
 			}()
@@ -644,8 +766,32 @@ func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity Epi
 	for _, query := range queries {
 		generic = append(generic, SearchOptions{Query: query, Category: "1_0"})
 	}
-	runGroup(FrenchSearchOptions(identity))
-	runGroup(generic)
+	frenchOptions := FrenchSearchOptions(identity)
+	ready := false
+	if playback {
+		primary := SeasonPlaybackOptions(identity)
+		fastCtx, cancelFast := context.WithTimeout(searchParent, 3*time.Second)
+		phaseParent = fastCtx
+		runGroup(primary)
+		wg.Wait()
+		cancelFast()
+		searched = map[string]bool{}
+		phaseParent = searchParent
+		for _, item := range items {
+			if matched, batch, _ := matcher.Match(item.Title); matched && batch && item.Seeders > 0 {
+				tag, _, _ := ClassifyLanguage(item.Title)
+				// MULTI remains unconfirmed, but its tracks can be checked while
+				// exhaustive discovery is deferred until the player's fallback.
+				ready = ready || tag == LangVF || tag == LangMULTI
+			}
+		}
+		// We intentionally skipped discovery; do not claim exhaustive results.
+		truncated = truncated || ready
+	}
+	if !ready {
+		runGroup(frenchOptions)
+		runGroup(generic)
+	}
 
 	wg.Wait()
 	if ctx.Err() != nil {
@@ -663,7 +809,7 @@ func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity Epi
 		debugLog = append(debugLog, fmt.Sprintf("[Resolver] Excluded titles (%d): %v", len(identity.ExcludedTitles), identity.ExcludedTitles))
 	}
 	for _, item := range items {
-		matches, batch, reason := MatchEpisodeDebug(item.Title, identity)
+		matches, batch, reason := matcher.Match(item.Title)
 		if !matches {
 			diagnostics.Log(ctx, slog.LevelDebug, "resolver.rejected", "infohash", item.InfoHash, "provider", item.Provider, "title", item.Title, "reason", reason)
 			if len(debugLog) < 60 {
@@ -679,25 +825,7 @@ func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity Epi
 			french++
 		}
 	}
-	sort.Slice(sources, func(i, j int) bool {
-		a, b := sources[i], sources[j]
-		if (a.Seeders > 0) != (b.Seeders > 0) {
-			return a.Seeders > 0
-		}
-		if a.ScoreRank != b.ScoreRank {
-			return a.ScoreRank > b.ScoreRank
-		}
-		if a.Seeders != b.Seeders {
-			return a.Seeders > b.Seeders
-		}
-		if a.IsFrench != b.IsFrench {
-			return a.IsFrench
-		}
-		if a.ScoreBreakdown.Quality != b.ScoreBreakdown.Quality {
-			return a.ScoreBreakdown.Quality > b.ScoreBreakdown.Quality
-		}
-		return a.InfoHash < b.InfoHash
-	})
+	SortEpisodeSources(sources)
 	diagnostics.Log(ctx, slog.LevelInfo, "resolver.completed", "sources", len(sources), "french_sources", french, "results", len(items), "search_failures", failures, "search_successes", successes, "duration_ms", time.Since(start).Milliseconds())
 	response := &EpisodeSourcesResponse{RequestID: diagnostics.Get(ctx).RequestID, PlaybackSessionID: diagnostics.Get(ctx).SessionID,
 		AnimeTitle:    identity.Titles[0],
@@ -713,4 +841,36 @@ func (r *EpisodeResolver) ResolveSeasonSources(ctx context.Context, identity Epi
 		response.Warning = "Recherche partielle : certains résultats du fournisseur sont indisponibles ou limités."
 	}
 	return response, nil
+}
+
+// SortEpisodeSources keeps offline audits and live playback ranking identical.
+func SortEpisodeSources(sources []EpisodeSource) {
+	sort.Slice(sources, func(i, j int) bool {
+		a, b := sources[i], sources[j]
+		if (a.Seeders > 0) != (b.Seeders > 0) {
+			return a.Seeders > 0
+		}
+		if a.ScoreBreakdown.French != b.ScoreBreakdown.French {
+			return a.ScoreBreakdown.French > b.ScoreBreakdown.French
+		}
+		if a.IsBatch != b.IsBatch {
+			return a.IsBatch
+		}
+		if a.ScoreBreakdown.Quality != b.ScoreBreakdown.Quality {
+			return a.ScoreBreakdown.Quality > b.ScoreBreakdown.Quality
+		}
+		if a.ScoreRank != b.ScoreRank {
+			return a.ScoreRank > b.ScoreRank
+		}
+		if a.Seeders != b.Seeders {
+			return a.Seeders > b.Seeders
+		}
+		if a.IsFrench != b.IsFrench {
+			return a.IsFrench
+		}
+		if a.ScoreBreakdown.Quality != b.ScoreBreakdown.Quality {
+			return a.ScoreBreakdown.Quality > b.ScoreBreakdown.Quality
+		}
+		return a.InfoHash < b.InfoHash
+	})
 }

@@ -1,0 +1,12 @@
+{
+  "case": "101280/101280/1",
+  "unique_sources_inspected": 13,
+  "statuses": {
+    "absent": 5,
+    "inaccessible": 5,
+    "episode_unverified": 2,
+    "unknown": 1
+  },
+  "vf_confirmed": false,
+  "note": "Absence applies only to the exact successfully probed file; discovery is partial."
+}

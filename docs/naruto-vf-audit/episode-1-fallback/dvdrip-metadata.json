@@ -1,0 +1,56 @@
+{
+  "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+  "file_index": 24,
+  "metadata": {
+    "probe_status": "complete",
+    "duration_sec": 1370.2,
+    "formatted_duration": "22:50",
+    "width": 640,
+    "height": 480,
+    "resolution": "480p",
+    "video_codec": "h264",
+    "audio_codec": "mp3",
+    "bitrate_bps": 0,
+    "total_bytes": 199096177,
+    "audio_tracks": [
+      {
+        "index": 0,
+        "stream_index": 1,
+        "language": "fre",
+        "title": "Francais",
+        "codec": "mp3",
+        "channels": 2,
+        "is_default": false
+      },
+      {
+        "index": 1,
+        "stream_index": 2,
+        "language": "jpn",
+        "title": "Japonais",
+        "codec": "mp3",
+        "channels": 2,
+        "is_default": false
+      }
+    ],
+    "subtitle_tracks": [
+      {
+        "index": 0,
+        "stream_index": 3,
+        "language": "fre",
+        "title": "Francais Pour La VF",
+        "codec": "subrip",
+        "is_default": false,
+        "is_forced": false
+      },
+      {
+        "index": 1,
+        "stream_index": 4,
+        "language": "fre",
+        "title": "Francais Pour La VO",
+        "codec": "dvd_subtitle",
+        "is_default": false,
+        "is_forced": false
+      }
+    ]
+  }
+}

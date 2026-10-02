@@ -50,6 +50,56 @@ func TestClassifyLanguage(t *testing.T) {
 	}
 }
 
+func TestNarutoNyaaReleasesAcrossTVEpisodes(t *testing.T) {
+	for episode := 1; episode <= 220; episode++ {
+		identity := indexer.EpisodeIdentity{Titles: []string{"Naruto"}, ExcludedTitles: []string{"Naruto Shippuden"}, SeasonNumber: 1, EpisodeNumber: episode, AllowUnqualified: true}
+		for _, title := range []string{"Naruto Yabai Intégrale 1080p x264 [VO][VF] + Multi Sub [ITA][POR][ES][EN]", "Naruto Yabaï Complete VF", "Naruto Kai Complete VOSTFR", "Naruto FullEdit Episode 01-03", "Naruto SD Complete", "Naruto Spin-Off - Rock Lee Complete", "[Naruto-Kun.Hu] Black Torch 08 [1080p].mkv", "Naruto OVA 01 VF", "Naruto Shippuden Complete VF", "[Judas] Naruto - Movies 01-03 [BD 1080p][Dual Audio]"} {
+			if matched, _ := indexer.MatchEpisode(title, identity); matched {
+				t.Errorf("episode %d accepted unrelated release %q", episode, title)
+			}
+		}
+		if matched, _ := indexer.MatchEpisode("Naruto DVDRIP VostFr/Vf", identity); !matched {
+			t.Errorf("episode %d rejected the original TV pack", episode)
+		}
+	}
+}
+
+func TestNarutoLanguageRankingFromNyaaTitles(t *testing.T) {
+	identity := indexer.EpisodeIdentity{Titles: []string{"Naruto"}, SeasonNumber: 1, EpisodeNumber: 1}
+	vf := indexer.RankSource(indexer.TorrentItem{Title: "Naruto DVDRIP VostFr/Vf", Seeders: 2}, identity, true)
+	vostfr := indexer.RankSource(indexer.TorrentItem{Title: "Naruto Complete VOSTFR 1080p", Seeders: 10000}, identity, true)
+	dual := indexer.RankSource(indexer.TorrentItem{Title: "Naruto Complete Series + Movies (High Quality)(Dual Audio) MKV DVDRip", Seeders: 10000}, identity, true)
+	if vf.ScoreRank != 213 || vf.LanguageTag != indexer.LangVF || !(vf.ScoreRank > vostfr.ScoreRank && vostfr.ScoreRank > dual.ScoreRank) || dual.IsFrench {
+		t.Fatalf("VF > VOSTFR > unconfirmed dual audio violated: %+v / %+v / %+v", vf, vostfr, dual)
+	}
+}
+
+func TestNarutoExclusionsNormalizeAccentsInLiveReleaseTitles(t *testing.T) {
+	identity := indexer.EpisodeIdentity{Titles: []string{"Naruto"}, ExcludedTitles: []string{"Naruto Shippuden", "Boruto Naruto Next Generations"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true}
+	for _, title := range []string{
+		"[MiracleSharingan] NARUTO SHIPPÛDEN Épisode 473 à 488[VOSTFR_Version_Pro][720p][AAC]",
+		"Naruto_Shippûden_375_Miracle-Sharingan_Fansub_Version_Finale_1280x720 [H264-HD-VOSTFR].mp4",
+		"Boruto - Naruto Next Générations vostfr 005 à 030 par Fansub-Miracle-Sharingan",
+	} {
+		if matched, _ := indexer.MatchEpisode(title, identity); matched {
+			t.Errorf("accepted sibling title %q", title)
+		}
+	}
+	if matched, _ := indexer.MatchEpisode("Naruto DVDRIP VostFr/Vf", identity); !matched {
+		t.Fatal("rejected original Naruto")
+	}
+}
+
+func TestLatinAccentMatchingDoesNotCollapseJapaneseTitles(t *testing.T) {
+	identity := indexer.EpisodeIdentity{Titles: []string{"ガール"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true}
+	if matched, _ := indexer.MatchEpisode("カール Complete", identity); matched {
+		t.Fatal("distinct Japanese titles collapsed")
+	}
+	if matched, _ := indexer.MatchEpisode("ガール Complete", identity); !matched {
+		t.Fatal("Japanese alias no longer matched")
+	}
+}
+
 func TestEpisodeIdentity(t *testing.T) {
 	identity := indexer.EpisodeIdentity{Titles: []string{"Example Season 2"}, SeasonNumber: 2, EpisodeNumber: 3}
 	for _, tt := range []struct {
@@ -65,7 +115,7 @@ func TestEpisodeIdentity(t *testing.T) {
 		{"Example S02 Complete 1080p", true, true},
 		{"Example S02 01-12 MULTI", true, true},
 		{"Example S02 04-12 MULTI", false, true},
-		{"Example S02 1080p 2024", false, true},
+		{"Example S02 1080p 2024", true, true},
 	} {
 		matched, batch := indexer.MatchEpisode(tt.title, identity)
 		if matched != tt.match || batch != tt.batch {
@@ -129,7 +179,7 @@ func TestPartAndMovieIdentity(t *testing.T) {
 	if match, _ := indexer.MatchEpisode("Example 03 1080p", single); !match {
 		t.Fatal("bare episode after title not matched")
 	}
-	if match, _ := indexer.MatchEpisode("Example 1080p", single); match {
+	if match, batch := indexer.MatchEpisode("Example 1080p", single); match && !batch {
 		t.Fatal("resolution mistaken for episode")
 	}
 	if match, batch := indexer.MatchEpisode("Example S01E01-E12 VOSTFR", single); !match || !batch {
@@ -214,8 +264,8 @@ func TestTensuraMultiSeasonFrenchPack(t *testing.T) {
 func TestFrenchSearchPrioritizesMultilingualPacks(t *testing.T) {
 	identity := indexer.EpisodeIdentity{Titles: []string{"Tensei Shitara Slime Datta Ken"}, SeasonNumber: 1, EpisodeNumber: 1}
 	options := indexer.FrenchSearchOptions(identity)
-	if len(options) < 2 || options[0].Query != "Tensei Shitara Slime Datta Ken VF" || options[0].Category != "1_2" || options[1].Category != "1_3" {
-		t.Fatalf("French packs must be searched first in both translated categories: %+v", options)
+	if len(options) != 5 || options[0].Query != "Tensei Shitara Slime Datta Ken VF" || options[0].Category != "1_0" || options[4].Category != "1_3" {
+		t.Fatalf("VF must cover all anime categories, with a tagless non-English fallback: %+v", options)
 	}
 }
 
@@ -240,7 +290,7 @@ func TestSeasonExtrasPackIdentity(t *testing.T) {
 		{"One Punch Man OAV S01E01 VF", false, false},
 		{"One Punch Man S01 + OAV - 01 VF", false, false},
 		{"One Punch Man OAD S01 VF", false, false},
-		{"One Punch Man S01 1080p", false, true},
+		{"One Punch Man S01 1080p", true, true},
 	} {
 		matched, batch := indexer.MatchEpisode(tt.title, identity)
 		if matched != tt.match || batch != tt.batch {
@@ -273,7 +323,7 @@ func TestCompleteSeriesPack(t *testing.T) {
 	}{
 		{"Death Note - BDRIP - VF VOSTFR - 1080p x265 AC3", true},
 		{"[Sav1our] Death Note (EN|ES|FR|PT|RU) [BD][720p][AV1][OPUS][Multi Dual Audio]", true},
-		{"Death Note [1080p]", false},
+		{"Death Note [1080p]", true},
 		{"Death Note 07 [BerSerk]", false},
 		{"[Odji-san] Death Note Kaï Films 1 à 6 (intégrale) 1080p [DUB][VO|VF|EN]", false},
 	} {

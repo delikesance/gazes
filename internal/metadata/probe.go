@@ -39,6 +39,8 @@ type SubtitleTrack struct {
 
 // VideoMetadata encapsulates parsed stream details, dimensions, codecs, durations, and multi-tracks.
 type VideoMetadata struct {
+	ProbeStatus       string          `json:"probe_status,omitempty"`
+	ProbeErrorCode    string          `json:"probe_error_code,omitempty"`
 	DurationSec       float64         `json:"duration_sec"`
 	FormattedDuration string          `json:"formatted_duration"`
 	Width             int             `json:"width"`
@@ -95,19 +97,48 @@ func NewFFprobeAnalyzer(logger *slog.Logger) *FFprobeAnalyzer {
 
 // ProbeReader inspects an on-the-fly stream using ffprobe to extract video, audio, and subtitle properties.
 func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalBytes int64) (*VideoMetadata, error) {
+	// Header sizes grow in steps: most files describe their tracks in the first 64 KB, while MKVs
+	// with many attached fonts (fansub batches) only list them after several MB. Each step is
+	// bounded and rewinds the reader; a slow swarm never triggers a whole-file scan.
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	var meta *VideoMetadata
+	var err error
+	for i, limit := range probeLimits {
+		if i > 0 {
+			seekable, ok := r.(io.Seeker)
+			if !ok || ctx.Err() != nil || totalBytes <= probeLimits[i-1] {
+				break
+			}
+			if _, seekErr := seekable.Seek(0, io.SeekStart); seekErr != nil {
+				break
+			}
+		}
+		meta, err = a.probeReader(ctx, r, totalBytes, limit)
+		if err == nil && (meta.DurationSec > 0 || len(meta.AudioTracks) > 0) {
+			return meta, nil
+		}
+	}
+	return meta, err
+}
+
+// probeLimits are the bytes read from the start of the file at each probe attempt.
+var probeLimits = []int64{64 * 1024, 1_000_000, 10_000_000}
+
+func (a *FFprobeAnalyzer) probeReader(ctx context.Context, r io.Reader, totalBytes, maxBytes int64) (*VideoMetadata, error) {
 	diagnostics.Logger(ctx, a.logger).Debug("media.probe_started", "bytes", totalBytes)
 	ffprobeBin := findFFprobePath()
 
 	args := []string{
 		"-v", "error",
-		"-probesize", "1000000",
+		"-probesize", strconv.FormatInt(maxBytes, 10),
 		"-analyzeduration", "1000000",
 		"-show_entries", "format=duration,size,bit_rate:stream=index,codec_name,codec_type,width,height,channels,disposition:stream_tags=language,title",
 		"-of", "json",
 		"pipe:0",
 	}
 
-	probeCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(probeCtx, ffprobeBin, args...)
@@ -129,7 +160,7 @@ func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalByt
 		go func() {
 			defer close(done)
 			defer input.Close()
-			_, _ = io.Copy(input, &probeContextReader{ctx: probeCtx, reader: contextual})
+			_, _ = io.Copy(input, io.LimitReader(&probeContextReader{ctx: probeCtx, reader: contextual}, maxBytes))
 		}()
 		runErr = cmd.Run()
 		contextErr = probeCtx.Err()
@@ -137,7 +168,7 @@ func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalByt
 		_ = input.Close()
 		<-done // Finish the reader before callers restore its seek position.
 	} else {
-		cmd.Stdin = r
+		cmd.Stdin = io.LimitReader(r, maxBytes)
 		runErr = cmd.Run()
 		contextErr = probeCtx.Err()
 	}
@@ -146,19 +177,16 @@ func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalByt
 			return nil, fmt.Errorf("ffprobe timeout or cancelled: %w", contextErr)
 		}
 		diagnostics.Logger(ctx, a.logger).Debug("ffprobe execution note", "err", runErr, "stderr", stderrBuf.String())
-		return &VideoMetadata{TotalBytes: totalBytes, AudioTracks: make([]AudioTrack, 0), SubtitleTracks: make([]SubtitleTrack, 0)}, nil
+		return nil, fmt.Errorf("ffprobe failed: %w", runErr)
 	}
 
 	var parsed ffprobeOutput
 	if err := json.Unmarshal(stdoutBuf.Bytes(), &parsed); err != nil {
-		return &VideoMetadata{
-			TotalBytes:     totalBytes,
-			AudioTracks:    make([]AudioTrack, 0),
-			SubtitleTracks: make([]SubtitleTrack, 0),
-		}, nil
+		return nil, fmt.Errorf("invalid ffprobe output: %w", err)
 	}
 
 	meta := &VideoMetadata{
+		ProbeStatus:    "complete",
 		TotalBytes:     totalBytes,
 		AudioTracks:    make([]AudioTrack, 0),
 		SubtitleTracks: make([]SubtitleTrack, 0),
@@ -235,6 +263,9 @@ func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalByt
 		}
 	}
 
+	if meta.VideoCodec == "" {
+		return nil, fmt.Errorf("ffprobe returned no video stream")
+	}
 	diagnostics.Logger(ctx, a.logger).Debug("media.probe_completed", "video_codec", meta.VideoCodec, "audio_tracks", meta.AudioTracks, "subtitle_tracks", meta.SubtitleTracks, "duration", meta.DurationSec)
 	return meta, nil
 }

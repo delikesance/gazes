@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AtSign, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
 import { AuthError, solveFreshCaptcha, type AuthErrorCode } from "@/lib/auth";
+import { getCatalogPopular } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "./AuthProvider";
 import { PageGrid } from "./ui/PageGrid";
@@ -65,9 +66,19 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pitchCover, setPitchCover] = useState<string | null>(null);
   const strength = useMemo(() => passwordStrength(password), [password]);
 
   useEffect(() => { if (user) router.replace(next); }, [user, next, router]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getCatalogPopular(1, 12, controller.signal).then(({ items }) => {
+      const covers = items.map(anime => anime.media_poster_image || anime.poster_image).filter((cover): cover is string => Boolean(cover));
+      if (!controller.signal.aborted && covers.length) setPitchCover(covers[Math.floor(Math.random() * covers.length)]);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const translateCode = (code: AuthErrorCode | string) => t(ERRORS[code] || "Une erreur est survenue. Réessayez.");
 
@@ -106,6 +117,11 @@ export function AuthPage({ mode }: { mode: Mode }) {
       <PageGrid />
       <section className="auth-card" aria-labelledby="auth-title">
         <div className="auth-pitch">
+          {pitchCover && (
+            // Decorative background: keep the form and text independent of image loading.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="auth-pitch-cover" src={pitchCover} alt="" aria-hidden="true" decoding="async" onError={() => setPitchCover(null)} />
+          )}
           <Scribble shape="a" width={300} rotate={-8} style={{ left: -70, top: -60 }} />
           <Scribble shape="b" width={320} rotate={6} style={{ right: -90, bottom: -40 }} />
           <div className="auth-pitch-copy">
