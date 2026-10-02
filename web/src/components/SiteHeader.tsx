@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Search, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { AccountMenu } from "./AccountMenu";
 
 function Header({ query = "", onSubmit }: { query?: string; onSubmit?: (event: FormEvent<HTMLFormElement>) => void }) {
   const { t } = useI18n();
@@ -26,6 +27,7 @@ function Header({ query = "", onSubmit }: { query?: string; onSubmit?: (event: F
         <button type="button" aria-label={t("Fermer la recherche")} onClick={closeSearch}><X size={17} /></button>
       </form>}
       <ThemeToggle />
+      <AccountMenu />
     </div>
   </header>;
 }

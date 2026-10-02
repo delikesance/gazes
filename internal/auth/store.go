@@ -27,6 +27,8 @@ type User struct {
 // finished season disappears on every device.
 type Progress struct {
 	SeasonID  int64   `json:"season_id"`
+	AnimeID   int64   `json:"anime_id"`
+	Title     string  `json:"title"`
 	Episode   int     `json:"episode"`
 	Position  float64 `json:"position"`
 	Completed bool    `json:"completed"`
@@ -52,6 +54,8 @@ CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
 CREATE TABLE IF NOT EXISTS progress (
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	season_id INTEGER NOT NULL,
+	anime_id INTEGER NOT NULL DEFAULT 0,
+	title TEXT NOT NULL DEFAULT '',
 	episode INTEGER NOT NULL,
 	position REAL NOT NULL,
 	completed INTEGER NOT NULL,
@@ -150,9 +154,9 @@ func (s *Store) MergeProgress(userID int64, items []Progress) error {
 		if p.Completed {
 			done = 1
 		}
-		if _, err := tx.Exec(`INSERT INTO progress(user_id, season_id, episode, position, completed, updated_at) VALUES(?,?,?,?,?,?)
-			ON CONFLICT(user_id, season_id) DO UPDATE SET episode=excluded.episode, position=excluded.position, completed=excluded.completed, updated_at=excluded.updated_at
-			WHERE excluded.updated_at > progress.updated_at`, userID, p.SeasonID, p.Episode, p.Position, done, p.UpdatedAt); err != nil {
+		if _, err := tx.Exec(`INSERT INTO progress(user_id, season_id, anime_id, title, episode, position, completed, updated_at) VALUES(?,?,?,?,?,?,?,?)
+			ON CONFLICT(user_id, season_id) DO UPDATE SET anime_id=excluded.anime_id, title=excluded.title, episode=excluded.episode, position=excluded.position, completed=excluded.completed, updated_at=excluded.updated_at
+			WHERE excluded.updated_at > progress.updated_at`, userID, p.SeasonID, p.AnimeID, p.Title, p.Episode, p.Position, done, p.UpdatedAt); err != nil {
 			return err
 		}
 	}
@@ -160,7 +164,7 @@ func (s *Store) MergeProgress(userID int64, items []Progress) error {
 }
 
 func (s *Store) ListProgress(userID int64) ([]Progress, error) {
-	rows, err := s.db.Query(`SELECT season_id, episode, position, completed, updated_at FROM progress WHERE user_id = ? ORDER BY updated_at DESC`, userID)
+	rows, err := s.db.Query(`SELECT season_id, anime_id, title, episode, position, completed, updated_at FROM progress WHERE user_id = ? ORDER BY updated_at DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +173,7 @@ func (s *Store) ListProgress(userID int64) ([]Progress, error) {
 	for rows.Next() {
 		var p Progress
 		var done int
-		if err := rows.Scan(&p.SeasonID, &p.Episode, &p.Position, &done, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.SeasonID, &p.AnimeID, &p.Title, &p.Episode, &p.Position, &done, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		p.Completed = done == 1

@@ -14,9 +14,13 @@
     "test:design": "node scripts/design-flow.mjs",
     "test:hero": "node scripts/featured-hero.test.mjs",
     "test:tracks": "node scripts/media-tracks.test.mjs",
-    "test:i18n": "node scripts/i18n-flow.mjs"
+    "test:i18n": "node scripts/i18n-flow.mjs",
+    "test:auth": "node scripts/auth-envelope.test.mjs"
   },
   "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@noble/post-quantum": "^0.7.1",
     "clsx": "^2.1.1",
     "jassub": "2.5.16",
     "lucide-react": "^1.49.0",
