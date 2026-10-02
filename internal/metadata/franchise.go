@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"time"
+
+	"github.com/gazes/gazes/internal/kv"
 )
 
 var regexpSeasonNumber = regexp.MustCompile(`(?i)\b(?:season|saison|s)\s*(\d+)\b|\b(\d+)(?:st|nd|rd|th)\s+season`)
@@ -39,20 +42,23 @@ type Franchise struct {
 	Complete    bool          `json:"complete"`
 	Warning     string        `json:"warning,omitempty"`
 }
-type cachedFranchise struct {
-	data      *Franchise
-	expiresAt time.Time
-}
 
 // GetFranchise walks continuity relations instead of guessing membership from titles.
 // Side stories are included but do not bridge otherwise unrelated continuities.
 func (s *AnimeCatalogService) GetFranchise(ctx context.Context, id int) (*Franchise, error) {
-	s.mu.RLock()
-	cached, ok := s.franchiseCache[id]
-	s.mu.RUnlock()
-	if ok && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
-	}
+	// Only complete franchises are stored; a partial one must be retried, not frozen.
+	policy := kv.Policy[Franchise]{TTLFor: func(f *Franchise) time.Duration {
+		if f.Complete {
+			return 2 * time.Hour
+		}
+		return 0
+	}}
+	return s.franchiseC.Get(ctx, strconv.Itoa(id), policy, func(ctx context.Context) (*Franchise, error) {
+		return s.buildFranchise(ctx, id)
+	})
+}
+
+func (s *AnimeCatalogService) buildFranchise(ctx context.Context, id int) (*Franchise, error) {
 	root, err := s.GetAnimeDetailsWithEpisodes(ctx, id)
 	if err != nil {
 		return nil, err
@@ -199,16 +205,12 @@ func (s *AnimeCatalogService) GetFranchise(ctx context.Context, id int) (*Franch
 		f.Warning = "Certaines saisons n’ont pas pu être chargées. Réessayez."
 	}
 	if complete {
-		s.mu.Lock()
-		if len(s.franchiseCache) >= 512 {
-			clear(s.franchiseCache)
-		}
+		// Every main entry resolves to the same franchise: store it under each of their ids.
 		for entryID := range entries {
-			if main[entryID] {
-				s.franchiseCache[entryID] = cachedFranchise{f, time.Now().Add(2 * time.Hour)}
+			if main[entryID] && entryID != id {
+				s.franchiseC.Put(ctx, strconv.Itoa(entryID), f, 2*time.Hour)
 			}
 		}
-		s.mu.Unlock()
 	}
 	return f, nil
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/gazes/gazes/internal/kv"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -32,6 +33,7 @@ type Server struct {
 	router          chi.Router
 	diagnosticRate  diagnosticLimiter
 	auth            *auth.Service
+	kv              *kv.Client
 	sourceCache     *sourceCache
 	sourceCacheOnce sync.Once
 }
@@ -41,6 +43,16 @@ type Option func(*Server)
 
 // WithAuth enables the account routes.
 func WithAuth(svc *auth.Service) Option { return func(s *Server) { s.auth = svc } }
+
+// WithRedis moves every shared cache, upstream rate limit and single-flight to Redis, so all
+// instances behave like one polite client of AniList and the indexers.
+func WithRedis(c *kv.Client) Option {
+	return func(s *Server) {
+		s.kv = c
+		s.catalogService.SetRedis(c)
+		s.animeService.SetRedis(c)
+	}
+}
 
 // NewServer initializes a new Server instance.
 func NewServer(

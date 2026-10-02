@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/gazes/gazes/internal/kv"
 	"sort"
 	"strings"
 	"time"
@@ -28,26 +29,16 @@ func (s *AnimeCatalogService) GetCurrentSeason(ctx context.Context, page, perPag
 	}
 	season, year := catalogSeason(time.Now().UTC())
 	key := fmt.Sprintf("seasonal-%s-%d-%d-%d", season, year, page, perPage)
-	s.mu.RLock()
-	cached, found := s.cache[key]
-	s.mu.RUnlock()
-	if found && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
-	}
-	result, err := s.doGraphQLPageQuery(ctx, seasonalQuery, map[string]interface{}{"page": page, "perPage": perPage, "season": season, "seasonYear": year})
-	if err != nil {
-		return nil, err
-	}
-	sortSeasonalReleases(result.Items)
-	result.Season = season
-	result.SeasonYear = year
-	s.mu.Lock()
-	if len(s.cache) >= 256 {
-		clear(s.cache)
-	}
-	s.cache[key] = cachedCatalog{data: result, expiresAt: time.Now().Add(30 * time.Minute)}
-	s.mu.Unlock()
-	return result, nil
+	return s.catalogC.Get(ctx, key, kv.Policy[CatalogResponse]{TTL: 30 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
+		result, err := s.doGraphQLPageQuery(ctx, seasonalQuery, map[string]interface{}{"page": page, "perPage": perPage, "season": season, "seasonYear": year})
+		if err != nil {
+			return nil, err
+		}
+		sortSeasonalReleases(result.Items)
+		result.Season = season
+		result.SeasonYear = year
+		return result, nil
+	})
 }
 
 // Complete premiere dates sort first; partial or missing dates stay at the end.

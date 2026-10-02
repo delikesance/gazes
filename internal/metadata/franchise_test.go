@@ -3,12 +3,13 @@ package metadata
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 )
 
 func TestFranchiseContinuityAndExtras(t *testing.T) {
-	s := &AnimeCatalogService{detailCache: map[int]cachedItem{}, franchiseCache: map[int]cachedFranchise{}}
+	s := NewAnimeCatalogService(nil)
 	items := []AnimeCatalogItem{
 		{ID: 1, DisplayTitle: "Original", Format: "TV", StartDate: "2020-01-01", Relations: []AnimeRelation{{ID: 2, RelationType: "SEQUEL"}, {ID: 4, RelationType: "SIDE_STORY"}}},
 		{ID: 2, DisplayTitle: "Entirely Different Title", Format: "TV", StartDate: "2021-01-01", Relations: []AnimeRelation{{ID: 1, RelationType: "PREQUEL"}, {ID: 3, RelationType: "SEQUEL"}}},
@@ -16,7 +17,7 @@ func TestFranchiseContinuityAndExtras(t *testing.T) {
 		{ID: 4, DisplayTitle: "Movie", Format: "MOVIE", StartDate: "2021-05-01", Relations: []AnimeRelation{{ID: 99, RelationType: "SEQUEL"}}},
 	}
 	for i := range items {
-		s.detailCache[items[i].ID] = cachedItem{&items[i], time.Now().Add(time.Hour)}
+		s.detailC.Put(context.Background(), strconv.Itoa(items[i].ID), &items[i], time.Hour)
 	}
 	f, err := s.GetFranchise(context.Background(), 2)
 	if err != nil || !f.Complete || f.ID != 1 || len(f.Seasons) != 4 {
@@ -51,11 +52,11 @@ func TestEpisodeGapsAndDuplicateListings(t *testing.T) {
 }
 
 func TestSplitPartsKeepCanonicalSeason(t *testing.T) {
-	s := &AnimeCatalogService{detailCache: map[int]cachedItem{}, franchiseCache: map[int]cachedFranchise{}}
+	s := NewAnimeCatalogService(nil)
 	a := &AnimeCatalogItem{ID: 1, DisplayTitle: "Example Season 1", Format: "TV", StartDate: "2020-01-01", Relations: []AnimeRelation{{ID: 2, RelationType: "SEQUEL"}}}
 	b := &AnimeCatalogItem{ID: 2, DisplayTitle: "Example Season 1 Part 2", Format: "TV", StartDate: "2020-06-01", Relations: []AnimeRelation{{ID: 1, RelationType: "PREQUEL"}}}
-	s.detailCache[1] = cachedItem{a, time.Now().Add(time.Hour)}
-	s.detailCache[2] = cachedItem{b, time.Now().Add(time.Hour)}
+	s.detailC.Put(context.Background(), "1", a, time.Hour)
+	s.detailC.Put(context.Background(), "2", b, time.Hour)
 	f, err := s.GetFranchise(context.Background(), 2)
 	if err != nil || f.ID != 1 || len(f.Seasons) != 2 || f.Seasons[1].SeasonNumber != 1 {
 		t.Fatalf("split season: %+v %v", f, err)
@@ -79,11 +80,11 @@ func TestRenamedSequelsUseTheirOwnReleaseSeason(t *testing.T) {
 			t.Errorf("%s: got release season %d, want %d", tt.title, got, tt.want)
 		}
 	}
-	s := &AnimeCatalogService{detailCache: map[int]cachedItem{}, franchiseCache: map[int]cachedFranchise{}}
+	s := NewAnimeCatalogService(nil)
 	a := &AnimeCatalogItem{ID: 20, DisplayTitle: "Naruto", Format: "TV", StartDate: "2002-10-03", Relations: []AnimeRelation{{ID: 1735, RelationType: "SEQUEL"}}}
 	b := &AnimeCatalogItem{ID: 1735, DisplayTitle: "Naruto Shippuden", Format: "TV", StartDate: "2007-02-15", Relations: []AnimeRelation{{ID: 20, RelationType: "PREQUEL"}}}
-	s.detailCache[20] = cachedItem{a, time.Now().Add(time.Hour)}
-	s.detailCache[1735] = cachedItem{b, time.Now().Add(time.Hour)}
+	s.detailC.Put(context.Background(), "20", a, time.Hour)
+	s.detailC.Put(context.Background(), "1735", b, time.Hour)
 	f, err := s.GetFranchise(context.Background(), 1735)
 	if err != nil || f.ID != 20 || len(f.Seasons) != 2 {
 		t.Fatalf("%+v %v", f, err)

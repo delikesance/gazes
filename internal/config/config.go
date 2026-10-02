@@ -21,6 +21,9 @@ type Config struct {
 	TorrentCacheMaxBytes int64         `json:"torrent_cache_max_bytes"`
 	AccountsDir          string        `json:"accounts_dir"`
 	TrustProxy           bool          `json:"trust_proxy"`
+	// RedisURL is required: it holds the caches, upstream rate limits and auth state shared by every instance.
+	RedisURL       string `json:"-"`
+	RedisNamespace string `json:"redis_namespace"`
 }
 
 // Load loads configuration from environment variables with fallback defaults.
@@ -39,6 +42,8 @@ func Load() *Config {
 		TorrentCacheMaxBytes: getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
 		AccountsDir:          getEnv("ACCOUNTS_DIR", "./accounts"),
 		TrustProxy:           getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
+		RedisURL:             getEnv("REDIS_URL", ""),
+		RedisNamespace:       getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
 	}
 }
 

@@ -1,13 +1,13 @@
 package metadata
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/gazes/gazes/internal/kv"
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -108,38 +108,35 @@ type CatalogProvider interface {
 
 // AnimeCatalogService implements CatalogProvider using AniList GraphQL API with local caching.
 type AnimeCatalogService struct {
-	httpClient     *http.Client
-	cache          map[string]cachedCatalog
-	detailCache    map[int]cachedItem
-	franchiseCache map[int]cachedFranchise
-	scheduleCache  map[string]cachedSchedule
-	mu             sync.RWMutex
+	anilist    *anilistClient
+	catalogC   *kv.Cache[CatalogResponse]
+	detailC    *kv.Cache[AnimeCatalogItem]
+	franchiseC *kv.Cache[Franchise]
+	scheduleC  *kv.Cache[ScheduleResponse]
 }
 
-type cachedCatalog struct {
-	data      *CatalogResponse
-	expiresAt time.Time
-}
-
-type cachedItem struct {
-	data      *AnimeCatalogItem
-	expiresAt time.Time
-}
-
-// NewAnimeCatalogService creates a new catalog service.
+// NewAnimeCatalogService creates a catalog service with process-local caches; call SetRedis to
+// share caches, rate limiting and single-flight across instances.
 func NewAnimeCatalogService(client *http.Client) *AnimeCatalogService {
 	if client == nil {
 		client = &http.Client{Timeout: 8 * time.Second}
 	}
-	s := &AnimeCatalogService{
-		httpClient:     client,
-		cache:          make(map[string]cachedCatalog),
-		detailCache:    make(map[int]cachedItem),
-		franchiseCache: make(map[int]cachedFranchise),
-		scheduleCache:  make(map[string]cachedSchedule),
-	}
-
+	s := &AnimeCatalogService{anilist: newAnilistClient(client, nil)}
+	s.initCaches(nil)
 	return s
+}
+
+// SetRedis moves the caches and the AniList governor to Redis. Call it before serving traffic.
+func (s *AnimeCatalogService) SetRedis(c *kv.Client) {
+	s.anilist = newAnilistClient(s.anilist.http, c)
+	s.initCaches(c)
+}
+
+func (s *AnimeCatalogService) initCaches(c *kv.Client) {
+	s.catalogC = kv.NewCache[CatalogResponse](c, "catalog", kv.CacheOptions{L1Max: 256})
+	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail", kv.CacheOptions{L1Max: 512})
+	s.franchiseC = kv.NewCache[Franchise](c, "franchise", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
+	s.scheduleC = kv.NewCache[ScheduleResponse](c, "schedule", kv.CacheOptions{L1Max: 64})
 }
 
 const trendingQuery = `
@@ -873,34 +870,14 @@ func (s *AnimeCatalogService) GetTrending(ctx context.Context, page, perPage int
 	}
 
 	cacheKey := fmt.Sprintf("trending-%d-%d", page, perPage)
-	s.mu.RLock()
-	cached, found := s.cache[cacheKey]
-	s.mu.RUnlock()
-	if found && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
-	}
-
 	variables := map[string]interface{}{
 		"page":    page,
 		"perPage": perPage,
 	}
 
-	resp, err := s.doGraphQLPageQuery(ctx, trendingQuery, variables)
-	if err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	if len(s.cache) >= 256 {
-		clear(s.cache)
-	}
-	s.cache[cacheKey] = cachedCatalog{
-		data:      resp,
-		expiresAt: time.Now().Add(30 * time.Minute),
-	}
-	s.mu.Unlock()
-
-	return resp, nil
+	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: 30 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
+		return s.doGraphQLPageQuery(ctx, trendingQuery, variables)
+	})
 }
 
 // GetPopular returns all-time popular anime.
@@ -913,34 +890,14 @@ func (s *AnimeCatalogService) GetPopular(ctx context.Context, page, perPage int)
 	}
 
 	cacheKey := fmt.Sprintf("popular-%d-%d", page, perPage)
-	s.mu.RLock()
-	cached, found := s.cache[cacheKey]
-	s.mu.RUnlock()
-	if found && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
-	}
-
 	variables := map[string]interface{}{
 		"page":    page,
 		"perPage": perPage,
 	}
 
-	resp, err := s.doGraphQLPageQuery(ctx, popularQuery, variables)
-	if err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	if len(s.cache) >= 256 {
-		clear(s.cache)
-	}
-	s.cache[cacheKey] = cachedCatalog{
-		data:      resp,
-		expiresAt: time.Now().Add(1 * time.Hour),
-	}
-	s.mu.Unlock()
-
-	return resp, nil
+	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: time.Hour}, func(ctx context.Context) (*CatalogResponse, error) {
+		return s.doGraphQLPageQuery(ctx, popularQuery, variables)
+	})
 }
 
 // SearchCatalog searches anime by title or genre.
@@ -956,13 +913,6 @@ func (s *AnimeCatalogService) SearchCatalog(ctx context.Context, query string, g
 	genre = strings.TrimSpace(genre)
 
 	cacheKey := fmt.Sprintf("search-%s-%s-%d-%d", strings.ToLower(query), strings.ToLower(genre), page, perPage)
-	s.mu.RLock()
-	cached, found := s.cache[cacheKey]
-	s.mu.RUnlock()
-	if found && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
-	}
-
 	variables := map[string]interface{}{
 		"page":    page,
 		"perPage": perPage,
@@ -974,22 +924,9 @@ func (s *AnimeCatalogService) SearchCatalog(ctx context.Context, query string, g
 		variables["genre"] = genre
 	}
 
-	resp, err := s.doGraphQLPageQuery(ctx, searchQuery, variables)
-	if err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	if len(s.cache) >= 256 {
-		clear(s.cache)
-	}
-	s.cache[cacheKey] = cachedCatalog{
-		data:      resp,
-		expiresAt: time.Now().Add(15 * time.Minute),
-	}
-	s.mu.Unlock()
-
-	return resp, nil
+	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: 15 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
+		return s.doGraphQLPageQuery(ctx, searchQuery, variables)
+	})
 }
 
 // GetAnimeDetailsWithEpisodes gets full anime metadata with episode details.
@@ -997,105 +934,27 @@ func (s *AnimeCatalogService) GetAnimeDetailsWithEpisodes(ctx context.Context, i
 	if id <= 0 {
 		return nil, fmt.Errorf("invalid anime id: %d", id)
 	}
-
-	s.mu.RLock()
-	cached, found := s.detailCache[id]
-	s.mu.RUnlock()
-	if found && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
-	}
-
-	reqBody := map[string]interface{}{
-		"query": animeDetailWithEpisodesQuery,
-		"variables": map[string]interface{}{
-			"id": id,
-		},
-	}
-
-	jsonBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://graphql.anilist.co", bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Gazes/1.0 (AnimeStreamingEngine)")
-
-	httpResp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer httpResp.Body.Close()
-
-	if httpResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anilist returned status %d", httpResp.StatusCode)
-	}
-
-	var parsed aniListDetailResponse
-	if err := json.NewDecoder(httpResp.Body).Decode(&parsed); err != nil {
-		return nil, err
-	}
-
-	if len(parsed.Errors) > 0 {
-		return nil, fmt.Errorf("anilist: %s", parsed.Errors[0].Message)
-	}
-	if parsed.Data.Media.ID == 0 {
-		return nil, fmt.Errorf("anime not found for id %d", id)
-	}
-
-	item := formatCatalogItem(&parsed.Data.Media, true)
-
-	s.mu.Lock()
-	if len(s.detailCache) >= 512 {
-		clear(s.detailCache)
-	}
-	s.detailCache[id] = cachedItem{
-		data:      &item,
-		expiresAt: time.Now().Add(2 * time.Hour),
-	}
-	s.mu.Unlock()
-
-	return &item, nil
+	return s.detailC.Get(ctx, strconv.Itoa(id), kv.Policy[AnimeCatalogItem]{TTL: 2 * time.Hour}, func(ctx context.Context) (*AnimeCatalogItem, error) {
+		var parsed aniListDetailResponse
+		if err := s.anilist.post(ctx, animeDetailWithEpisodesQuery, map[string]interface{}{"id": id}, &parsed); err != nil {
+			return nil, err
+		}
+		if len(parsed.Errors) > 0 {
+			return nil, fmt.Errorf("anilist: %s", parsed.Errors[0].Message)
+		}
+		if parsed.Data.Media.ID == 0 {
+			return nil, fmt.Errorf("anime not found for id %d", id)
+		}
+		item := formatCatalogItem(&parsed.Data.Media, true)
+		return &item, nil
+	})
 }
 
 func (s *AnimeCatalogService) doGraphQLPageQuery(ctx context.Context, query string, variables map[string]interface{}) (*CatalogResponse, error) {
-	reqBody := map[string]interface{}{
-		"query":     query,
-		"variables": variables,
-	}
-
-	jsonBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://graphql.anilist.co", bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Gazes/1.0 (AnimeStreamingEngine)")
-
-	httpResp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer httpResp.Body.Close()
-
-	if httpResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anilist page query failed with status %d", httpResp.StatusCode)
-	}
-
 	var parsed aniListPageResponse
-	if err := json.NewDecoder(httpResp.Body).Decode(&parsed); err != nil {
+	if err := s.anilist.post(ctx, query, variables, &parsed); err != nil {
 		return nil, err
 	}
-
 	if len(parsed.Errors) > 0 {
 		return nil, fmt.Errorf("anilist: %s", parsed.Errors[0].Message)
 	}

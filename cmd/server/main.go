@@ -19,6 +19,7 @@ import (
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/indexer/nyaa"
 	"github.com/gazes/gazes/internal/indexer/settings"
+	"github.com/gazes/gazes/internal/kv"
 	"github.com/gazes/gazes/internal/stream"
 	"github.com/gazes/gazes/internal/torrent"
 )
@@ -82,6 +83,20 @@ func main() {
 	// 6. Initialize Media Streaming Pipeline
 	streamPipeline := stream.NewPipelineManager(logger)
 
+	// Redis is required: caches, upstream rate limits and auth state are shared through it.
+	if cfg.RedisURL == "" {
+		logger.Error("REDIS_URL is required (see compose.redis.yaml)")
+		os.Exit(1)
+	}
+	redisCtx, redisCancel := context.WithTimeout(context.Background(), 70*time.Second)
+	redisClient, err := kv.Open(redisCtx, cfg.RedisURL, cfg.RedisNamespace, 60*time.Second)
+	redisCancel()
+	if err != nil {
+		logger.Error("redis unavailable", "err", err)
+		os.Exit(1)
+	}
+	defer redisClient.Close()
+
 	// 7. Initialize API server
 	accounts, err := auth.New(auth.Options{Dir: cfg.AccountsDir, Production: cfg.AppEnv == "production", TrustProxy: cfg.TrustProxy, Getenv: os.Getenv})
 	if err != nil {
@@ -90,7 +105,7 @@ func main() {
 	}
 	defer accounts.Close()
 
-	server := api.NewServer(cfg, logger, catalogIndexers, torrentEngine, streamPipeline, api.WithAuth(accounts))
+	server := api.NewServer(cfg, logger, catalogIndexers, torrentEngine, streamPipeline, api.WithAuth(accounts), api.WithRedis(redisClient))
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	httpServer := &http.Server{
