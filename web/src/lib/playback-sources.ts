@@ -32,4 +32,10 @@ export function playbackSources(sources: EpisodeSource[]): EpisodeSource[] {
  });
 }
 
-export const PLAYBACK_TIMEOUTS = { metadata: 12_000, startup: 20_000, stall: 15_000 };
+/**
+ * Idle windows, not deadlines: a source is only abandoned after this long with no swarm activity
+ * (no connected peer while fetching metadata, no new bytes while starting or stalled). A big file on
+ * a slow swarm may take as long as it needs; `max` is only a safety net against a source that is
+ * "alive" but never delivers.
+ */
+export const PLAYBACK_TIMEOUTS = { metadata: 30_000, startup: 40_000, stall: 30_000, max: 600_000 };

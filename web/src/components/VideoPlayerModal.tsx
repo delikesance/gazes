@@ -261,30 +261,56 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     else if (playbackError) reportFailure(playbackError,"media_error");
   }, [error, needsFileSelection, playbackError, reportFailure]);
 
+  // Metadata phase: wait as long as the swarm is alive (a connected peer or incoming bytes).
   useEffect(() => {
-    if (!onPlaybackFailure || !item) return;
-    const deadline = setTimeout(() => reportFailure("Cette source ne fournit pas ses métadonnées à temps.","metadata_timeout"), PLAYBACK_TIMEOUTS.metadata);
-    if (!loading) clearTimeout(deadline);
-    return () => clearTimeout(deadline);
-  }, [loading, item, onPlaybackFailure, reportFailure]);
+    if (!onPlaybackFailure || !item || !loading) return;
+    const startedAt = Date.now();
+    let lastActivity = startedAt;
+    let lastBytes = 0;
+    const check = setInterval(() => {
+      getTorrentStats(item.info_hash, diagnostic).then((s) => {
+        if (s.active_seeders > 0 || s.completed_bytes > lastBytes) lastActivity = Date.now();
+        lastBytes = s.completed_bytes;
+      }).catch(() => {});
+      const now = Date.now();
+      if (now - lastActivity >= PLAYBACK_TIMEOUTS.metadata || now - startedAt >= PLAYBACK_TIMEOUTS.max) {
+        reportFailure("Cette source ne fournit pas ses métadonnées à temps.", "metadata_timeout");
+      }
+    }, 2000);
+    return () => clearInterval(check);
+  }, [loading, item, onPlaybackFailure, reportFailure, diagnostic]);
 
   // Actual time advancement proves playback. Buffering can occur without an
   // error event, so a dead swarm must not hold this source indefinitely.
   useEffect(() => {
     if (!onPlaybackFailure || loading || needsFileSelection) return;
     const startedAt = Date.now();
+    let lastActivity = startedAt;
+    let lastBytes = -1;
+    let lastBuffered = 0;
+    let tick = 0;
     const poll = setInterval(() => {
       const video = videoRef.current;
       if (!video || !resumePlaybackRef.current) return;
       const now = Date.now();
-      if (!hasStartedRef.current && now-startedAt >= PLAYBACK_TIMEOUTS.startup) {
-        reportFailure("La lecture ne démarre pas sur cette source.","startup_timeout");
-      } else if (hasStartedRef.current && now-lastProgressRef.current.at >= PLAYBACK_TIMEOUTS.stall) {
+      // Activity = new bytes from the swarm or new buffered video: slow is fine, stuck is not.
+      const buffered = video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0;
+      if (buffered > lastBuffered) lastActivity = now;
+      lastBuffered = buffered;
+      if (item && ++tick % 2 === 0) {
+        getTorrentStats(item.info_hash, diagnostic).then((s) => {
+          if (lastBytes >= 0 && s.completed_bytes > lastBytes) lastActivity = Date.now();
+          lastBytes = s.completed_bytes;
+        }).catch(() => {});
+      }
+      if (!hasStartedRef.current) {
+        if (now-lastActivity >= PLAYBACK_TIMEOUTS.startup || now-startedAt >= PLAYBACK_TIMEOUTS.max) reportFailure("La lecture ne démarre pas sur cette source.","startup_timeout");
+      } else if (now-lastProgressRef.current.at >= PLAYBACK_TIMEOUTS.stall && now-lastActivity >= PLAYBACK_TIMEOUTS.stall) {
         reportFailure("Cette source ne fournit plus de vidéo.","swarm_stall");
       }
     }, 1000);
     return () => clearInterval(poll);
-  }, [loading, needsFileSelection, onPlaybackFailure, reportFailure, timeOffset, selectedAudioTrack]);
+  }, [loading, needsFileSelection, onPlaybackFailure, reportFailure, timeOffset, selectedAudioTrack, item, diagnostic]);
 
   // Auto-hide controls timer
   const triggerShowControls = useCallback(() => {
