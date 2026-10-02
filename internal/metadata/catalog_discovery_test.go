@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,12 +17,10 @@ func (f discoveryTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 func TestDiscoveryPreservesFeaturedSeasonAfterCanonicalization(t *testing.T) {
 	for _, complete := range []bool{true, false} {
 		t.Run(map[bool]string{true: "complete", false: "partial"}[complete], func(t *testing.T) {
-			service := &AnimeCatalogService{
-				httpClient: &http.Client{Transport: discoveryTransport(func(*http.Request) (*http.Response, error) {
-					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"media":[{"id":2,"title":{"romaji":"Example 2nd Season"},"coverImage":{"large":"season-poster"},"bannerImage":"season-banner"}]}}}`)), Header: make(http.Header)}, nil
-				})},
-				franchiseCache: map[int]cachedFranchise{2: {data: &Franchise{ID: 1, Title: "Example", PosterImage: "franchise-poster", Complete: complete}, expiresAt: time.Now().Add(time.Hour)}},
-			}
+			service := NewAnimeCatalogService(&http.Client{Transport: discoveryTransport(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"media":[{"id":2,"title":{"romaji":"Example 2nd Season"},"coverImage":{"large":"season-poster"},"bannerImage":"season-banner"}]}}}`)), Header: make(http.Header)}, nil
+			})})
+			service.franchiseC.Put(context.Background(), "2", &Franchise{ID: 1, Title: "Example", PosterImage: "franchise-poster", Complete: complete}, time.Hour)
 			result, err := service.doGraphQLPageQuery(context.Background(), trendingQuery, map[string]interface{}{"page": 1, "perPage": 24})
 			if err != nil {
 				t.Fatal(err)
@@ -69,7 +68,7 @@ func TestSeasonalCatalogKeepsDistinctSeasonsOfOneFranchise(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"data":{"Page":{"media":[{"id":2,"title":{"romaji":"Example Season 2"}},{"id":3,"title":{"romaji":"Example Season 3"}}]}}}`)), Header: make(http.Header)}, nil
 	})})
 	for _, id := range []int{2, 3} {
-		service.franchiseCache[id] = cachedFranchise{data: &Franchise{ID: 1, Title: "Example", Complete: true}, expiresAt: time.Now().Add(time.Hour)}
+		service.franchiseC.Put(context.Background(), strconv.Itoa(id), &Franchise{ID: 1, Title: "Example", Complete: true}, time.Hour)
 	}
 	result, err := service.GetCurrentSeason(context.Background(), 1, 24)
 	if err != nil {

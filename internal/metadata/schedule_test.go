@@ -2,11 +2,16 @@ package metadata
 
 import (
 	"context"
+	"errors"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/gazes/gazes/internal/kv"
+	"github.com/redis/go-redis/v9"
 	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type scheduleTransport struct {
@@ -56,5 +61,94 @@ func TestGetScheduleRejectsBadRanges(t *testing.T) {
 		if _, err := svc.GetSchedule(context.Background(), r[0], r[1]); err == nil {
 			t.Fatalf("range %v must be rejected", r)
 		}
+	}
+}
+
+type limitedTransport struct {
+	calls      atomic.Int32
+	limitedFor int32 // first N calls answer 429
+	retryAfter string
+	okBody     string
+}
+
+func (t *limitedTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	n := t.calls.Add(1)
+	if n <= t.limitedFor {
+		return &http.Response{StatusCode: 429, Header: http.Header{"Retry-After": {t.retryAfter}}, Body: io.NopCloser(strings.NewReader("")), Request: r}, nil
+	}
+	return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(t.okBody)), Request: r}, nil
+}
+
+func TestScheduleRateLimitedWithoutCacheReturnsTypedError(t *testing.T) {
+	transport := &limitedTransport{limitedFor: 100, retryAfter: "60", okBody: scheduleFixture}
+	svc := NewAnimeCatalogService(&http.Client{Transport: transport})
+	_, err := svc.GetSchedule(context.Background(), 0, 3600)
+	var limited *RateLimitError
+	if !errors.As(err, &limited) || limited.RetryAfter != 60*time.Second {
+		t.Fatalf("want RateLimitError(60s), got %v", err)
+	}
+	// While blocked, AniList must not be called again.
+	before := transport.calls.Load()
+	if _, err := svc.GetSchedule(context.Background(), 0, 7200); !errors.As(err, &limited) || transport.calls.Load() != before {
+		t.Fatalf("blocked service must not call AniList (calls %d -> %d, err %v)", before, transport.calls.Load(), err)
+	}
+}
+
+func TestScheduleShortRateLimitIsRetried(t *testing.T) {
+	transport := &limitedTransport{limitedFor: 1, retryAfter: "1", okBody: scheduleFixture}
+	svc := NewAnimeCatalogService(&http.Client{Transport: transport})
+	got, err := svc.GetSchedule(context.Background(), 0, 3600)
+	if err != nil || len(got.Entries) != 2 || transport.calls.Load() != 2 {
+		t.Fatalf("a 1 s pause must be waited out once: err=%v calls=%d", err, transport.calls.Load())
+	}
+}
+
+func redisBacked(t *testing.T, mr *miniredis.Miniredis, transport http.RoundTripper) *AnimeCatalogService {
+	t.Helper()
+	svc := NewAnimeCatalogService(&http.Client{Transport: transport})
+	svc.SetRedis(kv.New(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "test"))
+	return svc
+}
+
+func TestScheduleServesStaleWhenRefreshFails(t *testing.T) {
+	mr := miniredis.RunT(t)
+	svc := redisBacked(t, mr, &limitedTransport{limitedFor: 1000, retryAfter: "60", okBody: scheduleFixture})
+	old := &ScheduleResponse{From: 0, To: 3600, Entries: []ScheduleEntry{{MediaID: 1, Title: "Old"}}}
+	svc.scheduleC.Put(context.Background(), "0-3600", old, time.Millisecond) // already soft-stale
+	time.Sleep(20 * time.Millisecond)
+	got, err := svc.GetSchedule(context.Background(), 0, 3600)
+	if err != nil || len(got.Entries) != 1 || got.Entries[0].Title != "Old" {
+		t.Fatalf("a throttled AniList must not blank the calendar: err=%v got=%+v", err, got)
+	}
+}
+
+func TestRateLimitCooldownIsSharedAcrossInstances(t *testing.T) {
+	mr := miniredis.RunT(t)
+	first := &limitedTransport{limitedFor: 1000, retryAfter: "60", okBody: scheduleFixture}
+	second := &limitedTransport{limitedFor: 0, okBody: scheduleFixture}
+	a, b := redisBacked(t, mr, first), redisBacked(t, mr, second)
+	if _, err := a.GetSchedule(context.Background(), 0, 3600); err == nil {
+		t.Fatal("instance A must report the throttle")
+	}
+	var limited *RateLimitError
+	if _, err := b.GetSchedule(context.Background(), 0, 7200); !errors.As(err, &limited) {
+		t.Fatalf("instance B must honour A's cooldown, got %v", err)
+	}
+	if second.calls.Load() != 0 {
+		t.Fatalf("instance B must not call AniList during the shared cooldown, calls=%d", second.calls.Load())
+	}
+}
+
+func TestScheduleIsFetchedOnceAcrossInstances(t *testing.T) {
+	mr := miniredis.RunT(t)
+	shared := &limitedTransport{okBody: scheduleFixture}
+	a, b := redisBacked(t, mr, shared), redisBacked(t, mr, shared)
+	for _, svc := range []*AnimeCatalogService{a, b, a, b} {
+		if _, err := svc.GetSchedule(context.Background(), 0, 3600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if shared.calls.Load() != 1 {
+		t.Fatalf("two instances must share one AniList call, calls=%d", shared.calls.Load())
 	}
 }

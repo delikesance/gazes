@@ -89,6 +89,9 @@ func NewCache[T any](c *Client, domain string, opts CacheOptions) *Cache[T] {
 //   - missing: fetched under a distributed lock, others wait for the result;
 //   - fetch fails: the stale value (if any) is returned instead of the error.
 func (ca *Cache[T]) Get(ctx context.Context, key string, p Policy[T], fetch func(context.Context) (*T, error)) (*T, error) {
+	if ca.c == nil {
+		return ca.getLocal(ctx, key, p, fetch)
+	}
 	if v, ok := ca.l1.get(key); ok {
 		ca.c.stats.l1Hits.Add(1)
 		return v, nil
@@ -119,9 +122,49 @@ func (ca *Cache[T]) Get(ctx context.Context, key string, p Policy[T], fetch func
 	}
 }
 
+// getLocal is the memory-only mode (nil client): same API, one process, no stale fallback.
+func (ca *Cache[T]) getLocal(ctx context.Context, key string, p Policy[T], fetch func(context.Context) (*T, error)) (*T, error) {
+	if v, ok := ca.l1.get(key); ok {
+		return v, nil
+	}
+	res := ca.flight.DoChan(key, func() (any, error) {
+		fctx, cancel := context.WithTimeout(context.Background(), ca.opts.FetchTimeout)
+		defer cancel()
+		v, err := fetch(fctx)
+		if err == nil {
+			if ttl := p.ttl(v); ttl > 0 {
+				ca.l1.put(key, v, ttl)
+			}
+		}
+		return v, err
+	})
+	select {
+	case r := <-res:
+		if r.Err != nil {
+			return nil, r.Err
+		}
+		return r.Val.(*T), nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// Put stores a value directly (cache warming, tests).
+func (ca *Cache[T]) Put(ctx context.Context, key string, v *T, ttl time.Duration) {
+	if ca.c == nil {
+		ca.l1.put(key, v, ttl)
+		return
+	}
+	ca.write(ctx, ca.c.Up(ca.domain, key), v, ttl)
+	ca.l1.put(key, v, min(ca.opts.L1TTL, ttl))
+}
+
 // Invalidate drops a key from both levels.
 func (ca *Cache[T]) Invalidate(ctx context.Context, key string) {
 	ca.l1.drop(key)
+	if ca.c == nil {
+		return
+	}
 	_ = ca.c.rdb.Del(ctx, ca.c.Up(ca.domain, key)).Err()
 }
 

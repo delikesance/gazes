@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"net/http"
@@ -362,6 +363,13 @@ func (s *Server) HandleCatalogSchedule(w http.ResponseWriter, r *http.Request) {
 	res, err := s.catalogService.GetSchedule(r.Context(), from, to)
 	if err != nil {
 		diagnostics.Logger(r.Context(), s.logger).Error("failed to get release schedule", "err", err)
+		var limited *metadata.RateLimitError
+		if errors.As(err, &limited) {
+			// AniList is throttling: tell the client when to come back instead of a bare 502.
+			w.Header().Set("Retry-After", strconv.Itoa(int(limited.RetryAfter.Seconds())+1))
+			http.Error(w, `{"error": "release schedule temporarily rate limited"}`, http.StatusServiceUnavailable)
+			return
+		}
 		http.Error(w, `{"error": "failed to get release schedule"}`, http.StatusBadGateway)
 		return
 	}

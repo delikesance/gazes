@@ -1,11 +1,10 @@
 package metadata
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
+	"github.com/gazes/gazes/internal/kv"
 	"sort"
 	"sync"
 	"time"
@@ -32,17 +31,16 @@ type ScheduleResponse struct {
 	Entries []ScheduleEntry `json:"entries"`
 }
 
-type cachedSchedule struct {
-	data      *ScheduleResponse
-	expiresAt time.Time
-}
-
 const (
 	scheduleMaxSpan  = 42 * 24 * time.Hour
 	schedulePageSize = 50
 	scheduleMaxPages = 20
 	scheduleWorkers  = 4
 	scheduleCacheTTL = 15 * time.Minute
+	// schedulePartialTTL keeps an incomplete answer only briefly so missing pages are retried.
+	schedulePartialTTL = time.Minute
+	// scheduleMaxWait is the longest 429 pause worth waiting out inside one request.
+	scheduleMaxWait = 6 * time.Second
 )
 
 const scheduleQuery = `
@@ -115,14 +113,19 @@ func (s *AnimeCatalogService) GetSchedule(ctx context.Context, from, to int64) (
 	if to <= from || time.Duration(to-from)*time.Second > scheduleMaxSpan {
 		return nil, fmt.Errorf("invalid schedule range")
 	}
-	key := fmt.Sprintf("schedule-%d-%d", from, to)
-	s.mu.RLock()
-	cached, found := s.scheduleCache[key]
-	s.mu.RUnlock()
-	if found && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
-	}
+	key := fmt.Sprintf("%d-%d", from, to)
+	policy := kv.Policy[ScheduleResponse]{TTLFor: func(r *ScheduleResponse) time.Duration {
+		if r.Partial {
+			return schedulePartialTTL
+		}
+		return scheduleCacheTTL
+	}}
+	return s.scheduleC.Get(ctx, key, policy, func(ctx context.Context) (*ScheduleResponse, error) {
+		return s.loadSchedule(ctx, from, to)
+	})
+}
 
+func (s *AnimeCatalogService) loadSchedule(ctx context.Context, from, to int64) (*ScheduleResponse, error) {
 	// AniList caps lastPage/total, so page until hasNextPage is false: page 1
 	// alone (most ranges end there), then batches of concurrent pages.
 	first, err := s.fetchSchedulePage(ctx, from, to, 1)
@@ -202,44 +205,28 @@ func (s *AnimeCatalogService) GetSchedule(ctx context.Context, from, to int64) (
 		return resp.Entries[i].MediaID < resp.Entries[j].MediaID
 	})
 
-	ttl := scheduleCacheTTL
-	if partial {
-		ttl = time.Minute // retry sooner when pages were missing
-	}
-	s.mu.Lock()
-	if len(s.scheduleCache) >= 64 {
-		clear(s.scheduleCache)
-	}
-	s.scheduleCache[key] = cachedSchedule{data: resp, expiresAt: time.Now().Add(ttl)}
-	s.mu.Unlock()
 	return resp, nil
 }
 
+// fetchSchedulePage retries once after a short 429 pause; longer pauses are returned to the caller.
 func (s *AnimeCatalogService) fetchSchedulePage(ctx context.Context, from, to int64, page int) (*schedulePage, error) {
-	body, err := json.Marshal(map[string]any{
-		"query":     scheduleQuery,
-		"variables": map[string]any{"page": page, "perPage": schedulePageSize, "from": from, "to": to},
-	})
-	if err != nil {
-		return nil, err
+	for attempt := 0; ; attempt++ {
+		result, err := s.fetchSchedulePageOnce(ctx, from, to, page)
+		var limited *RateLimitError
+		if !errors.As(err, &limited) || attempt >= 1 || limited.RetryAfter > scheduleMaxWait {
+			return result, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(limited.RetryAfter):
+		}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://graphql.anilist.co", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Gazes/1.0 (AnimeStreamingEngine)")
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anilist schedule query failed with status %d", resp.StatusCode)
-	}
+}
+
+func (s *AnimeCatalogService) fetchSchedulePageOnce(ctx context.Context, from, to int64, page int) (*schedulePage, error) {
 	var parsed schedulePage
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err := s.anilist.post(ctx, scheduleQuery, map[string]any{"page": page, "perPage": schedulePageSize, "from": from, "to": to}, &parsed); err != nil {
 		return nil, err
 	}
 	if len(parsed.Errors) > 0 {

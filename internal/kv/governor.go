@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -28,6 +29,10 @@ type Governor struct {
 	perMinute int
 	burst     int
 	maxWait   time.Duration
+
+	// Memory-only mode (nil client): the cooldown is local to the process, there is no token bucket.
+	mu           sync.Mutex
+	localBlocked time.Time
 }
 
 // NewGovernor allows perMinute sustained calls with bursts up to burst. Waits longer than maxWait
@@ -64,8 +69,13 @@ func (g *Governor) key(suffix string) string { return keyVersion + "gov:" + g.na
 // cooldown is active. Redis errors let the call through: the limiter must not become an outage.
 func (g *Governor) Acquire(ctx context.Context) error {
 	if d := g.Cooldown(ctx); d > 0 {
-		g.c.stats.rateLimited.Add(1)
+		if g.c != nil {
+			g.c.stats.rateLimited.Add(1)
+		}
 		return &LimitedError{Upstream: g.name, RetryAfter: d}
+	}
+	if g.c == nil {
+		return nil
 	}
 	rate := float64(g.perMinute) / 60000.0
 	deadline := time.Now().Add(g.maxWait)
@@ -99,6 +109,12 @@ func (g *Governor) Penalize(ctx context.Context, d time.Duration) {
 	if cur := g.Cooldown(ctx); cur >= d {
 		return
 	}
+	if g.c == nil {
+		g.mu.Lock()
+		g.localBlocked = time.Now().Add(d)
+		g.mu.Unlock()
+		return
+	}
 	if err := g.c.rdb.Set(ctx, g.key("cooldown"), 1, d).Err(); err != nil {
 		g.c.stats.errors.Add(1)
 	}
@@ -106,6 +122,11 @@ func (g *Governor) Penalize(ctx context.Context, d time.Duration) {
 
 // Cooldown returns the remaining shared cooldown (0 when none).
 func (g *Governor) Cooldown(ctx context.Context) time.Duration {
+	if g.c == nil {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		return max(0, time.Until(g.localBlocked))
+	}
 	d, err := g.c.rdb.PTTL(ctx, g.key("cooldown")).Result()
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {

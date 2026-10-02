@@ -1,16 +1,17 @@
 package metadata
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/gazes/gazes/internal/kv"
 )
 
 // AnimeMetadata represents rich anime catalog details.
@@ -29,9 +30,9 @@ type AnimeMetadata struct {
 	SeasonYear   int      `json:"season_year,omitempty"`
 }
 
-type cachedAnime struct {
-	data      *AnimeMetadata
-	expiresAt time.Time
+// animeLookup is what AnimeService stores: Meta is nil for a remembered "not found".
+type animeLookup struct {
+	Meta *AnimeMetadata `json:"meta,omitempty"`
 }
 
 // AnimeProvider resolves anime metadata from open-source APIs.
@@ -39,72 +40,64 @@ type AnimeProvider interface {
 	GetAnimeByTitle(ctx context.Context, rawTitle string) (*AnimeMetadata, error)
 }
 
-// AnimeService queries AniList GraphQL and Kitsu REST API with in-memory caching.
+// AnimeService queries AniList GraphQL and Kitsu REST API with caching.
 type AnimeService struct {
 	httpClient *http.Client
-	cache      map[string]cachedAnime
-	mu         sync.RWMutex
+	anilist    *anilistClient
+	lookups    *kv.Cache[animeLookup]
 }
 
-// NewAnimeService creates a new AnimeService instance.
+// NewAnimeService creates a new AnimeService instance with process-local caching.
 func NewAnimeService(client *http.Client) *AnimeService {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
-	return &AnimeService{
-		httpClient: client,
-		cache:      make(map[string]cachedAnime),
-	}
+	s := &AnimeService{httpClient: client, anilist: newAnilistClient(client, nil)}
+	s.lookups = kv.NewCache[animeLookup](nil, "anime-title", kv.CacheOptions{L1Max: 1024})
+	return s
 }
 
-// GetAnimeByTitle resolves anime metadata using AniList with Kitsu fallback.
+// SetRedis shares lookups and the AniList governor across instances.
+func (s *AnimeService) SetRedis(c *kv.Client) {
+	s.anilist = newAnilistClient(s.httpClient, c)
+	s.lookups = kv.NewCache[animeLookup](c, "anime-title", kv.CacheOptions{L1Max: 1024})
+}
+
+// GetAnimeByTitle resolves anime metadata using AniList with Kitsu fallback. Hits live 24 h;
+// a title that matches nothing is remembered for 10 minutes so non-anime names do not hammer the APIs.
 func (s *AnimeService) GetAnimeByTitle(ctx context.Context, rawTitle string) (*AnimeMetadata, error) {
 	cleanTitle := CleanAnimeTitle(rawTitle)
 	if cleanTitle == "" {
 		cleanTitle = rawTitle
 	}
-
-	cacheKey := strings.ToLower(strings.TrimSpace(cleanTitle))
-
-	// 1. Check in-memory cache
-	s.mu.RLock()
-	cached, found := s.cache[cacheKey]
-	s.mu.RUnlock()
-
-	if found && time.Now().Before(cached.expiresAt) {
-		return cached.data, nil
+	policy := kv.Policy[animeLookup]{TTLFor: func(l *animeLookup) time.Duration {
+		if l.Meta == nil {
+			return 10 * time.Minute
+		}
+		return 24 * time.Hour
+	}}
+	lookup, err := s.lookups.Get(ctx, strings.ToLower(strings.TrimSpace(cleanTitle)), policy, func(ctx context.Context) (*animeLookup, error) {
+		meta, err := s.fetchAniList(ctx, cleanTitle)
+		if err == nil && meta != nil {
+			return &animeLookup{Meta: meta}, nil
+		}
+		var limited *RateLimitError
+		if errors.As(err, &limited) {
+			return nil, err // throttled: do not remember it as "not found"
+		}
+		meta, err = s.fetchKitsu(ctx, cleanTitle)
+		if err == nil && meta != nil {
+			return &animeLookup{Meta: meta}, nil
+		}
+		return &animeLookup{}, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-
-	// 2. Query AniList GraphQL API (Primary)
-	meta, err := s.fetchAniList(ctx, cleanTitle)
-	if err == nil && meta != nil {
-		s.saveCache(cacheKey, meta)
-		return meta, nil
+	if lookup.Meta == nil {
+		return nil, fmt.Errorf("anime metadata not found for title: %s", cleanTitle)
 	}
-
-	// 3. Fallback to Kitsu REST API
-	meta, err = s.fetchKitsu(ctx, cleanTitle)
-	if err == nil && meta != nil {
-		s.saveCache(cacheKey, meta)
-		return meta, nil
-	}
-
-	// Cache negative lookup for 10 minutes to avoid hammering APIs on non-anime
-	s.saveCacheWithTTL(cacheKey, nil, 10*time.Minute)
-	return nil, fmt.Errorf("anime metadata not found for title: %s", cleanTitle)
-}
-
-func (s *AnimeService) saveCache(key string, data *AnimeMetadata) {
-	s.saveCacheWithTTL(key, data, 24*time.Hour)
-}
-
-func (s *AnimeService) saveCacheWithTTL(key string, data *AnimeMetadata, ttl time.Duration) {
-	s.mu.Lock()
-	s.cache[key] = cachedAnime{
-		data:      data,
-		expiresAt: time.Now().Add(ttl),
-	}
-	s.mu.Unlock()
+	return lookup.Meta, nil
 }
 
 // AniList GraphQL Query
@@ -155,38 +148,8 @@ type aniListResponse struct {
 }
 
 func (s *AnimeService) fetchAniList(ctx context.Context, title string) (*AnimeMetadata, error) {
-	reqBody := map[string]interface{}{
-		"query": aniListQuery,
-		"variables": map[string]string{
-			"search": title,
-		},
-	}
-
-	jsonBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://graphql.anilist.co", bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Gazes/1.0 (AnimeStreamingEngine)")
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anilist returned status %d", resp.StatusCode)
-	}
-
 	var parsed aniListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err := s.anilist.post(ctx, aniListQuery, map[string]string{"search": title}, &parsed); err != nil {
 		return nil, err
 	}
 
