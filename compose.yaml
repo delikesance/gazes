@@ -53,6 +53,9 @@ services:
       LOG_DIR: /app/diagnostics
       TORRENT_PORT: "${TORRENT_PORT:-42069}"
       ACCOUNTS_DIR: /app/accounts
+      # Required: caches, upstream rate limits and auth state live in the shared Redis (make redis-up).
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-}@gazes-redis:6379/0"
+      REDIS_NAMESPACE: "${REDIS_NAMESPACE:-gazes}"
       # The backend is only reachable through the web service, so its X-Forwarded-* headers are trusted.
       TRUST_PROXY: "true"
       # Required in production: run `make secrets` to generate them into .env.
@@ -70,6 +73,7 @@ services:
       - torrent-data:/app/data
       - torrent-cache:/app/cache
       - accounts:/app/accounts
+    networks: [default, gazes-shared]
     depends_on:
       prowlarr-configure:
         condition: service_completed_successfully
@@ -118,6 +122,11 @@ services:
     depends_on:
       web:
         condition: service_healthy
+
+# Created by `make redis-up`; shared with the Redis of compose.redis.yaml.
+networks:
+  gazes-shared:
+    external: true
 
 volumes:
   prowlarr-config:

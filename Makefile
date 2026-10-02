@@ -11,7 +11,7 @@ GO_TAGS ?= nosqlite
 
 .PHONY: help deps build build-backend build-web dev-backend dev-web start-web \
 	test test-backend test-race test-web lint lint-backend lint-web typecheck check \
-	secrets up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-check dev-test dev-build
+	secrets redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-check dev-test dev-build
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -21,7 +21,19 @@ secrets: ## Generate account encryption keys into .env (kept if already set)
 	@for k in ACCOUNTS_ENC_KEY ACCOUNTS_INDEX_KEY ACCOUNTS_PEPPER ALTCHA_HMAC_KEY; do \
 		grep -q "^$$k=" .env || echo "$$k=$$(openssl rand -base64 32)" >> .env; \
 	done
+	@$(MAKE) --no-print-directory redis-secret
 	@echo ".env now holds the account keys. Back it up: losing them makes stored emails unreadable."
+
+redis-secret: ## Generate REDIS_PASSWORD into .env (kept if already set)
+	@touch .env
+	@grep -q "^REDIS_PASSWORD=" .env || echo "REDIS_PASSWORD=$$(openssl rand -hex 24)" >> .env
+
+redis-up: redis-secret ## Start the Redis shared by every stack (creates the gazes-shared network)
+	@docker network inspect gazes-shared >/dev/null 2>&1 || docker network create gazes-shared >/dev/null
+	$(DOCKER_COMPOSE) -f compose.redis.yaml up -d --wait
+
+redis-down: ## Stop the shared Redis (its data volume is kept)
+	$(DOCKER_COMPOSE) -f compose.redis.yaml down
 
 deps: ## Download Go modules and install locked frontend dependencies
 	$(GO) mod download
@@ -70,10 +82,10 @@ typecheck: ## Check frontend TypeScript types
 
 check: lint typecheck test ## Run lint, type checks, and tests
 
-up: secrets ## Build and start the Docker stack, waiting for health checks
+up: secrets redis-up ## Build and start the Docker stack, waiting for health checks
 	$(DOCKER_COMPOSE) up -d --build --wait
 
-up-admin: secrets ## Start Docker with loopback-only Prowlarr administration
+up-admin: secrets redis-up ## Start Docker with loopback-only Prowlarr administration
 	$(DOCKER_COMPOSE) -f compose.yaml -f compose.admin.yaml up -d --build --wait
 
 down: ## Stop the Docker stack while preserving its volumes
@@ -85,7 +97,7 @@ logs: ## Follow Docker service logs
 ps: ## Show Docker service status
 	$(DOCKER_COMPOSE) ps
 
-dev: ## Build and start the Docker development environment on port 8080
+dev: redis-up ## Build and start the Docker development environment on port 8080
 	$(DEV_COMPOSE) up -d --build --wait --wait-timeout $(DEV_WAIT_TIMEOUT)
 
 dev-down: ## Stop development containers and preserve dependency/data volumes
