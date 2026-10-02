@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// HandleSubtitles extracts textual subtitles as WebVTT or styled ASS.
+// HandleSubtitles extracts textual subtitles as WebVTT or styled ASS, or raw PGS (sup).
 func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	ih := r.URL.Query().Get("ih")
 	if ih == "" {
@@ -42,13 +42,17 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	if format == "" {
 		format = "webvtt"
 	}
-	if format != "webvtt" && format != "ass" {
+	if format != "webvtt" && format != "ass" && format != "sup" {
 		http.Error(w, "unsupported subtitle format", http.StatusBadRequest)
 		return
 	}
 	contentType := "text/vtt; charset=utf-8"
-	if format == "ass" {
+	switch format {
+	case "ass":
 		contentType = "text/x-ssa; charset=utf-8"
+	case "sup":
+		// Bitmap tracks (PGS) are copied as-is, never converted: the browser renders them.
+		contentType = "application/octet-stream"
 	}
 	output, err := os.CreateTemp("", "gazes-subtitles-*")
 	if err != nil {
@@ -64,6 +68,11 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := contextWithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
+	codec := format
+	if format == "sup" {
+		codec = "copy"
+	}
+
 	ffmpegBin := findFFmpegBin()
 	args := []string{
 		"-hide_banner",
@@ -72,7 +81,7 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 		"-analyzeduration", "1000000",
 		"-i", inputURL,
 		"-map", fmt.Sprintf("0:s:%d", trackIdx),
-		"-c:s", format,
+		"-c:s", codec,
 		"-f", format,
 		"pipe:1",
 	}
