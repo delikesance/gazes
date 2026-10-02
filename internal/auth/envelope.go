@@ -57,6 +57,7 @@ type KEM struct {
 	mu     sync.Mutex
 	nonces map[string]time.Time
 	now    func() time.Time
+	shared State // when set, nonces live in Redis (single-use across instances)
 }
 
 // LoadKEM loads the persisted key seed from dir/kem.key or creates it (0600).
@@ -92,7 +93,19 @@ func newKEM(dk *mlkem.DecapsulationKey768) *KEM {
 
 // Issue returns the public key and a fresh single-use nonce.
 func (k *KEM) Issue() KEMInfo {
+	info, _ := k.IssueChecked()
+	return info
+}
+
+// IssueChecked is Issue reporting a failure to record the nonce (shared state unavailable).
+func (k *KEM) IssueChecked() (KEMInfo, error) {
 	nonce := random(16)
+	if k.shared != nil {
+		if err := k.shared.Put(nonceKey(nonce), nonceLifetime); err != nil {
+			return KEMInfo{}, errStateUnavailable
+		}
+		return KEMInfo{KID: k.kid, EK: base64.StdEncoding.EncodeToString(k.ek), Nonce: base64.StdEncoding.EncodeToString(nonce)}, nil
+	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	now := k.now()
@@ -103,7 +116,7 @@ func (k *KEM) Issue() KEMInfo {
 		}
 	}
 	k.nonces[string(nonce)] = now.Add(nonceLifetime)
-	return KEMInfo{KID: k.kid, EK: base64.StdEncoding.EncodeToString(k.ek), Nonce: base64.StdEncoding.EncodeToString(nonce)}
+	return KEMInfo{KID: k.kid, EK: base64.StdEncoding.EncodeToString(k.ek), Nonce: base64.StdEncoding.EncodeToString(nonce)}, nil
 }
 
 func (k *KEM) purgeLocked(now time.Time) {
@@ -116,6 +129,10 @@ func (k *KEM) purgeLocked(now time.Time) {
 
 // consume marks a nonce as used; it reports false if it was unknown, expired or used.
 func (k *KEM) consume(nonce []byte) bool {
+	if k.shared != nil {
+		ok, err := k.shared.Take(nonceKey(nonce))
+		return err == nil && ok
+	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	exp, ok := k.nonces[string(nonce)]

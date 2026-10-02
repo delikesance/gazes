@@ -29,6 +29,8 @@ type Options struct {
 	Production bool
 	TrustProxy bool // honour X-Forwarded-For / X-Forwarded-Proto from the edge proxy
 	Getenv     func(string) string
+	// State, when set, shares nonces, captcha replay protection and rate limits across instances.
+	State State
 }
 
 // Service wires the store, keys, envelope, captcha and rate limits to HTTP handlers.
@@ -60,6 +62,9 @@ func New(o Options) (*Service, error) {
 	}
 	dummy, _ := keys.hashPassword("gazes-dummy-password")
 	s := &Service{store: store, keys: keys, kem: kem, captcha: NewCaptcha(keys.Altcha), limits: newLimiter(), trustProxy: o.TrustProxy, now: time.Now, dummyHash: dummy}
+	if o.State != nil {
+		s.kem.shared, s.captcha.shared, s.limits.shared = o.State, o.State, o.State
+	}
 	go s.janitor()
 	return s, nil
 }
@@ -155,8 +160,7 @@ func (s *Service) currentUser(r *http.Request) *User {
 
 // decode reads an encrypted envelope body and returns the plaintext payload.
 func (s *Service) decode(w http.ResponseWriter, r *http.Request, route string) ([]byte, bool) {
-	if !s.limits.hit("req|"+s.clientIP(r), 60, time.Minute) {
-		fail(w, http.StatusTooManyRequests, "rate_limited")
+	if s.throttled(w, "req|"+s.clientIP(r), 60, time.Minute) {
 		return nil, false
 	}
 	if !s.sameOrigin(r) {
@@ -201,21 +205,39 @@ func validEmail(email string) bool {
 
 func validPassword(p string) bool { return len(p) >= 8 && len(p) <= 256 && utf8.ValidString(p) }
 
+// throttled counts one event for key and answers the request when it must stop: 429 when the limit
+// is reached, 503 when the shared limiter is unreachable (fail closed, but not mislabelled).
+func (s *Service) throttled(w http.ResponseWriter, key string, limit int, span time.Duration) bool {
+	ok, err := s.limits.hitChecked(key, limit, span)
+	switch {
+	case err != nil:
+		fail(w, http.StatusServiceUnavailable, "unavailable")
+		return true
+	case !ok:
+		fail(w, http.StatusTooManyRequests, "rate_limited")
+		return true
+	}
+	return false
+}
+
 // ---- handlers --------------------------------------------------------------
 
 // Kem returns the public key and a single-use nonce for the next request.
 func (s *Service) Kem(w http.ResponseWriter, r *http.Request) {
-	if !s.limits.hit("req|"+s.clientIP(r), 60, time.Minute) {
-		fail(w, http.StatusTooManyRequests, "rate_limited")
+	if s.throttled(w, "req|"+s.clientIP(r), 60, time.Minute) {
 		return
 	}
-	writeJSON(w, http.StatusOK, s.kem.Issue())
+	info, err := s.kem.IssueChecked()
+	if err != nil {
+		fail(w, http.StatusServiceUnavailable, "unavailable") // fail closed: no nonce, no login
+		return
+	}
+	writeJSON(w, http.StatusOK, info)
 }
 
 // CaptchaChallenge issues a proof-of-work challenge.
 func (s *Service) CaptchaChallenge(w http.ResponseWriter, r *http.Request) {
-	if !s.limits.hit("req|"+s.clientIP(r), 60, time.Minute) {
-		fail(w, http.StatusTooManyRequests, "rate_limited")
+	if s.throttled(w, "req|"+s.clientIP(r), 60, time.Minute) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.captcha.New())
@@ -292,8 +314,7 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	idx := s.keys.blindIndex(c.Email)
 	ipKey, emailKey := "login-ip|"+s.clientIP(r), "login-email|"+idx
-	if !s.limits.hit(ipKey, 30, 15*time.Minute) || !s.limits.hit(emailKey, 8, 15*time.Minute) {
-		fail(w, http.StatusTooManyRequests, "rate_limited")
+	if s.throttled(w, ipKey, 30, 15*time.Minute) || s.throttled(w, emailKey, 8, 15*time.Minute) {
 		return
 	}
 	user, err := s.store.UserByEmailIdx(idx)
