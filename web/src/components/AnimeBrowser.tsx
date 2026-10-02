@@ -1,4 +1,5 @@
 "use client";
+import { randomId } from "@/lib/random-id";
 import { useWatchProgress, saveProgress } from "@/lib/watch-progress";
 import { HeaderBreadcrumb } from "./HeaderBreadcrumb";
 import { EpisodeCard } from "./EpisodeCard";
@@ -47,7 +48,7 @@ export function AnimeBrowser({
    }
    return null;
  });
- const [session]=useState(()=>initialSources?.playback_session_id || crypto.randomUUID());
+ const [session]=useState(()=>initialSources?.playback_session_id || randomId());
  const [failure,setFailure]=useState<{key:string;message:string;reference?:string}|null>(null);
  const [retry,setRetry]=useState(0);
  const requestKey=`${key}:${retry}`;

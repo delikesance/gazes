@@ -4,6 +4,7 @@ import { LocaleDocument } from "@/components/LocaleDocument";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AuthProvider } from "@/components/AuthProvider";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { DM_Sans, Fraunces, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -35,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className="dark" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `try { if (localStorage.getItem("gazes-theme") === "light") { document.documentElement.classList.replace("dark", "light"); } } catch {}` }} />
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: `try { if (localStorage.getItem("gazes-theme") === "light") { document.documentElement.classList.replace("dark", "light"); } } catch {}` }} />
         <link rel="preconnect" href="https://s4.anilist.co" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://s4.anilist.co" />
         <link rel="preconnect" href="https://graphql.anilist.co" />

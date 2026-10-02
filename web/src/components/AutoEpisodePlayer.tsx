@@ -1,4 +1,5 @@
 "use client";
+import { randomId } from "@/lib/random-id";
 import { useI18n } from "@/lib/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EpisodeInfo, EpisodeSource } from '@/types/api';
@@ -31,10 +32,10 @@ interface Props {
 
 export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
   const { t } = useI18n();
- const [fallbackSession]=useState(()=>crypto.randomUUID());
+ const [fallbackSession]=useState(()=>randomId());
  const session=diagnosticSession||fallbackSession;
  const candidates = useMemo(() => playbackSources(sources), [sources]);
- const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:crypto.randomUUID() });
+ const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:randomId() });
  const [choosingSource, setChoosingSource] = useState(false);
  const [tried, setTried] = useState<{ label: string }[]>([]);
  const sourceLabel = (s?: EpisodeSource) => s ? [s.release_group || s.provider, s.quality].filter(Boolean).join(' · ') || s.title : '';
@@ -51,7 +52,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  const failed = useCallback((failure: { reason: string; position: number }) => {
   setTried(list => [...list, { label: sourceLabel(candidates[attempt.index]) }]);
   setAttempt(current => current.id === attempt.id
-   ? { index: current.index + 1, position: Math.max(0, failure.position), reason: failure.reason, id:crypto.randomUUID() }
+   ? { index: current.index + 1, position: Math.max(0, failure.position), reason: failure.reason, id:randomId() }
    : current);
  }, [attempt.id, attempt.index, candidates]); // eslint-disable-line react-hooks/exhaustive-deps
  // Warm the next candidates' metadata in the background: a failing source then hands over to a ready one.
@@ -73,7 +74,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    <p className="text-xs text-zinc-400">{t("Référence de diagnostic")} : <code>{session}</code></p>
    {attempt.reason && <p className="text-sm text-zinc-400">{t(attempt.reason)}</p>}
    <div className="flex justify-center gap-4">
-    {<button className="rounded-full bg-white text-black px-4 py-2" onClick={() => candidates.length?setAttempt({ index: 0, position: attempt.position, reason: '', id:crypto.randomUUID() }):onRetrySources?.()}>{t("Réessayer")}</button>}
+    {<button className="rounded-full bg-white text-black px-4 py-2" onClick={() => candidates.length?setAttempt({ index: 0, position: attempt.position, reason: '', id:randomId() }):onRetrySources?.()}>{t("Réessayer")}</button>}
     <button className="underline" onClick={props.onClose}>{t("Fermer")}</button>
    </div>
   </div>
@@ -87,7 +88,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    setChoosingSource(false);
    if(index===attempt.index)return;
    setTried([]);
-   setAttempt({index,position:positionRef.current,reason:'',id:crypto.randomUUID()});
+   setAttempt({index,position:positionRef.current,reason:'',id:randomId()});
   }} />;
  return <VideoPlayerModal key={attempt.id} {...props}
   onChangeSource={()=>setChoosingSource(true)} sourcePicker={picker}
