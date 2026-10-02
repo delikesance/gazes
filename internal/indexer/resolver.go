@@ -134,12 +134,15 @@ func ExtractSeasonNumber(title string) int {
 }
 
 // CleanTitleForSearch cleans special chars like colons, dashes, and extra subtitles.
+var emptyBracketsRegex = regexp.MustCompile(`[(\[{]\s*[)\]}]`)
+
 func CleanTitleForSearch(title string) string {
 	t := strings.ReplaceAll(title, ":", " ")
 	t = strings.ReplaceAll(t, "-", " ")
 	t = strings.ReplaceAll(t, "'", "")
 	t = strings.ReplaceAll(t, "\"", "")
 	t = seasonRegex.ReplaceAllString(t, " ")
+	t = emptyBracketsRegex.ReplaceAllString(t, " ") // "Part 6 (Part 2)" must not leave "( )" behind
 	t = cleanSpacesRegex.ReplaceAllString(t, " ")
 	return strings.TrimSpace(t)
 }
