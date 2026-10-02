@@ -145,6 +145,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const subtitleSelectionRef = useRef(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const playedBarRef = useRef<HTMLDivElement>(null);
+  const bufferedBarRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<HTMLDivElement>(null);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const currentTimeRef = useRef<number>(0);
@@ -165,6 +166,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setSelectedAudioTrack(0);
     setSelectedSubTrack(null);
   }
+
+  // The subtitle error is informational: it fades out on its own.
+  useEffect(() => {
+    if (!subtitleError) return;
+    const timer = setTimeout(() => setSubtitleError(null), 8000);
+    return () => clearTimeout(timer);
+  }, [subtitleError]);
 
   const totalDuration = videoMeta?.duration_sec || loadData?.main_video_metadata?.duration_sec || 0;
 
@@ -187,6 +195,22 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     },
     [timeOffset, totalDuration]
   );
+
+  // The white bar: how far ahead of the playhead the browser already holds data.
+  const updateBuffered = useCallback(() => {
+    const video = videoRef.current;
+    const bar = bufferedBarRef.current;
+    if (!video || !bar || totalDuration <= 0) return;
+    const now = video.currentTime;
+    let end = now;
+    for (let i = 0; i < video.buffered.length; i++) {
+      if (video.buffered.start(i) <= now + 0.5 && video.buffered.end(i) >= now) end = Math.max(end, video.buffered.end(i));
+    }
+    const start = Math.min(100, Math.max(0, (timeOffset / totalDuration) * 100));
+    const stop = Math.min(100, Math.max(start, ((timeOffset + end) / totalDuration) * 100));
+    bar.style.left = `${start}%`;
+    bar.style.width = `${stop - start}%`;
+  }, [timeOffset, totalDuration]);
 
   useEffect(() => () => {
     if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
@@ -716,11 +740,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                       currentTimeRef.current = time;
                       onProgress?.(timeOffset + time, totalDuration);
                       updateProgressDisplay(videoRef.current.currentTime);
+                      updateBuffered();
                     }
                   }}
                   onPlay={(event) => { if (event.currentTarget === videoRef.current) {resumePlaybackRef.current=true;setNeedsPlaybackGesture(false);setIsPlaying(true);} }}
                   onPause={(event) => { if (event.currentTarget === videoRef.current) setIsPlaying(false); }}
                   onWaiting={(event) => { if (event.currentTarget === videoRef.current) {setIsBuffering(true);diagnosticEvent(diagnostic,"playback.buffering",{position:timeOffset+event.currentTarget.currentTime,ready_state:event.currentTarget.readyState});} }}
+                  onProgress={() => updateBuffered()}
                   onPlaying={(event) => { if (event.currentTarget === videoRef.current) { setIsBuffering(false); setStarted(true); } }}
                   onCanPlay={(event) => {
                     const video = event.currentTarget;
@@ -772,7 +798,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   timeOffset={timeOffset}
                   onError={setSubtitleError}
                 />
-                {subtitleError && <p role="alert" className="player-toast player-frost rounded-full px-4 py-2.5 text-xs text-red-300" style={{ background: "rgba(60,20,24,.5)" }}>{t(subtitleError)}</p>}
+                {subtitleError && (
+                  <div role="alert" className="player-toast player-frost flex items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 text-xs text-red-300" style={{ background: "rgba(60,20,24,.5)" }}>
+                    <span>{t(subtitleError)}</span>
+                    <button type="button" aria-label={t("Fermer")} onClick={() => setSubtitleError(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full hover:bg-white/10"><X className="h-3.5 w-3.5" /></button>
+                  </div>
+                )}
                 </div>
                 {needsPlaybackGesture&&<div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"><button className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900/90 px-6 py-4 text-white border border-zinc-700" onClick={togglePlay}><Play size={22} />{t("Lecture")}</button></div>}
                 {playbackError && (
@@ -817,6 +848,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         className="group/bar relative flex h-5 flex-1 cursor-pointer items-center"
                       >
                         <div className="relative h-1.5 w-full rounded-full bg-white/20 transition-all group-hover/bar:h-2">
+                          <div ref={bufferedBarRef} className="absolute top-0 h-full rounded-full bg-white/55" style={{ left: "0%", width: "0%" }} />
                           <div ref={playedBarRef} className="absolute left-0 top-0 h-full rounded-full bg-[var(--accent)]" style={{ width: "0%" }} />
                           <div
                             ref={knobRef}
