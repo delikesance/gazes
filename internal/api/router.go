@@ -118,6 +118,7 @@ func (s *Server) setupRoutes() {
 			cat.Get("/trending", s.HandleCatalogTrending)
 			cat.Get("/seasonal", s.HandleCatalogSeasonal)
 			cat.Get("/popular", s.HandleCatalogPopular)
+			cat.Get("/schedule", s.HandleCatalogSchedule)
 			cat.Get("/search", s.HandleCatalogSearch)
 			cat.Get("/anime/{id}/franchise", s.HandleFranchise)
 			cat.Get("/anime/{id}/seasons/{season}", s.HandleSeason)

@@ -7,6 +7,7 @@ import { AnimeCatalogCard } from "./AnimeCatalogCard";
 import { FeaturedAnimeCarousel } from "./FeaturedAnimeCarousel";
 import { SeasonalGrid } from "./SeasonalGrid";
 import { AccountCta } from "./AccountCta";
+import { ReleaseCalendar } from "./ReleaseCalendar";
 import type { CatalogResponse } from "@/types/api";
 import { getCatalogPopular, getCatalogSeasonal, searchCatalog } from "@/lib/api";
 
@@ -40,6 +41,8 @@ export function CatalogBrowser({
   const [popular, setPopular] = useState<CatalogResponse | null>(initialPopular);
   const [featuredUnavailable, setFeaturedUnavailable] = useState(false);
   const discovery = !q && !genre && page === 1;
+  // The default discovery tab is the release calendar, which loads its own schedule.
+  const needsData = !(discovery && tab !== "popular");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -58,6 +61,7 @@ export function CatalogBrowser({
   }
 
   useEffect(() => {
+    if (!needsData) return;
     let active = true;
     setLoading(true);
     setError("");
@@ -77,7 +81,7 @@ export function CatalogBrowser({
     return () => {
       active = false;
     };
-  }, [q, genre, tab, page, retry]);
+  }, [q, genre, tab, page, retry, needsData]);
 
   useEffect(() => {
     if (!discovery) return;
@@ -96,29 +100,26 @@ export function CatalogBrowser({
   const featured = discovery ? (popular?.items || []).filter(anime =>
     anime.status !== "NOT_YET_RELEASED" && (anime.banner_image || anime.media_poster_image || anime.poster_image)) : [];
   const heroLoading = discovery && !popular && !featuredUnavailable;
-  const seasonLabel = data?.season ? ({WINTER:"Hiver", SPRING:"Printemps", SUMMER:"Été", FALL:"Automne"} as Record<string,string>)[data.season] : "";
   const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && tab !== "popular"} />);
 
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
     {heroLoading && !error && <div className="hero-skeleton" role="status" aria-label={t("Chargement du catalogue")}><div /><div /></div>}
-    {discovery && data && data.items && data.items.length > 0 && <section className="season-discovery" aria-labelledby="season-heading">
-      <div className="section-heading section-heading--tabs">
-        <div className="section-title">
-          <span className="eyebrow">{t("Catalogue")}</span>
-          <h2 id="season-heading" className="serif">{tab === "popular" ? t("Les incontournables") : t("Cette saison")}</h2>
-          {tab !== "popular" && seasonLabel && <span className="season-period">{t(seasonLabel)} {data?.season_year}</span>}
-        </div>
+    {discovery && !error && <section className="season-discovery" aria-label={t("Catalogue")}>
+      <div className="catalog-tabs-row page-inset">
         <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
-          <button type="button" aria-pressed={tab !== "popular"} onClick={() => update({ tab: "", page: "1" }, false)}>{t("Cette saison")}</button>
+          <button type="button" aria-pressed={tab !== "popular"} onClick={() => update({ tab: "", page: "1" }, false)}>{t("Calendrier")}</button>
           <button type="button" aria-pressed={tab === "popular"} onClick={() => update({ tab: "popular", page: "1" }, false)}>{t("Les incontournables")}</button>
         </div>
       </div>
-      <SeasonalGrid count={data.items.length}>{cards}</SeasonalGrid>
+      {tab === "popular" ? (data && data.items && data.items.length > 0 && <>
+        <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("Catalogue")}</span><h2 id="season-heading" className="serif">{t("Les incontournables")}</h2></div></div>
+        <SeasonalGrid count={data.items.length}>{cards}</SeasonalGrid>
+      </>) : <ReleaseCalendar />}
     </section>}
-    {discovery && !error && data && data.items && data.items.length > 0 && <AccountCta />}
-    {(!discovery || error || loading || (data && data.items && data.items.length === 0)) && <div className="catalog-tools page-inset">
-      {error ? <div role="alert" className="catalog-message">{t(error)} <button className="text-action" onClick={() => setRetry(retry + 1)}>{t("Réessayer")}</button></div> : loading ? <p role="status" className="catalog-message">{t("Chargement…")}</p> : <>
+    {discovery && !error && <AccountCta />}
+    {(!discovery || error || (loading && needsData) || (needsData && data && data.items && data.items.length === 0)) && <div className="catalog-tools page-inset">
+      {error ? <div role="alert" className="catalog-message">{t(error)} <button className="text-action" onClick={() => setRetry(retry + 1)}>{t("Réessayer")}</button></div> : (loading && needsData) ? <p role="status" className="catalog-message">{t("Chargement…")}</p> : <>
         {!discovery && <section><h1 className="results-heading">{q ? t("Résultats pour « {query} »", {query:q}) : genre || t("Explorer les animes")}</h1><div className="poster-grid">{cards}</div></section>}
         {data && data.items && data.items.length === 0 && <p className="catalog-message">{t("Aucun anime trouvé.")}</p>}
       </>}

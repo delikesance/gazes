@@ -7,6 +7,7 @@ import {
   CatalogResponse,
   AnimeCatalogItem,
   EpisodeSourcesResponse,
+  ScheduleResponse,
 } from "@/types/api";
 
 export function getApiBase(): string {
@@ -190,6 +191,12 @@ async function catalogFetch<T>(path: string, signal?: AbortSignal,diagnostic?:Pl
   const message=response.status===404?"Cette saison ou cet épisode est introuvable.":"Les fournisseurs de torrents sont temporairement indisponibles.";
   throw Object.assign(new Error(message),{diagnosticReference:body.playback_session_id||response.headers.get('X-Playback-Session-ID')||diagnostic?.playback_session_id});
  }
+ return response.json();
+}
+
+export async function getSchedule(from: number, to: number, signal?: AbortSignal): Promise<ScheduleResponse> {
+ const response = await fetch(`${getApiBase()}/catalog/schedule?from=${from}&to=${to}`, { signal });
+ if (!response.ok) throw new Error("Impossible de charger le calendrier des sorties.");
  return response.json();
 }
 

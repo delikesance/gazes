@@ -13,6 +13,7 @@ const classic={...items[0],id:900,media_id:901,media_title:featuredTitle,title_r
 let fail=false,empty=false,upcoming=false;
 await page.route('**/api/v1/**',async route=>{
  if(fail){await route.fulfill({status:502,body:'offline'});return;}
+ if(new URL(route.request().url()).pathname.endsWith('/schedule')){await route.fulfill({contentType:'application/json',body:JSON.stringify({from:0,to:1,entries:[]})});return;}
  await route.fulfill({contentType:'application/json',body:JSON.stringify({page:1,has_next_page:true,items:new URL(route.request().url()).pathname.endsWith('/popular')?[classic]:empty?[]:items.map(item=>upcoming?{...item,status:'NOT_YET_RELEASED',start_date:'2026-10-04'}:item)})});
 });
 try {
@@ -23,16 +24,12 @@ try {
    assert.notEqual(await page.locator(selector).evaluate(el=>getComputedStyle(el).backdropFilter),'none','header controls keep the standard backdrop-filter over imagery');
   }
   assert.equal(await page.getByRole('link',{name:'Regarder',exact:true}).getAttribute('href'),'/anime/900/seasons/901/episodes/1','play the featured season, not the canonical franchise ID');
-  const hero=await page.locator('.anime-hero').boundingBox(), heading=await page.locator('.anime-hero h1').boundingBox(), rail=await page.locator('.seasonal-grid').boundingBox();
+  const hero=await page.locator('.anime-hero').boundingBox(), heading=await page.locator('.anime-hero h1').boundingBox(), calendar=await page.locator('.release-calendar').boundingBox();
   assert.ok(heading.y>=0 && heading.y+heading.height<=hero.y+hero.height,'heading must fit its artwork');
-  assert.ok(rail.y>=hero.y+hero.height,'posters must not overlap the featured content');
-  const columns=await page.locator('.seasonal-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
-  assert.equal(columns,width===1280?4:2);
-  assert.equal(items.length % columns,0);
-  assert.equal(await page.locator(".seasonal-card").first().locator(".poster-overlay > div").evaluate(el=>el.firstElementChild.tagName),"P");
-  const seasonalCard=page.locator('.seasonal-card').first();
-  assert.equal(await seasonalCard.getAttribute('href'),'/anime/1/seasons/100');
-  assert.equal(await seasonalCard.locator('img').getAttribute('src'),items[0].media_poster_image);
+  assert.ok(calendar.y>=hero.y+hero.height,'the calendar must not overlap the featured content');
+  assert.equal(await page.getByRole('heading',{name:'Cette semaine'}).isVisible(),true);
+  assert.equal(await page.locator('.cal-week').isVisible(),width>900,'week columns on wide screens, agenda otherwise');
+  assert.equal(await page.locator('.cal-agenda').isVisible(),width<=900);
   assert.equal(await page.locator('.poster-rail').count(),0);
   assert.equal(await page.locator('.hero-portrait').isVisible(),width<=600);
   assert.equal(await page.locator('.hero-wide').isVisible(),width>600);
@@ -40,8 +37,8 @@ try {
  await page.locator('.header-search-toggle').click();await page.getByRole('textbox',{name:'Rechercher un anime'}).fill('Example');await page.getByRole('button',{name:'Rechercher',exact:true}).click();await page.waitForURL('**/?q=Example&page=1');await page.getByRole('heading',{name:'Résultats pour « Example »'}).waitFor();assert.equal(await page.locator('.anime-hero').count(),0);
  const poster=page.locator('.poster-card').first();await poster.focus();await page.keyboard.press('Tab');await page.keyboard.press('Shift+Tab');await page.waitForFunction(()=>getComputedStyle(document.querySelector('.poster-overlay')).opacity==='1');
  await page.goto(`${base}/?tab=popular`);await page.getByRole('heading',{name:'Les incontournables'}).waitFor();
- upcoming=true;await page.goto(base);await page.locator('.premiere-date').first().waitFor();assert.equal(await page.getByRole('link',{name:'Regarder',exact:true}).count(),1);
- empty=true;await page.reload();await page.getByText('Aucun anime trouvé.').waitFor();assert.equal(await page.locator('.seasonal-card').count(),0);
+ upcoming=true;await page.goto(base);await page.getByRole('heading',{name:'Cette semaine'}).waitFor();assert.equal(await page.getByRole('link',{name:'Regarder',exact:true}).count(),0,'upcoming titles are not playable');
+ empty=true;await page.goto(`${base}/?tab=popular`);await page.getByText('Aucun anime trouvé.').waitFor();assert.equal(await page.locator('.seasonal-card').count(),0);
  fail=true;await page.reload();await page.locator('main [role="alert"]').waitFor();fail=false;empty=false;upcoming=false;await page.getByRole('button',{name:'Réessayer'}).click();await page.getByRole('heading',{name:featuredTitle,exact:true}).first().waitFor();
  assert.deepEqual(errors,[]);console.log('PASS: desktop/mobile layout, overflow, seasonal grid and posters, season-specific playback link, search, keyboard focus, popular route, upcoming, empty and retry.');
 }finally{await browser.close();}
