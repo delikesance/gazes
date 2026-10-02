@@ -2,10 +2,11 @@
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, CalendarDays, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AnimeCatalogCard } from "./AnimeCatalogCard";
 import { FeaturedAnimeCarousel } from "./FeaturedAnimeCarousel";
 import { SeasonalGrid } from "./SeasonalGrid";
+import { AccountCta } from "./AccountCta";
 import type { CatalogResponse } from "@/types/api";
 import { getCatalogPopular, getCatalogSeasonal, searchCatalog } from "@/lib/api";
 
@@ -60,24 +61,20 @@ export function CatalogBrowser({
     let active = true;
     setLoading(true);
     setError("");
-    console.log("[CatalogBrowser] Starting fetch for q:", q, "genre:", genre, "tab:", tab, "page:", page);
     const request = q || genre ? searchCatalog(q, genre, page, 24) : tab === "popular" ? getCatalogPopular(page, 24) : getCatalogSeasonal(page, 24);
     request.then(result => {
-      console.log("[CatalogBrowser] Fetch completed, active:", active, "items:", result?.items?.length);
       if (active) {
         setData(result);
         setLoading(false);
         setError("");
       }
     }).catch(err => {
-      console.error("[CatalogBrowser] Fetch error:", err);
       if (active) {
         setError(err instanceof Error ? err.message : "Impossible de charger le catalogue.");
         setLoading(false);
       }
     });
     return () => {
-      console.log("[CatalogBrowser] Cleanup called for q:", q);
       active = false;
     };
   }, [q, genre, tab, page, retry]);
@@ -106,10 +103,20 @@ export function CatalogBrowser({
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
     {heroLoading && !error && <div className="hero-skeleton" role="status" aria-label={t("Chargement du catalogue")}><div /><div /></div>}
     {discovery && data && data.items && data.items.length > 0 && <section className="season-discovery" aria-labelledby="season-heading">
-      <div className="section-heading">{tab === "popular" ? <Sparkles size={23} strokeWidth={1.5} aria-hidden="true" /> : <CalendarDays size={23} strokeWidth={1.5} aria-hidden="true" />}<h2 id="season-heading">{tab === "popular" ? t("Les incontournables") : t("Cette saison")}</h2>{tab !== "popular" && seasonLabel && <span className="season-period">{t(seasonLabel)} {data?.season_year}</span>}<span className="heading-line" />
+      <div className="section-heading section-heading--tabs">
+        <div className="section-title">
+          <span className="eyebrow">{t("Catalogue")}</span>
+          <h2 id="season-heading" className="serif">{tab === "popular" ? t("Les incontournables") : t("Cette saison")}</h2>
+          {tab !== "popular" && seasonLabel && <span className="season-period">{t(seasonLabel)} {data?.season_year}</span>}
+        </div>
+        <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
+          <button type="button" aria-pressed={tab !== "popular"} onClick={() => update({ tab: "", page: "1" })}>{t("Cette saison")}</button>
+          <button type="button" aria-pressed={tab === "popular"} onClick={() => update({ tab: "popular", page: "1" })}>{t("Les incontournables")}</button>
+        </div>
       </div>
       <SeasonalGrid count={data.items.length}>{cards}</SeasonalGrid>
     </section>}
+    {discovery && !error && data && data.items && data.items.length > 0 && <AccountCta />}
     {(!discovery || error || loading || (data && data.items && data.items.length === 0)) && <div className="catalog-tools page-inset">
       {error ? <div role="alert" className="catalog-message">{t(error)} <button className="text-action" onClick={() => setRetry(retry + 1)}>{t("Réessayer")}</button></div> : loading ? <p role="status" className="catalog-message">{t("Chargement…")}</p> : <>
         {!discovery && <section><h1 className="results-heading">{q ? t("Résultats pour « {query} »", {query:q}) : genre || t("Explorer les animes")}</h1><div className="poster-grid">{cards}</div></section>}
