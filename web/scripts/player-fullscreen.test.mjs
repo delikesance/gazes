@@ -47,7 +47,7 @@ try {
     const bar = page.locator('.player-topbar');
     const fullscreen = page.getByRole('button', { name: 'Plein écran (F)', exact: true });
     await fullscreen.click();
-    await page.waitForFunction(() => Boolean(document.fullscreenElement));
+    await page.waitForFunction(() => document.fullscreenElement?.contains(document.querySelector('.player-topbar')));
     assert.equal(await bar.evaluate(element => document.fullscreenElement.contains(element)), true, `${mode}: top bar belongs to the visible fullscreen layer`);
     assert.equal(await bar.isVisible(), true);
     await page.getByRole('button', { name: 'Changer de source pour cet épisode', exact: true }).click();
@@ -65,7 +65,7 @@ try {
     assert.equal(await page.locator('video').evaluate(video => video === window.originalVideo), true, 'fullscreen must preserve the current video');
     await page.setViewportSize({ width: 430, height: 800 });
     await fullscreen.click();
-    await page.waitForFunction(() => Boolean(document.fullscreenElement));
+    await page.waitForFunction(() => document.fullscreenElement?.contains(document.querySelector('.player-topbar')));
     const box = await bar.boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= 430, 'top bar fits a narrow fullscreen viewport');
     await fullscreen.click();
