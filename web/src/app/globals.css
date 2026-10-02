@@ -652,3 +652,9 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
   .anime-hero h1[data-size="lg"] { font-size: 32px; }
   .anime-hero h1[data-size="xl"] { font-size: 28px; }
 }
+
+/* Episode cards in the player: the ring belongs to the thumbnail (rounded), not to the whole button. */
+.player-episode:focus-visible { outline: none; }
+.player-episode .player-episode-thumb { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); transition: box-shadow .15s; }
+.player-episode[data-current="true"] .player-episode-thumb { box-shadow: 0 0 0 2px var(--accent); }
+.player-episode:focus-visible .player-episode-thumb { box-shadow: 0 0 0 2px #fafafa, 0 0 0 5px rgba(255, 255, 255, .25); }

@@ -39,7 +39,7 @@ export function PlayerEpisodePicker({ episodes, currentEpisode, onSelect, onClos
           <button type="button" className="player-pill player-pill--sm player-pill--icon" aria-label={t("Épisodes suivants")} onClick={() => scroll(1)}><ChevronRight className="h-4 w-4" /></button>
         </div>
       </div>
-      <div ref={railRef} className="relative flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+      <div ref={railRef} className="relative -m-1 flex gap-4 overflow-x-auto p-1" style={{ scrollbarWidth: "none" }}>
         {episodes.map(episode => {
           const current = episode.episode_number === currentEpisode;
           return (
@@ -50,9 +50,9 @@ export function PlayerEpisodePicker({ episodes, currentEpisode, onSelect, onClos
               disabled={episode.upcoming}
               aria-current={current ? "true" : undefined}
               onClick={() => onSelect(episode.episode_number)}
-              className="flex w-[200px] shrink-0 flex-col gap-2 text-left disabled:opacity-40 sm:w-[212px]"
+              className="player-episode flex w-[200px] shrink-0 flex-col gap-2 text-left disabled:opacity-40 sm:w-[212px]"
             >
-              <span className="relative block aspect-video w-full overflow-hidden bg-zinc-800" style={{ borderRadius: "var(--radius-poster)", boxShadow: current ? "0 0 0 2px #fafafa" : undefined }}>
+              <span className="player-episode-thumb relative block aspect-video w-full overflow-hidden bg-zinc-800" style={{ borderRadius: "var(--radius-poster)" }}>
                 {episode.thumbnail && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={episode.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
