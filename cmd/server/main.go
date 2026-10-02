@@ -98,7 +98,7 @@ func main() {
 	defer redisClient.Close()
 
 	// 7. Initialize API server
-	accounts, err := auth.New(auth.Options{Dir: cfg.AccountsDir, Production: cfg.AppEnv == "production", TrustProxy: cfg.TrustProxy, Getenv: os.Getenv})
+	accounts, err := auth.New(auth.Options{Dir: cfg.AccountsDir, Production: cfg.AppEnv == "production", TrustProxy: cfg.TrustProxy, Getenv: os.Getenv, State: auth.NewRedisState(redisClient)})
 	if err != nil {
 		logger.Error("failed to initialize accounts", "err", err)
 		os.Exit(1)

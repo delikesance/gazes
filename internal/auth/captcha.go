@@ -45,7 +45,9 @@ type Captcha struct {
 	key  []byte
 	mu   sync.Mutex
 	used map[string]time.Time
-	now  func() time.Time
+	// shared, when set, records solved challenges in Redis so a replay fails on every instance.
+	shared State
+	now    func() time.Time
 }
 
 func NewCaptcha(key []byte) *Captcha {
@@ -102,6 +104,10 @@ func (c *Captcha) Verify(payload string) bool {
 	now := c.now()
 	if now.After(expires) {
 		return false
+	}
+	if c.shared != nil {
+		first, err := c.shared.Once("captcha:"+s.Signature, time.Until(expires)+time.Second)
+		return err == nil && first
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
