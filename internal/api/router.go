@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gazes/gazes/internal/auth"
@@ -31,6 +32,8 @@ type Server struct {
 	router          chi.Router
 	diagnosticRate  diagnosticLimiter
 	auth            *auth.Service
+	sourceCache     *sourceCache
+	sourceCacheOnce sync.Once
 }
 
 // Option customises a Server.
@@ -58,6 +61,7 @@ func NewServer(
 		animeService:    metadata.NewAnimeService(nil),
 		catalogService:  metadata.NewAnimeCatalogService(nil),
 		episodeResolver: indexer.NewEpisodeResolver(idx),
+		sourceCache:     newSourceCache(),
 	}
 
 	for _, opt := range opts {
@@ -143,4 +147,14 @@ func (s *Server) setupRoutes() {
 
 func contextWithTimeout(parent context.Context, d time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, d)
+}
+
+// sources returns the episode-findings cache, creating it for Servers built without NewServer.
+func (s *Server) sources() *sourceCache {
+	s.sourceCacheOnce.Do(func() {
+		if s.sourceCache == nil {
+			s.sourceCache = newSourceCache()
+		}
+	})
+	return s.sourceCache
 }
