@@ -78,3 +78,11 @@ test('resolution parsing requires an explicit supported video height',()=>{
   assert.equal(fileResolution(name),want,name);
  }
 });
+
+test('Darki season-plus-extras pack selects TV episodes and excludes OAV/OAD folders',()=>{
+ const identity={episode_number:1,season_number:1,anime_aliases:['One Punch Man'],excluded_titles:['One Punch Man OVA']};
+ const root='One Punch Man - S01 MULTi [BD 1080p Opus] (Darki)/';
+ const files=[file(0,root+'Extras/One Punch Man - S01E01.mkv'),file(1,root+'OAD/One Punch Man - S01E01.mkv'),file(2,root+'OAV/One Punch Man - S01E01.mkv'),file(3,root+'One Punch Man - S01E02 MULTi [BD 1080p Opus] (Darki).mkv'),file(4,root+'One Punch Man - S01E01 MULTi [BD 1080p Opus] (Darki).mkv')];
+ assert.deepEqual(episodeCandidates(files,identity).map(f=>f.index),[4]);
+ assert.equal(episodeFile(files,identity),4);
+});

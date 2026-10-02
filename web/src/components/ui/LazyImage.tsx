@@ -5,6 +5,7 @@ import { Film } from "lucide-react";
 
 interface LazyImageProps {
   src?: string | null;
+  fallbackSrc?: string | null;
   alt: string;
   className?: string;
   imgClassName?: string;
@@ -14,6 +15,7 @@ interface LazyImageProps {
 
 export const LazyImage: React.FC<LazyImageProps> = ({
   src,
+  fallbackSrc,
   alt,
   className = "",
   imgClassName = "",
@@ -27,6 +29,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   });
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
+  const imageSrc = useFallback ? fallbackSrc : src;
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,7 +54,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     }
   }, [priority, isInView]);
 
-  const showPlaceholder = !src || hasError;
+  const showPlaceholder = !imageSrc || hasError;
 
   return (
     <div
@@ -63,19 +67,30 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         </div>
       ) : isInView ? (
         <>
-          {!isLoaded && (
+          {!isLoaded && !priority && (
             <div className="absolute inset-0 bg-zinc-900 animate-pulse" />
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={src}
+            ref={(image) => {
+              // SSR images can finish loading before hydration attaches onLoad.
+              if (image?.complete && image.naturalWidth > 0) setIsLoaded(true);
+            }}
+            src={imageSrc || undefined}
             alt={alt}
             loading={priority ? "eager" : "lazy"}
             decoding="async"
             onLoad={() => setIsLoaded(true)}
-            onError={() => setHasError(true)}
+            onError={() => {
+              if (!useFallback && fallbackSrc && fallbackSrc !== src) {
+                setIsLoaded(false);
+                setUseFallback(true);
+              } else {
+                setHasError(true);
+              }
+            }}
             className={`h-full w-full object-cover object-center transition-opacity duration-300 ${
-              isLoaded ? "opacity-100" : "opacity-0"
+              isLoaded || priority ? "opacity-100" : "opacity-0"
             } ${imgClassName}`}
           />
         </>

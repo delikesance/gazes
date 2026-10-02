@@ -12,6 +12,8 @@
     "test:player": "node scripts/subtitle-assets.mjs && node scripts/player-subtitles.test.mjs",
     "test:sources": "node scripts/playback-sources.test.mjs && node scripts/auto-playback.test.mjs",
     "test:design": "node scripts/design-flow.mjs",
+    "test:hero": "node scripts/featured-hero.test.mjs",
+    "test:tracks": "node scripts/media-tracks.test.mjs",
     "test:i18n": "node scripts/i18n-flow.mjs"
   },
   "dependencies": {

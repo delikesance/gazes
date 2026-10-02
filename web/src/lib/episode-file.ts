@@ -36,7 +36,7 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
   // Reject OVA / OAD / Special files and folders unless target is explicitly an OVA
   if (!("is_ova" in source && Boolean(source.is_ova)) &&
       (/\b(oad|ova|oav|sp|special|specials|ncop|nced|op|ed|ost|sample|trailer|bonus|extra)\b/i.test(name) ||
-       /(?:^|[/\\])(?:oads?|ovas?|movies?|films?|extras|bonus|openings?|endings?|ost|nc)(?:[/\\]|$)/i.test(path))) {
+       /(?:^|[/\\])(?:oads?|ovas?|oavs?|movies?|films?|extras|bonus|openings?|endings?|ost|nc)(?:[/\\]|$)/i.test(path))) {
     return false;
   }
 

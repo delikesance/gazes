@@ -1,0 +1,34 @@
+# Used with compose.yaml under the separate gazes-dev project.
+services:
+  backend:
+    build:
+      dockerfile: deploy/backend.dev.Dockerfile
+    environment:
+      APP_ENV: development
+    volumes:
+      - .:/src:ro
+      - go-modules:/go/pkg/mod
+      - go-build:/root/.cache/go-build
+      - dev-data:/app/data
+      - dev-cache:/app/cache
+    healthcheck:
+      start_period: 180s
+  web:
+    build:
+      dockerfile: deploy/web.dev.Dockerfile
+    volumes:
+      - ./web:/app
+      - web-modules:/app/node_modules
+      - web-next:/app/.next
+      - pnpm-store:/pnpm/store
+    healthcheck:
+      start_period: 180s
+
+volumes:
+  go-modules:
+  go-build:
+  dev-data:
+  dev-cache:
+  web-modules:
+  web-next:
+  pnpm-store:

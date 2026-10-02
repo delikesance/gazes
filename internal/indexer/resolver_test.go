@@ -227,3 +227,24 @@ func TestWeakVFBeatsHealthyVOSTFR(t *testing.T) {
 		t.Fatalf("VF priority lost: VF=%+v VOSTFR=%+v", vf.ScoreBreakdown, vostfr.ScoreBreakdown)
 	}
 }
+
+func TestSeasonExtrasPackIdentity(t *testing.T) {
+	identity := indexer.EpisodeIdentity{Titles: []string{"One Punch Man"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true}
+	for _, tt := range []struct {
+		title        string
+		match, batch bool
+	}{
+		{"One Punch Man S01 + OAV + OAD - MULTi VF/VOSTFR [BD 1080p Opus] v2 (Darki) | FRENCH", true, true},
+		{"One Punch Man S01 + Extras MULTi", true, true},
+		{"One Punch Man S02 + OAV VF", false, false},
+		{"One Punch Man OAV S01E01 VF", false, false},
+		{"One Punch Man S01 + OAV - 01 VF", false, false},
+		{"One Punch Man OAD S01 VF", false, false},
+		{"One Punch Man S01 1080p", false, true},
+	} {
+		matched, batch := indexer.MatchEpisode(tt.title, identity)
+		if matched != tt.match || batch != tt.batch {
+			t.Errorf("%s: got %v,%v want %v,%v", tt.title, matched, batch, tt.match, tt.batch)
+		}
+	}
+}

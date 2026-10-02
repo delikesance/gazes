@@ -1,7 +1,7 @@
 "use client";
 import { useI18n } from "@/lib/i18n";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { EpisodeSource, EpisodeSourcesResponse } from "@/types/api";
 import {
   X,
@@ -18,6 +18,7 @@ interface EpisodeSourceSelectorModalProps {
   animeTitle: string;
   episodeNumber: number;
   sourcesData: EpisodeSourcesResponse | null;
+  currentSourceHash?: string;
   isLoading: boolean;
   isOpen: boolean;
   onClose: () => void;
@@ -28,12 +29,14 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
   animeTitle,
   episodeNumber,
   sourcesData,
+  currentSourceHash,
   isLoading,
   isOpen,
   onClose,
   onSelectSource,
 }) => {
   const { t } = useI18n();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [selectedLang, setSelectedLang] = useState<string>("all");
   const [selectedQuality, setSelectedQuality] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -48,13 +51,22 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
   }
 
   useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape") {
+        e.preventDefault();
         onClose();
+      } else if (e.key === "Tab") {
+        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, select');
+        const first = controls?.[0], last = controls?.[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); if (previousFocus?.isConnected) previousFocus.focus(); };
   }, [isOpen, onClose]);
 
   const sources = useMemo(() => sourcesData?.sources || [], [sourcesData]);
@@ -63,7 +75,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
     return sources.filter((src) => {
       // Language filter
       if (selectedLang === "french" && !src.is_french) return false;
-      if (selectedLang === "vostfr" && src.language_tag !== "VOSTFR") return false;
+      if (selectedLang === "vostfr" && src.language_tag !== "VOSTFR" && !src.language_flags?.includes("VOSTFR")) return false;
       if (selectedLang === "vf" && src.language_tag !== "VF") return false;
       if (selectedLang === "multi" && src.language_tag !== "MULTI") return false;
       if (selectedLang === "vosten" && src.language_tag !== "VOSTEN") return false;
@@ -99,7 +111,9 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+      ref={dialogRef}
+      role="dialog" aria-modal="true" aria-label={t("Changer de source pour cet épisode")}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
@@ -127,12 +141,14 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
 
           <button
             onClick={onClose}
+            aria-label={t("Fermer")}
             className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {sourcesData?.partial && <p className="px-4 py-2 text-xs text-amber-200">{t("Recherche partielle : certaines sources peuvent manquer.")}</p>}
         {/* Filters Bar */}
         <div className="p-3 bg-zinc-900/20 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3">
           {/* Language filter buttons */}
@@ -233,6 +249,7 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
                     <span className="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
                       {source.quality}
                     </span>
+                    {source.provider && <span className="text-[11px] text-zinc-400">{source.provider}</span>}
                     {source.release_group && source.release_group !== "Other" && (
                       <span className="text-[11px] font-mono text-zinc-400">
                         [{source.release_group}]
@@ -263,11 +280,12 @@ export const EpisodeSourceSelectorModal: React.FC<EpisodeSourceSelectorModalProp
                 {/* Play Button */}
                 <div className="shrink-0 flex items-center justify-end">
                   <button
+                    disabled={source.info_hash === currentSourceHash}
                     onClick={() => onSelectSource(source)}
                     className="flex items-center gap-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
                   >
                     <Play className="h-3.5 w-3.5 fill-current" />
-                    <span>{t("Stream")}</span>
+                    <span>{t(source.info_hash === currentSourceHash ? "Source actuelle" : "Stream")}</span>
                   </button>
                 </div>
               </div>

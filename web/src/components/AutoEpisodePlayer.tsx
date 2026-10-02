@@ -1,10 +1,11 @@
 "use client";
 import { useI18n } from "@/lib/i18n";
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EpisodeSource } from '@/types/api';
 import { diagnosticEvent } from "@/lib/diagnostics";
 import { playbackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
+import { EpisodeSourceSelectorModal } from './EpisodeSourceSelectorModal';
 
 interface Props {
  sources: EpisodeSource[];
@@ -30,6 +31,8 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  const session=diagnosticSession||fallbackSession;
  const candidates = useMemo(() => playbackSources(sources), [sources]);
  const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:crypto.randomUUID() });
+ const [choosingSource, setChoosingSource] = useState(false);
+ const positionRef = useRef(props.initialTime || 0);
  const source = candidates[attempt.index];
  const diagnostic=useMemo(()=>({playback_session_id:session,attempt_id:attempt.id,anime_id:animeId?String(animeId):undefined,season_id:seasonId?String(seasonId):undefined,episode:String(props.episodeNumber),infohash:source?.info_hash}),[session,attempt.id,animeId,seasonId,props.episodeNumber,source?.info_hash]);
  useEffect(()=>{diagnosticEvent(diagnostic,source?'playback.attempt':'playback.exhausted',{source_count:candidates.length,partial:Boolean(partial)});},[diagnostic,source,candidates.length,partial]);
@@ -40,10 +43,10 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
   return()=>{window.removeEventListener('error',error);window.removeEventListener('unhandledrejection',rejection);};
  },[diagnostic]);
  const failed = useCallback((failure: { reason: string; position: number }) => {
-  setAttempt(current => current.index === attempt.index
+  setAttempt(current => current.id === attempt.id
    ? { index: current.index + 1, position: Math.max(0, failure.position), reason: failure.reason, id:crypto.randomUUID() }
    : current);
- }, [attempt.index]);
+ }, [attempt.id]);
  if (!source) return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6">
   <div role="alert" className="max-w-lg space-y-4 text-center text-zinc-100">
    <p>{t(candidates.length?"Toutes les tentatives de lecture ont échoué.":partial?"La recherche de torrents est incomplète. Réessayez.":"Aucun torrent ne correspond à cet épisode.")}</p>
@@ -55,7 +58,19 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    </div>
   </div>
  </div>;
+ const picker = <EpisodeSourceSelectorModal animeTitle={props.animeTitle} episodeNumber={props.episodeNumber}
+  sourcesData={{anime_title:props.animeTitle,episode_number:props.episodeNumber,total_sources:candidates.length,french_sources:candidates.filter(s=>s.is_french).length,sources:candidates,partial}}
+  currentSourceHash={source?.info_hash} isLoading={false} isOpen={choosingSource}
+  onClose={()=>setChoosingSource(false)} onSelectSource={selected=>{
+   const index=candidates.findIndex(candidate=>candidate.info_hash===selected.info_hash);
+   if(index<0)return;
+   setChoosingSource(false);
+   if(index===attempt.index)return;
+   setAttempt({index,position:positionRef.current,reason:'',id:crypto.randomUUID()});
+  }} />;
  return <VideoPlayerModal key={attempt.id} {...props}
+  onChangeSource={()=>setChoosingSource(true)} sourcePicker={picker}
+  onProgress={(position,duration)=>{positionRef.current=position;props.onProgress?.(position,duration);}}
   item={source} initialTime={attempt.position} onPlaybackFailure={failed} diagnostic={diagnostic}
 
  />;

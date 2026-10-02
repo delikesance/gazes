@@ -72,7 +72,7 @@ try {
  let first;
  for (let attempt=0; attempt<30; attempt++) {
   first = await canvas.screenshot();
-  const decoded = spawnSync(process.env.FFMPEG_PATH || resolve(root, '../.devenv/profile/bin/ffmpeg'), ['-v','error','-f','image2pipe','-i','pipe:0','-f','rawvideo','-pix_fmt','rgb24','pipe:1'], {input:first,maxBuffer:8*1024*1024});
+  const decoded = spawnSync(process.env.FFMPEG_PATH || 'ffmpeg', ['-v','error','-f','image2pipe','-i','pipe:0','-f','rawvideo','-pix_fmt','rgb24','pipe:1'], {input:first,maxBuffer:8*1024*1024});
   assert.equal(decoded.status,0,'screenshot must be decodable');
   let white=0;
   for(let i=0;i<decoded.stdout.length;i+=3) if(decoded.stdout[i]>240 && decoded.stdout[i+1]>240 && decoded.stdout[i+2]>240) white++;
@@ -85,7 +85,7 @@ try {
  await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-player-controls]')).visibility==='hidden');
  assert.equal(await canvas.evaluate(el=>getComputedStyle(el).opacity), '1');
  const after = await canvas.screenshot();
- const pixels = spawnSync(process.env.FFMPEG_PATH || resolve(root, '../.devenv/profile/bin/ffmpeg'), ['-v','error','-f','image2pipe','-i','pipe:0','-f','rawvideo','-pix_fmt','rgb24','pipe:1'], {input:after,maxBuffer:8*1024*1024});
+ const pixels = spawnSync(process.env.FFMPEG_PATH || 'ffmpeg', ['-v','error','-f','image2pipe','-i','pipe:0','-f','rawvideo','-pix_fmt','rgb24','pipe:1'], {input:after,maxBuffer:8*1024*1024});
  let visibleWhite=0;
  for(let i=0;i<pixels.stdout.length;i+=3) if(pixels.stdout[i]>240 && pixels.stdout[i+1]>240 && pixels.stdout[i+2]>240) visibleWhite++;
  assert.ok(visibleWhite>100,'caption pixels must remain after controls fade');
