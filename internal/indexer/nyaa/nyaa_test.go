@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +13,74 @@ import (
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/indexer/nyaa"
 )
+
+func TestSortedSearchUsesPaginatedListing(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/tensura-listing.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("page") != "" || q.Get("s") != "seeders" || q.Get("p") != "2" || q.Get("c") != "1_0" {
+			t.Errorf("sorting/pagination lost: %v", q)
+		}
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write(fixture)
+	}))
+	defer ts.Close()
+	items, err := nyaa.NewClient(ts.URL, ts.Client()).Search(context.Background(), indexer.SearchOptions{Query: "Tensura MULTI", Category: "1_0", SortBy: "seeders", Order: "desc", Page: 2})
+	if err != nil || len(items) != 1 {
+		t.Fatalf("%+v %v", items, err)
+	}
+	item := items[0]
+	if item.ID != "2166021" || item.InfoHash != "d665082ce8d007d287c8f180567c12d879f62663" || item.Seeders != 1605 || item.Leechers != 17 || item.Downloads != 14089 || item.SizeBytes <= 0 || item.PublishDate.IsZero() {
+		t.Fatalf("listing metadata lost: %+v", item)
+	}
+	magnet, _ := url.Parse(item.MagnetURI)
+	if magnet.Query().Get("xs") != ts.URL+"/download/2166021.torrent" {
+		t.Fatal("direct torrent metadata URL missing")
+	}
+}
+
+func TestListingChallengeIsNotAnEmptySearch(t *testing.T) {
+	for _, tt := range []struct {
+		body   string
+		failed bool
+	}{
+		{"<html>Cloudflare captcha</html>", true},
+		{"<h3>No results found</h3>", false},
+		{`<table class="torrent-list"><tbody></tbody></table>`, false},
+		{`<table class="torrent-list"><tr><td>broken row</td></tr></table>`, false},
+	} {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(tt.body)) }))
+		_, err := nyaa.NewClient(ts.URL, ts.Client()).Search(context.Background(), indexer.SearchOptions{SortBy: "seeders"})
+		ts.Close()
+		if (err != nil) != tt.failed {
+			t.Errorf("%s: %v", tt.body, err)
+		}
+	}
+}
+
+func TestRSSDownloadLinksProvideDirectMetadataSource(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(strings.ReplaceAll(sampleRSS, "https://nyaa.si/view/1789012", "https://nyaa.si/download/1789012.torrent?download=1")))
+	}))
+	defer ts.Close()
+	items, err := nyaa.NewClient(ts.URL, ts.Client()).Search(context.Background(), indexer.SearchOptions{Query: "Naruto VF"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := items[0]
+	u, err := url.Parse(item.MagnetURI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ts.URL + "/download/1789012.torrent"
+	if item.ID != "1789012" || item.TorrentURL != want || u.Query().Get("xs") != want {
+		t.Fatalf("RSS download link lost direct metadata: %+v", item)
+	}
+}
 
 const sampleRSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:nyaa="https://nyaa.si/xmlns/nyaa">

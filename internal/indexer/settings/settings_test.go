@@ -55,3 +55,31 @@ func TestManifestErrorsDoNotExposeSecrets(t *testing.T) {
 		}
 	}
 }
+
+func TestConfiguredGatewaysAreNotSilentlyIgnored(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "indexers.json")
+	os.WriteFile(path, []byte(`[{"name":"ext","endpoint":"http://prowlarr:9696/3/api","apiKey":"secret"},{"name":"prowlarr-4","endpoint":"http://prowlarr:9696/4/api","apiKey":"secret"}]`), 0600)
+	for _, disabled := range []bool{false, true} {
+		p, err := Providers(func(k string) string {
+			if k == "INDEXER_CONFIG_FILE" {
+				return path
+			}
+			if disabled && k == "INDEXER_EXT_DISABLED" {
+				return "true"
+			}
+			return ""
+		})
+		want := 2
+		if disabled {
+			want = 1
+		}
+		if err != nil || len(p) != want {
+			t.Fatalf("disabled=%v providers=%d err=%v", disabled, len(p), err)
+		}
+		for _, provider := range p {
+			if _, ok := provider.(*torznab.Client); !ok {
+				t.Fatal("manifest gateway replaced with direct connector")
+			}
+		}
+	}
+}

@@ -68,6 +68,7 @@ def provision(api, base, key, pending_path=None):
         if pending_path:
             write_manifest(pending_path, sorted(pending))
     result = []
+    exported_ids = set()
     for name, implementation in TARGETS:
         found = next((r for r in existing if matches(r, name, implementation)), None)
         if found is None:
@@ -98,6 +99,17 @@ def provision(api, base, key, pending_path=None):
         # Reuse existing providers without changing any manually configured settings.
         if found.get("enable", False):
             result.append({"name": name, "endpoint": base.rstrip("/") + "/" + str(found["id"]) + "/api", "apiKey": key})
+            exported_ids.add(found["id"])
+    # Include already enabled torrent indexers without changing their settings
+    # or creating providers requiring accounts. IDs provide stable cache names.
+    names = {entry["name"] for entry in result}
+    for resource in sorted(existing, key=lambda row: row["id"]):
+        if resource["id"] in exported_ids or not resource.get("enable", False) or resource.get("protocol") != "torrent":
+            continue
+        name = next((n for n in ("ext", "magnetdl") if matches(resource, n, "Cardigann") and n not in names),
+                    "prowlarr-" + str(resource["id"]))
+        names.add(name)
+        result.append({"name": name, "endpoint": base.rstrip("/") + "/" + str(resource["id"]) + "/api", "apiKey": key})
     return result
 
 

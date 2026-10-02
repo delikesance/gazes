@@ -1,0 +1,131 @@
+[
+  {
+    "timestamp": "2026-10-02T19:19:12.802201878Z",
+    "event": "playback.file_selected",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "1ed07ecd-05c1-4953-adc1-6bcbdc96bbe8",
+    "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+    "attributes": {
+      "client_reported": true,
+      "file_count": 244,
+      "file_index": 24,
+      "file_path": "Naruto 001.mkv",
+      "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+      "reason": "episode_match",
+      "service": "browser"
+    }
+  },
+  {
+    "timestamp": "2026-10-02T19:19:13.629313940Z",
+    "event": "playback.tracks",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "1ed07ecd-05c1-4953-adc1-6bcbdc96bbe8",
+    "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+    "attributes": {
+      "audio_codec": "mp3",
+      "audio_track": 0,
+      "client_reported": true,
+      "duration": 1370.2,
+      "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+      "service": "browser",
+      "subtitle_track": 0,
+      "video_codec": "h264"
+    }
+  },
+  {
+    "timestamp": "2026-10-02T19:27:13.362259990Z",
+    "event": "playback.file_selected",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "a7bf8cf8-656a-4b1f-873a-90a097ed1a03",
+    "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+    "attributes": {
+      "client_reported": true,
+      "file_count": 244,
+      "file_index": 24,
+      "file_path": "Naruto 001.mkv",
+      "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+      "reason": "episode_match",
+      "service": "browser"
+    }
+  },
+  {
+    "timestamp": "2026-10-02T19:27:14.163952356Z",
+    "event": "playback.tracks",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "a7bf8cf8-656a-4b1f-873a-90a097ed1a03",
+    "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+    "attributes": {
+      "audio_codec": "mp3",
+      "audio_track": 0,
+      "client_reported": true,
+      "duration": 1370.2,
+      "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+      "service": "browser",
+      "subtitle_track": 0,
+      "video_codec": "h264"
+    }
+  },
+  {
+    "timestamp": "2026-10-02T19:27:29.646682683Z",
+    "event": "playback.failed",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "a7bf8cf8-656a-4b1f-873a-90a097ed1a03",
+    "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+    "attributes": {
+      "client_reported": true,
+      "error_code": "startup_timeout",
+      "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+      "position": 35,
+      "reason": "La lecture ne démarre pas sur cette source.",
+      "service": "browser"
+    }
+  },
+  {
+    "timestamp": "2026-10-02T19:27:29.646980188Z",
+    "event": "playback.file_selected",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "1afa1f85-08d2-4e9d-9681-ab1609d04d95",
+    "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+    "attributes": {
+      "client_reported": true,
+      "file_count": 248,
+      "file_index": 28,
+      "file_path": "Season 01/[Anime Time] Naruto - 001 - Enter Naruto Uzumaki!.mkv",
+      "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+      "reason": "episode_match",
+      "service": "browser"
+    }
+  },
+  {
+    "timestamp": "2026-10-02T19:27:29.647101935Z",
+    "event": "playback.tracks",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "1afa1f85-08d2-4e9d-9681-ab1609d04d95",
+    "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+    "attributes": {
+      "audio_codec": "aac",
+      "audio_track": 0,
+      "client_reported": true,
+      "duration": 1417.115,
+      "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+      "service": "browser",
+      "subtitle_track": 0,
+      "video_codec": "hevc"
+    }
+  },
+  {
+    "timestamp": "2026-10-02T19:27:30.542263361Z",
+    "event": "playback.started",
+    "playback_session_id": "73f12f23-ce3e-41a3-a37b-9781d12950b5",
+    "attempt_id": "1afa1f85-08d2-4e9d-9681-ab1609d04d95",
+    "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+    "attributes": {
+      "client_reported": true,
+      "height": 1080,
+      "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+      "position": 35.514872,
+      "service": "browser",
+      "width": 1432
+    }
+  }
+]

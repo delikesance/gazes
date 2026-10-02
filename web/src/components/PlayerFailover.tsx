@@ -5,7 +5,7 @@ import { Scribble } from "./ui/Scribble";
 
 export interface FailoverInfo {
   /** Sources already tried in this session, oldest first. */
-  tried: { label: string }[];
+  tried: { label: string; reason?: string }[];
   /** The source being connected right now. */
   current: string;
 }
@@ -29,7 +29,7 @@ export function PlayerFailover({ info, onChangeSource }: { info: FailoverInfo; o
               <li key={index} className="player-source-row">
                 <span className="font-mono text-zinc-500">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate">{source.label}</span>
-                <span className="text-xs text-red-300">{t("Sans réponse")}</span>
+                <span className="max-w-[55%] truncate text-xs text-red-300" title={source.reason ? t(source.reason) : undefined}>{source.reason ? t(source.reason) : t("Sans réponse")}</span>
               </li>
             ))}
             <li className="player-source-row">

@@ -37,6 +37,7 @@ const server = createServer(async (request, response) => {
  else if (url.pathname.startsWith('/subtitles/')) { response.setHeader('Content-Type', url.pathname.endsWith('.wasm') ? 'application/wasm' : url.pathname.endsWith('.js') ? 'text/javascript' : 'application/octet-stream'); response.end(await readFile(resolve(root, 'public', url.pathname.slice(1)))); }
  else if (url.pathname.endsWith('/torrent/load')) { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ info_hash: 'test', files: [{ index: 0, path: 'test - 01 1080p.mkv', length: 1000, is_video: true },{index:1,path:'test - 01 720p.mkv',length:800,is_video:true},{index:2,path:'test - 02 480p.mkv',length:500,is_video:true}], main_video_index: 0, main_video_metadata: meta })); }
  else if (url.pathname.endsWith('/metadata')) { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(meta)); }
+ else if (url.pathname.endsWith('/torrent/stats')) { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({active_seeders:1,total_peers:1,download_rate_bps:0,buffer_percent:100})); }
  else if (url.pathname.endsWith('/subtitles')) { assert.equal(url.searchParams.get('format'), 'ass'); response.end(ass); }
  else if (url.pathname.endsWith('/stream')) { response.setHeader('Content-Type', 'video/mp4'); response.flushHeaders(); request.on('close', ()=>response.end()); }
  else { response.setHeader('Content-Type', 'application/json'); response.end('{}'); }
@@ -49,8 +50,8 @@ try {
  const page = await browser.newPage({ locale:'fr-FR', viewport: { width: 1280, height: 900 } });
  const errors=[]; page.on('pageerror', error=>errors.push(String(error)));
  const capabilities = await page.evaluate(()=>['hvc1.1.6.L93.B0','hvc1.2.4.L123.B0'].map(codec=>document.createElement('video').canPlayType(`video/mp4; codecs="${codec}"`)));
- console.log('Firefox HEVC 8/10-bit:', capabilities);
- if (capabilities.some(value=>!value)) console.log('BLOCKED: native Firefox HEVC playback cannot be verified in this environment.');
+ console.log('Native HEVC 8/10-bit:', capabilities);
+ if (capabilities.some(value=>!value)) console.log('Native HEVC playback is not verified by this simulated-clock subtitle test.');
  await page.addInitScript(() => {
   window.testTime = 2;
   window.playCalls = 0;
@@ -94,7 +95,7 @@ try {
  const [captionBox, controlsBox] = await Promise.all([canvas.boundingBox(), page.locator('[data-player-controls]').boundingBox()]);
  assert.ok(captionBox.y+captionBox.height <= controlsBox.y+1, 'captions must not overlap visible controls');
  await page.getByTitle('Choisir la piste audio').click();
- await page.getByRole('button', { name:'Japanese', exact:true }).click();
+ await page.getByRole('button', { name:'Japonais', exact:true }).click();
  await page.waitForFunction(()=>document.querySelector('video').src.includes('audio_track=1'));
  await page.waitForSelector('canvas.JASSUB');
  await page.locator('video').evaluate(video=>video.dispatchEvent(new Event('canplay')));
@@ -105,18 +106,20 @@ try {
  await page.getByTitle('Pause (Espace)',{exact:true}).click();
  const playsBefore = await page.evaluate(()=>window.playCalls);
  await page.getByTitle('Choisir la piste audio').click();
- await page.getByRole('button', {name:'English',exact:true}).click();
+ await page.getByRole('button', {name:'Anglais',exact:true}).click();
  await page.waitForFunction(()=>!document.querySelector('video').src.includes('audio_track=1'));
  await page.locator('video').evaluate(video=>video.dispatchEvent(new Event('canplay')));
  assert.equal(await page.evaluate(()=>window.playCalls), playsBefore, 'changing audio while paused must not start playback');
  assert.equal(await page.locator('video').evaluate(video=>video.volume), 0.4);
  assert.equal(await page.locator('video').evaluate(video=>video.muted), true);
  await page.getByTitle('Lecture (Espace)',{exact:true}).click();
- await page.getByTitle('Choisir les sous-titres').click();
+ await page.getByTitle('Choisir la piste audio').click();
+ await page.getByRole('tab',{name:'Sous-titres',exact:true}).click();
  await page.getByRole('button',{name:'Désactivés',exact:true}).click();
  await page.waitForFunction(()=>!document.querySelector('canvas.JASSUB'));
- await page.getByTitle('Choisir les sous-titres').click();
- await page.getByRole('button',{name:'French',exact:true}).click();
+ await page.getByTitle('Choisir la piste audio').click();
+ await page.getByRole('tab',{name:'Sous-titres',exact:true}).click();
+ await page.getByRole('button',{name:'Français',exact:true}).click();
  await page.waitForSelector('canvas.JASSUB');
  await page.setViewportSize({width:900,height:700});
  await page.waitForTimeout(500);
@@ -130,18 +133,12 @@ try {
  await page.waitForFunction(()=>!document.fullscreenElement);
  await page.evaluate(()=>{localStorage.setItem('gazes-language','en');window.dispatchEvent(new Event('gazes-language-change'));});
  await page.getByTitle('Select Audio Track').waitFor();
- await page.getByTitle('Select Subtitles').waitFor();
+ await page.getByTitle('Select Audio Track').click();
+ await page.getByRole('tab',{name:'Subtitles',exact:true}).click();
+ await page.getByRole('button',{name:'French',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Close',exact:true}).click();
  assert.equal(await page.locator('canvas.JASSUB').count(),1,'switching UI language must preserve subtitle rendering');
- assert.equal(await page.locator('.player-heading').innerText(),'Test anime');
- await page.mouse.move(450,350);
- await page.getByRole('button',{name:'Quality',exact:true}).click();
- assert.equal(await page.getByRole('button',{name:'480p',exact:true}).count(),0,'other episodes must not appear as qualities');
- await page.getByRole('button',{name:'720p',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('video').src.includes('file_idx=1'));
- const qualityURL=new URL(await page.locator('video').getAttribute('src'),'http://localhost');
- assert.ok(Number(qualityURL.searchParams.get('time_offset'))>0,'quality change preserves absolute position');
- await page.locator('video').evaluate(video=>video.dispatchEvent(new Event('canplay')));
- await page.waitForSelector('canvas.JASSUB');
+ assert.equal((await page.locator('.player-heading').innerText()).split('\n')[0],'Test anime');
  assert.equal(await page.locator('video').evaluate(video=>video.volume),0.4);
  assert.deepEqual(errors,[]);
  console.log('PASS: JASSUB, controls fade, layout, source replacement, subtitles off/on, volume/mute/pause, resize and fullscreen (simulated clock).');

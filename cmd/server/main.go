@@ -96,6 +96,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer redisClient.Close()
+	catalogIndexers.SetRedis(redisClient)
 
 	// 7. Initialize API server
 	accounts, err := auth.New(auth.Options{Dir: cfg.AccountsDir, Production: cfg.AppEnv == "production", TrustProxy: cfg.TrustProxy, Getenv: os.Getenv, State: auth.NewRedisState(redisClient)})

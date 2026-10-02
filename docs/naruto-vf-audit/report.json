@@ -1,0 +1,4811 @@
+{
+  "started": "2026-10-02T18:44:56.832Z",
+  "base": "http://127.0.0.1:8080/api/v1",
+  "episodes": [
+    {
+      "episode": 1,
+      "started": "2026-10-02T18:44:56.834Z",
+      "status": "confirmed",
+      "attempts": [
+        {
+          "title": "Naruto DVDRIP VostFr/Vf",
+          "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+          "score": 213,
+          "seeders": 2,
+          "language_claim": "VF",
+          "status": "confirmed",
+          "probes": [
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4018,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 3495,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1370.2,
+                "formatted_duration": "22:50",
+                "width": 640,
+                "height": 480,
+                "resolution": "480p",
+                "video_codec": "h264",
+                "audio_codec": "mp3",
+                "bitrate_bps": 0,
+                "total_bytes": 199096177,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "fre",
+                    "title": "Francais",
+                    "codec": "mp3",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "jpn",
+                    "title": "Japonais",
+                    "codec": "mp3",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 3,
+                    "language": "fre",
+                    "title": "Francais Pour La VF",
+                    "codec": "subrip",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 4,
+                    "language": "fre",
+                    "title": "Francais Pour La VO",
+                    "codec": "dvd_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4164,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 8716288,
+              "progress_pct": 0.02250407994124663,
+              "download_rate_bps": 0,
+              "upload_rate_bps": 0,
+              "total_peers": 5,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 9182,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 9175040,
+              "progress_pct": 0.02368850520131224,
+              "download_rate_bps": 91411,
+              "upload_rate_bps": 0,
+              "total_peers": 3,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 14198,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 9617408,
+              "progress_pct": 0.02483062955923265,
+              "download_rate_bps": 88185,
+              "upload_rate_bps": 0,
+              "total_peers": 2,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 19216,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 10043392,
+              "progress_pct": 0.025930453015007866,
+              "download_rate_bps": 84905,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 24239,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 10485760,
+              "progress_pct": 0.02707257737292828,
+              "download_rate_bps": 88071,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 29256,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 10895360,
+              "progress_pct": 0.028130099926558287,
+              "download_rate_bps": 81636,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 34274,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 11337728,
+              "progress_pct": 0.029272224284478697,
+              "download_rate_bps": 88162,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 39288,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 11780096,
+              "progress_pct": 0.030414348642399107,
+              "download_rate_bps": 88216,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 44304,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 12222464,
+              "progress_pct": 0.031556473000319524,
+              "download_rate_bps": 88186,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 49318,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 12648448,
+              "progress_pct": 0.03265629645609473,
+              "download_rate_bps": 84954,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 54336,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 13090816,
+              "progress_pct": 0.03379842081401514,
+              "download_rate_bps": 88167,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 59351,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 13533184,
+              "progress_pct": 0.03494054517193555,
+              "download_rate_bps": 88207,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 64365,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 13959168,
+              "progress_pct": 0.03604036862771076,
+              "download_rate_bps": 84962,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 69378,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 14417920,
+              "progress_pct": 0.03722479388777637,
+              "download_rate_bps": 91498,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            }
+          ],
+          "attempt_id": "3df3b8d2-a559-4597-8d6c-20717ea7b2f4",
+          "metadata_elapsed_ms": 34,
+          "file": {
+            "index": 24,
+            "path": "Naruto 001.mkv",
+            "length": 199096177,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1370.2,
+            "formatted_duration": "22:50",
+            "width": 640,
+            "height": 480,
+            "resolution": "480p",
+            "video_codec": "h264",
+            "audio_codec": "mp3",
+            "bitrate_bps": 0,
+            "total_bytes": 199096177,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "fre",
+                "title": "Francais",
+                "codec": "mp3",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "jpn",
+                "title": "Japonais",
+                "codec": "mp3",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 3,
+                "language": "fre",
+                "title": "Francais Pour La VF",
+                "codec": "subrip",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 4,
+                "language": "fre",
+                "title": "Francais Pour La VO",
+                "codec": "dvd_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 73875
+        }
+      ],
+      "searches": [
+        {
+          "discovery": "fast",
+          "elapsed_ms": 10020,
+          "partial": true,
+          "sources": 7
+        }
+      ],
+      "trace_id": "9802643b-14bd-4a5c-b8f3-f602ab6c3315",
+      "confirmed_source": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+      "file": {
+        "index": 24,
+        "path": "Naruto 001.mkv",
+        "length": 199096177,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "elapsed_ms": 83897,
+      "finished": "2026-10-02T18:46:20.731Z"
+    },
+    {
+      "episode": 5,
+      "started": "2026-10-02T18:46:20.731Z",
+      "status": "confirmed",
+      "attempts": [
+        {
+          "title": "Naruto DVDRIP VostFr/Vf",
+          "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+          "score": 213,
+          "seeders": 2,
+          "language_claim": "VF",
+          "status": "inaccessible",
+          "probes": [
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4016,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4018,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4016,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4010,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 198597596,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4122,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 15548416,
+              "progress_pct": 0.04014355613579521,
+              "download_rate_bps": 90415,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 9143,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 16007168,
+              "progress_pct": 0.04132798139586082,
+              "download_rate_bps": 91374,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 14165,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 16465920,
+              "progress_pct": 0.042512406655926434,
+              "download_rate_bps": 91334,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 19182,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 16859136,
+              "progress_pct": 0.04352762830741125,
+              "download_rate_bps": 78367,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 24201,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 17317888,
+              "progress_pct": 0.04471205356747686,
+              "download_rate_bps": 91418,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 29221,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 17793024,
+              "progress_pct": 0.045938779729687663,
+              "download_rate_bps": 94651,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 34236,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 18251776,
+              "progress_pct": 0.04712320498975328,
+              "download_rate_bps": 91475,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 39250,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 18726912,
+              "progress_pct": 0.04834993115196409,
+              "download_rate_bps": 94750,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 44266,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 19202048,
+              "progress_pct": 0.049576657314174905,
+              "download_rate_bps": 94736,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 49280,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 19791872,
+              "progress_pct": 0.05109948979140212,
+              "download_rate_bps": 117635,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 54295,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 20365312,
+              "progress_pct": 0.05258002136648413,
+              "download_rate_bps": 114339,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 59313,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 20938752,
+              "progress_pct": 0.05406055294156615,
+              "download_rate_bps": 114275,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 64330,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 21610496,
+              "progress_pct": 0.05579488992951937,
+              "download_rate_bps": 133910,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 69345,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 22167552,
+              "progress_pct": 0.05723312060245618,
+              "download_rate_bps": 111061,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 74359,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 22773760,
+              "progress_pct": 0.0587982539818286,
+              "download_rate_bps": 120913,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 79377,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 23347200,
+              "progress_pct": 0.060278785556910616,
+              "download_rate_bps": 114263,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 84394,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 23904256,
+              "progress_pct": 0.061717016229847425,
+              "download_rate_bps": 111046,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 89412,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 24510464,
+              "progress_pct": 0.06328214960921985,
+              "download_rate_bps": 120801,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            }
+          ],
+          "attempt_id": "c60ee8d4-f263-477d-991c-ba3b2585f166",
+          "metadata_elapsed_ms": 6,
+          "file": {
+            "index": 28,
+            "path": "Naruto 005.mkv",
+            "length": 198597596,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "reason": "source_budget_exhausted",
+          "elapsed_ms": 90000
+        },
+        {
+          "title": "[Anime Time] Naruto Complete (001-220 + Movies) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub] [Batch]",
+          "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+          "score": 65,
+          "seeders": 527,
+          "language_claim": "MULTI",
+          "status": "absent",
+          "probes": [
+            {
+              "elapsed_ms": 4027,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 334754789,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4029,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 334754789,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 2964,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1415.547,
+                "formatted_duration": "23:35",
+                "width": 1432,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "aac",
+                "bitrate_bps": 0,
+                "total_bytes": 334754789,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "jpn",
+                    "title": "Japanese",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 3,
+                    "language": "eng",
+                    "title": "Dialogue (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "Signs & Songs (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4220,
+              "info_hash": "58d964e36a838731a91b1d3102606c5ccf747833",
+              "title": "[Anime Time] Naruto Complete (001-220 + Movies) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub]",
+              "total_bytes": 70093655381,
+              "completed_bytes": 0,
+              "progress_pct": 0,
+              "download_rate_bps": 0,
+              "upload_rate_bps": 0,
+              "total_peers": 649,
+              "active_seeders": 3
+            },
+            {
+              "elapsed_ms": 9253,
+              "info_hash": "58d964e36a838731a91b1d3102606c5ccf747833",
+              "title": "[Anime Time] Naruto Complete (001-220 + Movies) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub]",
+              "total_bytes": 70093655381,
+              "completed_bytes": 1228800,
+              "progress_pct": 0.0017530830619700937,
+              "download_rate_bps": 244144,
+              "upload_rate_bps": 0,
+              "total_peers": 650,
+              "active_seeders": 12
+            }
+          ],
+          "attempt_id": "f302ef5a-1a2a-4c8a-ba6b-884e4827b2cc",
+          "metadata_elapsed_ms": 74,
+          "file": {
+            "index": 32,
+            "path": "Season 01/[Anime Time] Naruto - 005 - You Failed! Kakashi's Final Decision.mkv",
+            "length": 334754789,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1415.547,
+            "formatted_duration": "23:35",
+            "width": 1432,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "aac",
+            "bitrate_bps": 0,
+            "total_bytes": 334754789,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "eng",
+                "title": "English",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "jpn",
+                "title": "Japanese",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 3,
+                "language": "eng",
+                "title": "Dialogue (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "Signs & Songs (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 13217
+        },
+        {
+          "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs] (Batch)",
+          "infohash": "b5958b477fea5223e33109fa094754294ed49b04",
+          "score": 64,
+          "seeders": 172,
+          "language_claim": "MULTI",
+          "status": "confirmed",
+          "probes": [
+            {
+              "elapsed_ms": 4027,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 286637875,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4032,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 286637875,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 1277,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1372.913,
+                "formatted_duration": "22:52",
+                "width": 1920,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "opus",
+                "bitrate_bps": 0,
+                "total_bytes": 286637875,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "jpn",
+                    "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "eng",
+                    "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 3,
+                    "language": "fre",
+                    "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 5,
+                    "language": "fre",
+                    "title": "French",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 6,
+                    "language": "ger",
+                    "title": "German",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 3,
+                    "stream_index": 7,
+                    "language": "ita",
+                    "title": "Italian",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 4,
+                    "stream_index": 8,
+                    "language": "spa",
+                    "title": "Spanish[ESP]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 5,
+                    "stream_index": 9,
+                    "language": "spa",
+                    "title": "Spanish[LAT]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 6,
+                    "stream_index": 10,
+                    "language": "por",
+                    "title": "Brazilian Portuguese",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 7,
+                    "stream_index": 11,
+                    "language": "fre",
+                    "title": "French [Full] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 8,
+                    "stream_index": 12,
+                    "language": "jpn",
+                    "title": "French [Signs/Songs] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4194,
+              "info_hash": "b5958b477fea5223e33109fa094754294ed49b04",
+              "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs]",
+              "total_bytes": 59623531358,
+              "completed_bytes": 294912,
+              "progress_pct": 0.0004946235039807485,
+              "download_rate_bps": 0,
+              "upload_rate_bps": 0,
+              "total_peers": 364,
+              "active_seeders": 2
+            },
+            {
+              "elapsed_ms": 9231,
+              "info_hash": "b5958b477fea5223e33109fa094754294ed49b04",
+              "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs]",
+              "total_bytes": 59623531358,
+              "completed_bytes": 5095424,
+              "progress_pct": 0.008545994985445155,
+              "download_rate_bps": 953058,
+              "upload_rate_bps": 0,
+              "total_peers": 330,
+              "active_seeders": 8
+            }
+          ],
+          "attempt_id": "81a12c32-bc0e-4d46-a7ed-d9893bcb173b",
+          "metadata_elapsed_ms": 65,
+          "file": {
+            "index": 4,
+            "path": "[Judas] Naruto S1/[Judas] Naruto - S01E05 (005).mkv",
+            "length": 286637875,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1372.913,
+            "formatted_duration": "22:52",
+            "width": 1920,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "opus",
+            "bitrate_bps": 0,
+            "total_bytes": 286637875,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "jpn",
+                "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "eng",
+                "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 2,
+                "stream_index": 3,
+                "language": "fre",
+                "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "English",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 5,
+                "language": "fre",
+                "title": "French",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 2,
+                "stream_index": 6,
+                "language": "ger",
+                "title": "German",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 3,
+                "stream_index": 7,
+                "language": "ita",
+                "title": "Italian",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 4,
+                "stream_index": 8,
+                "language": "spa",
+                "title": "Spanish[ESP]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 5,
+                "stream_index": 9,
+                "language": "spa",
+                "title": "Spanish[LAT]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 6,
+                "stream_index": 10,
+                "language": "por",
+                "title": "Brazilian Portuguese",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 7,
+                "stream_index": 11,
+                "language": "fre",
+                "title": "French [Full] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 8,
+                "stream_index": 12,
+                "language": "jpn",
+                "title": "French [Signs/Songs] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 11508
+        }
+      ],
+      "searches": [
+        {
+          "discovery": "fast",
+          "elapsed_ms": 3883,
+          "partial": true,
+          "sources": 10
+        },
+        {
+          "discovery": "full",
+          "elapsed_ms": 20940,
+          "partial": true,
+          "sources": 26
+        }
+      ],
+      "trace_id": "0f643110-b096-4c60-99b4-06bc079cde84",
+      "confirmed_source": "b5958b477fea5223e33109fa094754294ed49b04",
+      "file": {
+        "index": 4,
+        "path": "[Judas] Naruto S1/[Judas] Naruto - S01E05 (005).mkv",
+        "length": 286637875,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "elapsed_ms": 139551,
+      "finished": "2026-10-02T18:48:40.282Z"
+    },
+    {
+      "episode": 10,
+      "started": "2026-10-02T18:48:40.283Z",
+      "status": "confirmed",
+      "attempts": [
+        {
+          "title": "Naruto DVDRIP VostFr/Vf",
+          "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+          "score": 213,
+          "seeders": 2,
+          "language_claim": "VF",
+          "status": "inaccessible",
+          "probes": [
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4010,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 199108930,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4126,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 25575424,
+              "progress_pct": 0.06603170824865788,
+              "download_rate_bps": 19629,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 9140,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 26083328,
+              "progress_pct": 0.06734303621515908,
+              "download_rate_bps": 101296,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 14154,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 26542080,
+              "progress_pct": 0.0685274614752247,
+              "download_rate_bps": 91489,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 19169,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 27049984,
+              "progress_pct": 0.0698387894417259,
+              "download_rate_bps": 101285,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 24184,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 27574272,
+              "progress_pct": 0.07119241831037232,
+              "download_rate_bps": 104542,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 29198,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 28098560,
+              "progress_pct": 0.07254604717901873,
+              "download_rate_bps": 104559,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 34215,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 28606464,
+              "progress_pct": 0.07385737514551995,
+              "download_rate_bps": 101231,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 39234,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 29114368,
+              "progress_pct": 0.07516870311202117,
+              "download_rate_bps": 101202,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 44250,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 29704192,
+              "progress_pct": 0.07669153558924838,
+              "download_rate_bps": 117599,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 49265,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 30277632,
+              "progress_pct": 0.0781720671643304,
+              "download_rate_bps": 114330,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 54280,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 30670848,
+              "progress_pct": 0.0791872888158152,
+              "download_rate_bps": 78404,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 59296,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 31293440,
+              "progress_pct": 0.08079472309733282,
+              "download_rate_bps": 124124,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 64313,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 31899648,
+              "progress_pct": 0.08235985647670524,
+              "download_rate_bps": 120834,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 69329,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 32538624,
+              "progress_pct": 0.08400959166036806,
+              "download_rate_bps": 127390,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 74342,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 33243136,
+              "progress_pct": 0.08582853045261167,
+              "download_rate_bps": 140528,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 79359,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 33832960,
+              "progress_pct": 0.08735136292983889,
+              "download_rate_bps": 117573,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 84376,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 34504704,
+              "progress_pct": 0.08908569991779211,
+              "download_rate_bps": 133886,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 89392,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 35094528,
+              "progress_pct": 0.09060853239501933,
+              "download_rate_bps": 117592,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            }
+          ],
+          "attempt_id": "f3eea137-bfab-4f52-bcf1-198e8efa478b",
+          "metadata_elapsed_ms": 8,
+          "file": {
+            "index": 33,
+            "path": "Naruto 010.mkv",
+            "length": 199108930,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "reason": "source_budget_exhausted",
+          "elapsed_ms": 90000
+        },
+        {
+          "title": "[Anime Time] Naruto Complete (001-220 + Movies) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub] [Batch]",
+          "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+          "score": 65,
+          "seeders": 531,
+          "language_claim": "MULTI",
+          "status": "absent",
+          "probes": [
+            {
+              "elapsed_ms": 1935,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1410.942,
+                "formatted_duration": "23:30",
+                "width": 1432,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "aac",
+                "bitrate_bps": 0,
+                "total_bytes": 271279456,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "jpn",
+                    "title": "Japanese",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 3,
+                    "language": "eng",
+                    "title": "Dialogue (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "Signs & Songs (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [],
+          "attempt_id": "f2144833-4a02-44e6-8290-2edcb1bec515",
+          "metadata_elapsed_ms": 8,
+          "file": {
+            "index": 37,
+            "path": "Season 01/[Anime Time] Naruto - 010 - The Forest of Chakra.mkv",
+            "length": 271279456,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1410.942,
+            "formatted_duration": "23:30",
+            "width": 1432,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "aac",
+            "bitrate_bps": 0,
+            "total_bytes": 271279456,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "eng",
+                "title": "English",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "jpn",
+                "title": "Japanese",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 3,
+                "language": "eng",
+                "title": "Dialogue (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "Signs & Songs (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 2048
+        },
+        {
+          "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs] (Batch)",
+          "infohash": "b5958b477fea5223e33109fa094754294ed49b04",
+          "score": 65,
+          "seeders": 173,
+          "language_claim": "MULTI",
+          "status": "confirmed",
+          "probes": [
+            {
+              "elapsed_ms": 4028,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 235942864,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4031,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 235942864,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4027,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 235942864,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 1737,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1375.719,
+                "formatted_duration": "22:55",
+                "width": 1920,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "opus",
+                "bitrate_bps": 0,
+                "total_bytes": 235942864,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "jpn",
+                    "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "eng",
+                    "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 3,
+                    "language": "fre",
+                    "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 5,
+                    "language": "fre",
+                    "title": "French",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 6,
+                    "language": "ger",
+                    "title": "German",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 3,
+                    "stream_index": 7,
+                    "language": "ita",
+                    "title": "Italian",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 4,
+                    "stream_index": 8,
+                    "language": "spa",
+                    "title": "Spanish[ESP]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 5,
+                    "stream_index": 9,
+                    "language": "spa",
+                    "title": "Spanish[LAT]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 6,
+                    "stream_index": 10,
+                    "language": "por",
+                    "title": "Brazilian Portuguese",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 7,
+                    "stream_index": 11,
+                    "language": "fre",
+                    "title": "French [Full] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 8,
+                    "stream_index": 12,
+                    "language": "jpn",
+                    "title": "French [Signs/Songs] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4135,
+              "info_hash": "b5958b477fea5223e33109fa094754294ed49b04",
+              "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs]",
+              "total_bytes": 59623531358,
+              "completed_bytes": 8617984,
+              "progress_pct": 0.014453997949659653,
+              "download_rate_bps": 28548,
+              "upload_rate_bps": 0,
+              "total_peers": 261,
+              "active_seeders": 9
+            },
+            {
+              "elapsed_ms": 9170,
+              "info_hash": "b5958b477fea5223e33109fa094754294ed49b04",
+              "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs]",
+              "total_bytes": 59623531358,
+              "completed_bytes": 8716288,
+              "progress_pct": 0.014618872450986567,
+              "download_rate_bps": 19523,
+              "upload_rate_bps": 0,
+              "total_peers": 218,
+              "active_seeders": 13
+            },
+            {
+              "elapsed_ms": 14201,
+              "info_hash": "b5958b477fea5223e33109fa094754294ed49b04",
+              "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs]",
+              "total_bytes": 59623531358,
+              "completed_bytes": 12484608,
+              "progress_pct": 0.020939061668518354,
+              "download_rate_bps": 748940,
+              "upload_rate_bps": 0,
+              "total_peers": 168,
+              "active_seeders": 15
+            }
+          ],
+          "attempt_id": "8b108ad9-7fb2-4d6c-ae35-5f0028b407e4",
+          "metadata_elapsed_ms": 9,
+          "file": {
+            "index": 9,
+            "path": "[Judas] Naruto S1/[Judas] Naruto - S01E10 (010).mkv",
+            "length": 235942864,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1375.719,
+            "formatted_duration": "22:55",
+            "width": 1920,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "opus",
+            "bitrate_bps": 0,
+            "total_bytes": 235942864,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "jpn",
+                "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "eng",
+                "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 2,
+                "stream_index": 3,
+                "language": "fre",
+                "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "English",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 5,
+                "language": "fre",
+                "title": "French",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 2,
+                "stream_index": 6,
+                "language": "ger",
+                "title": "German",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 3,
+                "stream_index": 7,
+                "language": "ita",
+                "title": "Italian",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 4,
+                "stream_index": 8,
+                "language": "spa",
+                "title": "Spanish[ESP]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 5,
+                "stream_index": 9,
+                "language": "spa",
+                "title": "Spanish[LAT]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 6,
+                "stream_index": 10,
+                "language": "por",
+                "title": "Brazilian Portuguese",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 7,
+                "stream_index": 11,
+                "language": "fre",
+                "title": "French [Full] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 8,
+                "stream_index": 12,
+                "language": "jpn",
+                "title": "French [Signs/Songs] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 16939
+        }
+      ],
+      "searches": [
+        {
+          "discovery": "fast",
+          "elapsed_ms": 3871,
+          "partial": true,
+          "sources": 9
+        },
+        {
+          "discovery": "full",
+          "elapsed_ms": 21054,
+          "partial": true,
+          "sources": 25
+        }
+      ],
+      "trace_id": "415a1049-d46b-4c53-a3b1-a8260f313e45",
+      "confirmed_source": "b5958b477fea5223e33109fa094754294ed49b04",
+      "file": {
+        "index": 9,
+        "path": "[Judas] Naruto S1/[Judas] Naruto - S01E10 (010).mkv",
+        "length": 235942864,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "elapsed_ms": 133915,
+      "finished": "2026-10-02T18:50:54.198Z"
+    },
+    {
+      "episode": 15,
+      "started": "2026-10-02T18:50:54.200Z",
+      "status": "confirmed",
+      "attempts": [
+        {
+          "title": "Naruto DVDRIP VostFr/Vf",
+          "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+          "score": 213,
+          "seeders": 2,
+          "language_claim": "VF",
+          "status": "inaccessible",
+          "probes": [
+            {
+              "elapsed_ms": 4010,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4017,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4010,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4016,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4010,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4010,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4017,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175808002,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 2,
+              "error": "TimeoutError: The operation was aborted due to timeout"
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4121,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 36012032,
+              "progress_pct": 0.09297738291515055,
+              "download_rate_bps": 19624,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 9137,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 36552704,
+              "progress_pct": 0.09437331268594217,
+              "download_rate_bps": 107791,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 14152,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 37044224,
+              "progress_pct": 0.09564233975029816,
+              "download_rate_bps": 97998,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 19167,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 37535744,
+              "progress_pct": 0.09691136681465419,
+              "download_rate_bps": 98023,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 24184,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 38043648,
+              "progress_pct": 0.09822269478115539,
+              "download_rate_bps": 101236,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 29200,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 38567936,
+              "progress_pct": 0.09957632364980182,
+              "download_rate_bps": 104532,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 34221,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 38944768,
+              "progress_pct": 0.10054924439914141,
+              "download_rate_bps": 75039,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 39235,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 39567360,
+              "progress_pct": 0.10215667868065904,
+              "download_rate_bps": 124179,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 44255,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 40124416,
+              "progress_pct": 0.10359490935359585,
+              "download_rate_bps": 110971,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 49268,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 40615936,
+              "progress_pct": 0.10486393641795186,
+              "download_rate_bps": 98034,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 54284,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 40697856,
+              "progress_pct": 0.10507544092867786,
+              "download_rate_bps": 16334,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 59302,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 40697856,
+              "progress_pct": 0.10507544092867786,
+              "download_rate_bps": 0,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 64317,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 40828928,
+              "progress_pct": 0.10541384814583947,
+              "download_rate_bps": 26135,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 69334,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 41369600,
+              "progress_pct": 0.1068097779166311,
+              "download_rate_bps": 107781,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 74346,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 41566208,
+              "progress_pct": 0.1073173887423735,
+              "download_rate_bps": 39218,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 79367,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 42106880,
+              "progress_pct": 0.1087133185131651,
+              "download_rate_bps": 107710,
+              "upload_rate_bps": 0,
+              "total_peers": 2,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 84387,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 42614784,
+              "progress_pct": 0.11002464647966632,
+              "download_rate_bps": 101155,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 89403,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 43155456,
+              "progress_pct": 0.11142057625045793,
+              "download_rate_bps": 107804,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            }
+          ],
+          "attempt_id": "1f135582-05f1-453a-8d23-f1bb026a8cc2",
+          "metadata_elapsed_ms": 8,
+          "file": {
+            "index": 38,
+            "path": "Naruto 015.mkv",
+            "length": 175808002,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "reason": "source_budget_exhausted",
+          "elapsed_ms": 90004
+        },
+        {
+          "title": "[Anime Time] Naruto Complete (001-220 + Movies) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub] [Batch]",
+          "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+          "score": 65,
+          "seeders": 531,
+          "language_claim": "MULTI",
+          "status": "absent",
+          "probes": [
+            {
+              "elapsed_ms": 1517,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1412.177,
+                "formatted_duration": "23:32",
+                "width": 1432,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "aac",
+                "bitrate_bps": 0,
+                "total_bytes": 304851112,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "jpn",
+                    "title": "Japanese",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 3,
+                    "language": "eng",
+                    "title": "Dialogue (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "Signs & Songs (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [],
+          "attempt_id": "8c721e45-0a15-4b4f-8a21-ae6e775e2a23",
+          "metadata_elapsed_ms": 9,
+          "file": {
+            "index": 42,
+            "path": "Season 01/[Anime Time] Naruto - 015 - Zero Visibility The Sharingan Shatters.mkv",
+            "length": 304851112,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1412.177,
+            "formatted_duration": "23:32",
+            "width": 1432,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "aac",
+            "bitrate_bps": 0,
+            "total_bytes": 304851112,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "eng",
+                "title": "English",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "jpn",
+                "title": "Japanese",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 3,
+                "language": "eng",
+                "title": "Dialogue (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "Signs & Songs (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 1632
+        },
+        {
+          "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs] (Batch)",
+          "infohash": "b5958b477fea5223e33109fa094754294ed49b04",
+          "score": 65,
+          "seeders": 173,
+          "language_claim": "MULTI",
+          "status": "confirmed",
+          "probes": [
+            {
+              "elapsed_ms": 2703,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1376.459,
+                "formatted_duration": "22:56",
+                "width": 1920,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "opus",
+                "bitrate_bps": 0,
+                "total_bytes": 274522104,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "jpn",
+                    "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "eng",
+                    "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 3,
+                    "language": "fre",
+                    "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 5,
+                    "language": "fre",
+                    "title": "French",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 6,
+                    "language": "ger",
+                    "title": "German",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 3,
+                    "stream_index": 7,
+                    "language": "ita",
+                    "title": "Italian",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 4,
+                    "stream_index": 8,
+                    "language": "spa",
+                    "title": "Spanish[ESP]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 5,
+                    "stream_index": 9,
+                    "language": "spa",
+                    "title": "Spanish[LAT]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 6,
+                    "stream_index": 10,
+                    "language": "por",
+                    "title": "Brazilian Portuguese",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 7,
+                    "stream_index": 11,
+                    "language": "fre",
+                    "title": "French [Full] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 8,
+                    "stream_index": 12,
+                    "language": "jpn",
+                    "title": "French [Signs/Songs] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [],
+          "attempt_id": "ac3a63a4-336e-425b-a235-8fd783bf0b00",
+          "metadata_elapsed_ms": 8,
+          "file": {
+            "index": 14,
+            "path": "[Judas] Naruto S1/[Judas] Naruto - S01E15 (015).mkv",
+            "length": 274522104,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1376.459,
+            "formatted_duration": "22:56",
+            "width": 1920,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "opus",
+            "bitrate_bps": 0,
+            "total_bytes": 274522104,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "jpn",
+                "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "eng",
+                "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 2,
+                "stream_index": 3,
+                "language": "fre",
+                "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "English",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 5,
+                "language": "fre",
+                "title": "French",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 2,
+                "stream_index": 6,
+                "language": "ger",
+                "title": "German",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 3,
+                "stream_index": 7,
+                "language": "ita",
+                "title": "Italian",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 4,
+                "stream_index": 8,
+                "language": "spa",
+                "title": "Spanish[ESP]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 5,
+                "stream_index": 9,
+                "language": "spa",
+                "title": "Spanish[LAT]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 6,
+                "stream_index": 10,
+                "language": "por",
+                "title": "Brazilian Portuguese",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 7,
+                "stream_index": 11,
+                "language": "fre",
+                "title": "French [Full] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 8,
+                "stream_index": 12,
+                "language": "jpn",
+                "title": "French [Signs/Songs] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 2806
+        }
+      ],
+      "searches": [
+        {
+          "discovery": "fast",
+          "elapsed_ms": 1980,
+          "partial": true,
+          "sources": 9
+        },
+        {
+          "discovery": "full",
+          "elapsed_ms": 20936,
+          "partial": true,
+          "sources": 24
+        }
+      ],
+      "trace_id": "1e2104b7-07ff-4072-8442-8bc563e77d31",
+      "confirmed_source": "b5958b477fea5223e33109fa094754294ed49b04",
+      "file": {
+        "index": 14,
+        "path": "[Judas] Naruto S1/[Judas] Naruto - S01E15 (015).mkv",
+        "length": 274522104,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "elapsed_ms": 117362,
+      "finished": "2026-10-02T18:52:51.562Z"
+    },
+    {
+      "episode": 20,
+      "started": "2026-10-02T18:52:51.563Z",
+      "status": "confirmed",
+      "attempts": [
+        {
+          "title": "Naruto DVDRIP VostFr/Vf",
+          "infohash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+          "score": 213,
+          "seeders": 2,
+          "language_claim": "VF",
+          "status": "inaccessible",
+          "probes": [
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4014,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4013,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4012,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4011,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 4015,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 175640253,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4122,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 44187648,
+              "progress_pct": 0.11408553308560555,
+              "download_rate_bps": 33320,
+              "upload_rate_bps": 0,
+              "total_peers": 3,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 9141,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 44777472,
+              "progress_pct": 0.11560836556283277,
+              "download_rate_bps": 117527,
+              "upload_rate_bps": 0,
+              "total_peers": 3,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 14160,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 45514752,
+              "progress_pct": 0.1175119061593668,
+              "download_rate_bps": 146890,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 19176,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 45760512,
+              "progress_pct": 0.11814641969154481,
+              "download_rate_bps": 48995,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 24192,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 46972928,
+              "progress_pct": 0.12127668645028962,
+              "download_rate_bps": 241681,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 29211,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 47022080,
+              "progress_pct": 0.12140358915672524,
+              "download_rate_bps": 9793,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 34225,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 47661056,
+              "progress_pct": 0.12305332434038804,
+              "download_rate_bps": 127432,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 39242,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 48300032,
+              "progress_pct": 0.12470305952405086,
+              "download_rate_bps": 127363,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 44259,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 49758208,
+              "progress_pct": 0.1284678398149737,
+              "download_rate_bps": 290674,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 49273,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 50823168,
+              "progress_pct": 0.13121739845441172,
+              "download_rate_bps": 212380,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 54289,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 52051968,
+              "progress_pct": 0.13438996611530177,
+              "download_rate_bps": 244977,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 59305,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 52051968,
+              "progress_pct": 0.13438996611530177,
+              "download_rate_bps": 0,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 64324,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 53002240,
+              "progress_pct": 0.1368434184397234,
+              "download_rate_bps": 189369,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 69339,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 54542336,
+              "progress_pct": 0.14081970324137222,
+              "download_rate_bps": 307031,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 74355,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 55132160,
+              "progress_pct": 0.14234253571859945,
+              "download_rate_bps": 117586,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 79370,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 55754752,
+              "progress_pct": 0.14394997000011706,
+              "download_rate_bps": 124142,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 84386,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 56442880,
+              "progress_pct": 0.1457266078902155,
+              "download_rate_bps": 137206,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            },
+            {
+              "elapsed_ms": 89405,
+              "info_hash": "e9046a56e25fa17557bd2c585d4a8a9e6d2091fc",
+              "title": "Naruto",
+              "total_bytes": 38732034470,
+              "completed_bytes": 57196544,
+              "progress_pct": 0.1476724493888947,
+              "download_rate_bps": 150150,
+              "upload_rate_bps": 0,
+              "total_peers": 1,
+              "active_seeders": 1
+            }
+          ],
+          "attempt_id": "e343a15b-43ee-43e8-afac-1e0209a0dfb7",
+          "metadata_elapsed_ms": 6,
+          "file": {
+            "index": 43,
+            "path": "Naruto 020.mkv",
+            "length": 175640253,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "reason": "source_budget_exhausted",
+          "elapsed_ms": 90000
+        },
+        {
+          "title": "[Anime Time] Naruto Complete (001-220 + Movies) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub] [Batch]",
+          "infohash": "58d964e36a838731a91b1d3102606c5ccf747833",
+          "score": 65,
+          "seeders": 531,
+          "language_claim": "MULTI",
+          "status": "absent",
+          "probes": [
+            {
+              "elapsed_ms": 4025,
+              "metadata": {
+                "probe_status": "timeout",
+                "probe_error_code": "probe_timeout",
+                "duration_sec": 0,
+                "formatted_duration": "",
+                "width": 0,
+                "height": 0,
+                "resolution": "",
+                "video_codec": "",
+                "audio_codec": "",
+                "bitrate_bps": 0,
+                "total_bytes": 332609041,
+                "audio_tracks": null,
+                "subtitle_tracks": null
+              }
+            },
+            {
+              "elapsed_ms": 55,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1412.911,
+                "formatted_duration": "23:32",
+                "width": 1432,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "aac",
+                "bitrate_bps": 0,
+                "total_bytes": 332609041,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "jpn",
+                    "title": "Japanese",
+                    "codec": "aac",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 3,
+                    "language": "eng",
+                    "title": "Dialogue (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "Signs & Songs (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [
+            {
+              "elapsed_ms": 4143,
+              "info_hash": "58d964e36a838731a91b1d3102606c5ccf747833",
+              "title": "[Anime Time] Naruto Complete (001-220 + Movies) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub]",
+              "total_bytes": 70093655381,
+              "completed_bytes": 19742720,
+              "progress_pct": 0.028166201195652833,
+              "download_rate_bps": 48365,
+              "upload_rate_bps": 0,
+              "total_peers": 444,
+              "active_seeders": 30
+            }
+          ],
+          "attempt_id": "ad2c28bd-2e59-4b59-8c31-b23c442ede92",
+          "metadata_elapsed_ms": 8,
+          "file": {
+            "index": 47,
+            "path": "Season 01/[Anime Time] Naruto - 020 - A New Chapter Begins The Chunin Exam!.mkv",
+            "length": 332609041,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1412.911,
+            "formatted_duration": "23:32",
+            "width": 1432,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "aac",
+            "bitrate_bps": 0,
+            "total_bytes": 332609041,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "eng",
+                "title": "English",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "jpn",
+                "title": "Japanese",
+                "codec": "aac",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 3,
+                "language": "eng",
+                "title": "Dialogue (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "Signs & Songs (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 5198
+        },
+        {
+          "title": "[Judas] Naruto (Complete Series) [BD 1080p][HEVC x265 10bit][Multi-Audio][Multi-Subs] (Batch)",
+          "infohash": "b5958b477fea5223e33109fa094754294ed49b04",
+          "score": 65,
+          "seeders": 173,
+          "language_claim": "MULTI",
+          "status": "confirmed",
+          "probes": [
+            {
+              "elapsed_ms": 1373,
+              "metadata": {
+                "probe_status": "complete",
+                "duration_sec": 1375.166,
+                "formatted_duration": "22:55",
+                "width": 1920,
+                "height": 1080,
+                "resolution": "1080p",
+                "video_codec": "hevc",
+                "audio_codec": "opus",
+                "bitrate_bps": 0,
+                "total_bytes": 296907634,
+                "audio_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 1,
+                    "language": "jpn",
+                    "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 2,
+                    "language": "eng",
+                    "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 3,
+                    "language": "fre",
+                    "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                    "codec": "opus",
+                    "channels": 2,
+                    "is_default": false
+                  }
+                ],
+                "subtitle_tracks": [
+                  {
+                    "index": 0,
+                    "stream_index": 4,
+                    "language": "eng",
+                    "title": "English",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 1,
+                    "stream_index": 5,
+                    "language": "fre",
+                    "title": "French",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 2,
+                    "stream_index": 6,
+                    "language": "ger",
+                    "title": "German",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 3,
+                    "stream_index": 7,
+                    "language": "ita",
+                    "title": "Italian",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 4,
+                    "stream_index": 8,
+                    "language": "spa",
+                    "title": "Spanish[ESP]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 5,
+                    "stream_index": 9,
+                    "language": "spa",
+                    "title": "Spanish[LAT]",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 6,
+                    "stream_index": 10,
+                    "language": "por",
+                    "title": "Brazilian Portuguese",
+                    "codec": "ass",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 7,
+                    "stream_index": 11,
+                    "language": "fre",
+                    "title": "French [Full] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  },
+                  {
+                    "index": 8,
+                    "stream_index": 12,
+                    "language": "jpn",
+                    "title": "French [Signs/Songs] (PGS)",
+                    "codec": "hdmv_pgs_subtitle",
+                    "is_default": false,
+                    "is_forced": false
+                  }
+                ]
+              }
+            }
+          ],
+          "swarm": [],
+          "attempt_id": "9654d42c-1c4b-46bb-a32f-f1c9a879b179",
+          "metadata_elapsed_ms": 7,
+          "file": {
+            "index": 19,
+            "path": "[Judas] Naruto S1/[Judas] Naruto - S01E20 (020).mkv",
+            "length": 296907634,
+            "is_video": true,
+            "mime_type": "video/x-matroska"
+          },
+          "metadata": {
+            "probe_status": "complete",
+            "duration_sec": 1375.166,
+            "formatted_duration": "22:55",
+            "width": 1920,
+            "height": 1080,
+            "resolution": "1080p",
+            "video_codec": "hevc",
+            "audio_codec": "opus",
+            "bitrate_bps": 0,
+            "total_bytes": 296907634,
+            "audio_tracks": [
+              {
+                "index": 0,
+                "stream_index": 1,
+                "language": "jpn",
+                "title": "[Judas] JAP Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 1,
+                "stream_index": 2,
+                "language": "eng",
+                "title": "[Judas] ENG Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              },
+              {
+                "index": 2,
+                "stream_index": 3,
+                "language": "fre",
+                "title": "[Judas] FRE Stereo (Opus 112Kbps)",
+                "codec": "opus",
+                "channels": 2,
+                "is_default": false
+              }
+            ],
+            "subtitle_tracks": [
+              {
+                "index": 0,
+                "stream_index": 4,
+                "language": "eng",
+                "title": "English",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 1,
+                "stream_index": 5,
+                "language": "fre",
+                "title": "French",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 2,
+                "stream_index": 6,
+                "language": "ger",
+                "title": "German",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 3,
+                "stream_index": 7,
+                "language": "ita",
+                "title": "Italian",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 4,
+                "stream_index": 8,
+                "language": "spa",
+                "title": "Spanish[ESP]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 5,
+                "stream_index": 9,
+                "language": "spa",
+                "title": "Spanish[LAT]",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 6,
+                "stream_index": 10,
+                "language": "por",
+                "title": "Brazilian Portuguese",
+                "codec": "ass",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 7,
+                "stream_index": 11,
+                "language": "fre",
+                "title": "French [Full] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              },
+              {
+                "index": 8,
+                "stream_index": 12,
+                "language": "jpn",
+                "title": "French [Signs/Songs] (PGS)",
+                "codec": "hdmv_pgs_subtitle",
+                "is_default": false,
+                "is_forced": false
+              }
+            ]
+          },
+          "elapsed_ms": 1478
+        }
+      ],
+      "searches": [
+        {
+          "discovery": "fast",
+          "elapsed_ms": 875,
+          "partial": true,
+          "sources": 9
+        },
+        {
+          "discovery": "full",
+          "elapsed_ms": 21013,
+          "partial": true,
+          "sources": 27
+        }
+      ],
+      "trace_id": "0786ffd1-9966-4bcf-a229-bd7496c8af9d",
+      "confirmed_source": "b5958b477fea5223e33109fa094754294ed49b04",
+      "file": {
+        "index": 19,
+        "path": "[Judas] Naruto S1/[Judas] Naruto - S01E20 (020).mkv",
+        "length": 296907634,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "elapsed_ms": 118570,
+      "finished": "2026-10-02T18:54:50.133Z"
+    }
+  ],
+  "success": true,
+  "finished": "2026-10-02T18:54:50.135Z"
+}

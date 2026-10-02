@@ -197,6 +197,11 @@ func (s *Server) HandleSeason(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
+	discovery := r.URL.Query().Get("discovery")
+	if discovery != "" && discovery != "fast" && discovery != "full" {
+		http.Error(w, "invalid discovery mode", http.StatusBadRequest)
+		return
+	}
 	r = sourceContext(w, r)
 	item, f, season := s.seasonContext(w, r)
 	if item == nil {
@@ -319,9 +324,16 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 		diagnostics.Logger(r.Context(), s.logger).Info("resolving season sources", "anime", item.DisplayTitle, "season_id", item.ID, "season_num", identity.SeasonNumber, "episode", ep, "excluded", len(identity.ExcludedTitles))
 	}
 
-	key := fmt.Sprintf("%d|%d", item.ID, ep)
+	// Do not reuse findings produced by the old RSS discovery/title rejection rules.
+	key := fmt.Sprintf("discovery-v3|%d|%d", item.ID, ep)
+	if discovery == "full" {
+		key += "|full"
+	}
 	res, hit, err := s.sources().resolve(r.Context(), key, func(ctx context.Context) (*indexer.EpisodeSourcesResponse, error) {
-		return s.episodeResolver.ResolveSeasonSources(ctx, identity)
+		if discovery == "full" {
+			return s.episodeResolver.ResolveSeasonSources(ctx, identity)
+		}
+		return s.episodeResolver.ResolvePlaybackSources(ctx, identity)
 	})
 	if err != nil {
 		sourceFailure(w, r, err)

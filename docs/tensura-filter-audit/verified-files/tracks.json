@@ -1,0 +1,2249 @@
+{
+  "url": "http://192.168.1.46:8081/anime/101280/seasons/101280/episodes/1",
+  "started": "2026-10-02T21:17:32.535Z",
+  "attempts": [
+    {
+      "title": "[Vodes] Tensei Shitara Slime Datta Ken S01 [BD 1080p HEVC] [Dual-Audio] | That Time I Got Reincarnated as a Slime S1",
+      "info_hash": "d9215e817f67b547dfbdebd41f71324127680065",
+      "language_claim": "MULTI",
+      "status": "inaccessible",
+      "files": [
+        {
+          "index": 0,
+          "path": "Extras/Tensei shitara Slime Datta Ken - S01 NCED (BDRemux 1080p AVC FLAC) [Vodes].mkv",
+          "length": 430127835,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "Extras/Tensei shitara Slime Datta Ken - S01 NCED2 (BDRemux 1080p AVC FLAC) [Vodes].mkv",
+          "length": 421480749,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "Extras/Tensei shitara Slime Datta Ken - S01 NCOP (BDRemux 1080p AVC FLAC) [Vodes].mkv",
+          "length": 419095520,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "Extras/Tensei shitara Slime Datta Ken - S01 NCOP2 (BDRemux 1080p AVC FLAC) [Vodes].mkv",
+          "length": 421158280,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "Tensei shitara Slime Datta Ken - S01E01 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 5059747402,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "Tensei shitara Slime Datta Ken - S01E02 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3674747527,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "Tensei shitara Slime Datta Ken - S01E03 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3306791856,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "Tensei shitara Slime Datta Ken - S01E04 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3746186533,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "Tensei shitara Slime Datta Ken - S01E05 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3536269820,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "Tensei shitara Slime Datta Ken - S01E06 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 2946078657,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "Tensei shitara Slime Datta Ken - S01E07 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 4057145695,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "Tensei shitara Slime Datta Ken - S01E08 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3272676379,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "Tensei shitara Slime Datta Ken - S01E09 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3379043272,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "Tensei shitara Slime Datta Ken - S01E10 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3328802957,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "Tensei shitara Slime Datta Ken - S01E11 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 2636524551,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "Tensei shitara Slime Datta Ken - S01E12 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3676125762,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "Tensei shitara Slime Datta Ken - S01E13 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 4712383905,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "Tensei shitara Slime Datta Ken - S01E14 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 4026227781,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "Tensei shitara Slime Datta Ken - S01E15 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3336023957,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "Tensei shitara Slime Datta Ken - S01E16 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 2443181746,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "Tensei shitara Slime Datta Ken - S01E17 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 2517284138,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "Tensei shitara Slime Datta Ken - S01E18 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3511563547,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "Tensei shitara Slime Datta Ken - S01E19 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3555250379,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "Tensei shitara Slime Datta Ken - S01E20 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 2938089681,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "Tensei shitara Slime Datta Ken - S01E21 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3258224422,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 25,
+          "path": "Tensei shitara Slime Datta Ken - S01E22 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3874405674,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 26,
+          "path": "Tensei shitara Slime Datta Ken - S01E23 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 3928781599,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 27,
+          "path": "Tensei shitara Slime Datta Ken - S01E24 (BD 1080p HEVC) [Vodes].mkv",
+          "length": 4389583527,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 4,
+        "path": "Tensei shitara Slime Datta Ken - S01E01 (BD 1080p HEVC) [Vodes].mkv",
+        "length": 5059747402,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "reason": "TimeoutError: The operation was aborted due to timeout",
+      "elapsed_ms": 7100
+    },
+    {
+      "title": "[Judas] Tensei Shitara Slime Datta Ken (That Time I Got Reincarnated as a Slime) (Season 1 + OADs) [BD 1080p][HEVC x265 10bit][Dual-Audio][Multi-Subs] (Batch)",
+      "info_hash": "1e49744792f7f6cf91f9501ec14edf11a52f5c36",
+      "language_claim": "MULTI",
+      "status": "inaccessible",
+      "files": [
+        {
+          "index": 0,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E01.mkv",
+          "length": 1141832797,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E02.mkv",
+          "length": 381076501,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E03.mkv",
+          "length": 321527148,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E04.mkv",
+          "length": 314213680,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E05.mkv",
+          "length": 218909238,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E06.mkv",
+          "length": 319742338,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E07.mkv",
+          "length": 371965112,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E08.mkv",
+          "length": 232325567,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E09.mkv",
+          "length": 319661703,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E10.mkv",
+          "length": 235399375,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E11.mkv",
+          "length": 267253566,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E12.mkv",
+          "length": 248148432,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E13.mkv",
+          "length": 286202502,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E14.mkv",
+          "length": 374694129,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E15.mkv",
+          "length": 244812695,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E16.mkv",
+          "length": 302520540,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E17.mkv",
+          "length": 250071393,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E18.mkv",
+          "length": 227337964,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E19.mkv",
+          "length": 566129569,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E20.mkv",
+          "length": 267466068,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E21.mkv",
+          "length": 361693829,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E22.mkv",
+          "length": 355565511,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E23.mkv",
+          "length": 432169845,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E24.mkv",
+          "length": 219706704,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "Extras/[Judas] Tensei Shitara Slime Datta Ken - NCED 01.mkv",
+          "length": 44023966,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 25,
+          "path": "Extras/[Judas] Tensei Shitara Slime Datta Ken - NCED 02a.mkv",
+          "length": 46746235,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 26,
+          "path": "Extras/[Judas] Tensei Shitara Slime Datta Ken - NCED 02b.mkv",
+          "length": 66542124,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 27,
+          "path": "Extras/[Judas] Tensei Shitara Slime Datta Ken - NCOP 01.mkv",
+          "length": 61033261,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 28,
+          "path": "Extras/[Judas] Tensei Shitara Slime Datta Ken - NCOP 02.mkv",
+          "length": 42766390,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 29,
+          "path": "OADs/[Judas] Tensei Shitara Slime Datta Ken - OAD 01.mkv",
+          "length": 244745197,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 30,
+          "path": "OADs/[Judas] Tensei Shitara Slime Datta Ken - OAD 02.mkv",
+          "length": 277362057,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 31,
+          "path": "OADs/[Judas] Tensei Shitara Slime Datta Ken - OAD 03.mkv",
+          "length": 226585694,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 32,
+          "path": "OADs/[Judas] Tensei Shitara Slime Datta Ken - OAD 04.mkv",
+          "length": 204872154,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 33,
+          "path": "OADs/[Judas] Tensei Shitara Slime Datta Ken - OAD 05.mkv",
+          "length": 212545281,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "[Judas] Tensei Shitara Slime Datta Ken - S01E01.mkv",
+        "length": 1141832797,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "reason": "TimeoutError: The operation was aborted due to timeout",
+      "elapsed_ms": 7039
+    },
+    {
+      "title": "[Anime Time] Tensei Shitara Slime Datta Ken (S01+S02+Tensura Nikiki+OVAs) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub] That Time I Got Reincarnated as a Slime",
+      "info_hash": "4e7924d184d8d9e94eadde4436a685a32926c552",
+      "language_claim": "MULTI",
+      "status": "inaccessible",
+      "files": [
+        {
+          "index": 0,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 01.mkv",
+          "length": 1170209508,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 02.mkv",
+          "length": 513546078,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 03.mkv",
+          "length": 443791437,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 04.mkv",
+          "length": 423765367,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 05.mkv",
+          "length": 294552980,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 06.mkv",
+          "length": 471307548,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 07.mkv",
+          "length": 471221104,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 08.mkv",
+          "length": 312736359,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 09.mkv",
+          "length": 443092639,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 10.mkv",
+          "length": 331220058,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 11.mkv",
+          "length": 376327069,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 12.mkv",
+          "length": 332351328,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 13.mkv",
+          "length": 365866714,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 14.mkv",
+          "length": 470391563,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 15.mkv",
+          "length": 358777386,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 16.mkv",
+          "length": 384045106,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 17.mkv",
+          "length": 322784624,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 18.mkv",
+          "length": 287575335,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 19.mkv",
+          "length": 702306788,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 20.mkv",
+          "length": 353312343,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 21.mkv",
+          "length": 458004224,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 22.mkv",
+          "length": 453224397,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 23.mkv",
+          "length": 534844498,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 24.mkv",
+          "length": 312738523,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken ED1 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 31611164,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 25,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken ED2 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 38223540,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 26,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken ED3 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 37048951,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 27,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken ED4 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 26195231,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 28,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken OP1 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 49283803,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 29,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken OP2 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 33643304,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 30,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken OP3 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 40793887,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 31,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensei Shitara Slime Datta Ken OP4 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 33500844,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 32,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensura Nikki - Tensei Shitara Slime Datta Ken ED (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 32180678,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 33,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensura Nikki - Tensei Shitara Slime Datta Ken ED2 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 18799629,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 34,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensura Nikki - Tensei Shitara Slime Datta Ken ED2v2 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 21527758,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 35,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensura Nikki - Tensei Shitara Slime Datta Ken EDv2 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 31449864,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 36,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensura Nikki - Tensei Shitara Slime Datta Ken OP (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 29240203,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 37,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken NC/[ReinForce] Tensura Nikki - Tensei Shitara Slime Datta Ken OPv2 (BDRip 1920x1080 x264 FLAC)_new.mkv",
+          "length": 29344827,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 38,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken OVA/[Anime Time] Tensei shitara Slime Datta Ken OVA - 00.mkv",
+          "length": 527853484,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 39,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken OVA/[Anime Time] Tensei shitara Slime Datta Ken OVA - 01.mkv",
+          "length": 316810973,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 40,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken OVA/[Anime Time] Tensei shitara Slime Datta Ken OVA - 02.mkv",
+          "length": 368159128,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 41,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken OVA/[Anime Time] Tensei shitara Slime Datta Ken OVA - 03.mkv",
+          "length": 326178162,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 42,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken OVA/[Anime Time] Tensei shitara Slime Datta Ken OVA - 04.mkv",
+          "length": 296589593,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 43,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken OVA/[Anime Time] Tensei shitara Slime Datta Ken OVA - 05 (1).mkv",
+          "length": 363247771,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 44,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken OVA/[Anime Time] Tensei shitara Slime Datta Ken OVA - 05.mkv",
+          "length": 363213283,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 45,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 25.mkv",
+          "length": 493562654,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 46,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 26.mkv",
+          "length": 396886923,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 47,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 27.mkv",
+          "length": 345674144,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 48,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 28.mkv",
+          "length": 291259720,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 49,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 29.mkv",
+          "length": 351932110,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 50,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 30.mkv",
+          "length": 471210667,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 51,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 31.mkv",
+          "length": 463340214,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 52,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 32.mkv",
+          "length": 379110255,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 53,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 33.mkv",
+          "length": 401472831,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 54,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 34.mkv",
+          "length": 473861864,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 55,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 35.mkv",
+          "length": 663911760,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 56,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2/[Anime Time] Tensei Shitara Slime Datta Ken 36.mkv",
+          "length": 628123935,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 57,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 37.mkv",
+          "length": 445386549,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 58,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 38.mkv",
+          "length": 339660152,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 59,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 39.mkv",
+          "length": 319375687,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 60,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 40.mkv",
+          "length": 316678341,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 61,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 41.mkv",
+          "length": 433116542,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 62,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 42.mkv",
+          "length": 434173025,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 63,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 43.mkv",
+          "length": 325571229,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 64,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 44.mkv",
+          "length": 315632686,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 65,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 45.mkv",
+          "length": 417497668,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 66,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 46.mkv",
+          "length": 362993122,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 67,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 47.mkv",
+          "length": 412567879,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 68,
+          "path": "[Anime Time] Tensei Shitara Slime Datta Ken Season 2 Part 2/[Anime Time] Tensei Shitara Slime Datta Ken 48.mkv",
+          "length": 364591144,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 69,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 01.mkv",
+          "length": 338400486,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 70,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 02.mkv",
+          "length": 361697606,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 71,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 03.mkv",
+          "length": 336314025,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 72,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 04.mkv",
+          "length": 322930041,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 73,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 05.mkv",
+          "length": 439358631,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 74,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 06.mkv",
+          "length": 381952944,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 75,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 07.mkv",
+          "length": 340735590,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 76,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 08.mkv",
+          "length": 394546232,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 77,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 09.mkv",
+          "length": 327597078,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 78,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 10.mkv",
+          "length": 310964129,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 79,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 11.mkv",
+          "length": 322012125,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 80,
+          "path": "[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken/[Anime Time] Tensura Nikki - Tensei Shitara Slime Datta Ken - 12.mkv",
+          "length": 333337850,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "[Anime Time] Tensei Shitara Slime Datta Ken/[Anime Time] Tensei Shitara Slime Datta Ken 01.mkv",
+        "length": 1170209508,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "reason": "TimeoutError: The operation was aborted due to timeout",
+      "elapsed_ms": 7077
+    },
+    {
+      "title": "[LostYears] That Time I Got Reincarnated as a Slime - S01 (WEB 810p x264 10-bit AAC) [Dual-Audio] - Unofficial Batch",
+      "info_hash": "72117eae4e11bb12769ee6395ea4481ddebb929e",
+      "language_claim": "MULTI",
+      "status": "inaccessible",
+      "files": [
+        {
+          "index": 0,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 01v2 (WEB 810p x264 10-bit AAC) [C0481CE1].mkv",
+          "length": 1098174450,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 02 (WEB 810p x264 10-bit AAC) [D5558123].mkv",
+          "length": 557152173,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 03v2 (WEB 810p x264 10-bit AAC) [02423766].mkv",
+          "length": 530306787,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 04 (WEB 810p x264 10-bit AAC) [CED08781].mkv",
+          "length": 518195977,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 05 (WEB 810p x264 10-bit AAC) [11E8CAC2].mkv",
+          "length": 397037633,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 06 (WEB 810p x264 10-bit AAC) [1DD1DF97].mkv",
+          "length": 527851273,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 07 (WEB 810p x264 10-bit AAC) [D2FE4022].mkv",
+          "length": 631121700,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 08 (WEB 810p x264 10-bit AAC) [B99CA246].mkv",
+          "length": 441972257,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 09 (WEB 810p x264 10-bit AAC) [6D2BA6B9].mkv",
+          "length": 562929807,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 10 (WEB 810p x264 10-bit AAC) [D4941165].mkv",
+          "length": 441950134,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 11 (WEB 810p x264 10-bit AAC) [F0BF1323].mkv",
+          "length": 458214611,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 12 (WEB 810p x264 10-bit AAC) [4C7CE656].mkv",
+          "length": 449928259,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 13 (WEB 810p x264 10-bit AAC) [2809E710].mkv",
+          "length": 539713957,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 14 (WEB 810p x264 10-bit AAC) [0F32531E].mkv",
+          "length": 617665398,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 15 (WEB 810p x264 10-bit AAC) [7D8A8D85].mkv",
+          "length": 453191249,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 16 (WEB 810p x264 10-bit AAC) [810D0CCC].mkv",
+          "length": 452973208,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 17 (WEB 810p x264 10-bit AAC) [9C019E13].mkv",
+          "length": 395123283,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 18 (WEB 810p x264 10-bit AAC) [ED224DA9].mkv",
+          "length": 398184023,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 19 (WEB 810p x264 10-bit AAC) [401E6119].mkv",
+          "length": 759089061,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 20 (WEB 810p x264 10-bit AAC) [C2ED7D3D].mkv",
+          "length": 419323051,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 21 (WEB 810p x264 10-bit AAC) [30284438].mkv",
+          "length": 532534163,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 22 (WEB 810p x264 10-bit AAC) [244CFC7C].mkv",
+          "length": 511534141,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 23 (WEB 810p x264 10-bit AAC) [602B8E70].mkv",
+          "length": 582656009,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "[LostYears] That Time I Got Reincarnated as a Slime - 24 (WEB 810p x264 10-bit AAC) [20082321].mkv",
+          "length": 412032331,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "[LostYears] That Time I Got Reincarnated as a Slime - 01v2 (WEB 810p x264 10-bit AAC) [C0481CE1].mkv",
+        "length": 1098174450,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "reason": "TimeoutError: The operation was aborted due to timeout",
+      "elapsed_ms": 7047
+    },
+    {
+      "title": "[Erai-raws] Tensei shitara Slime Datta Ken - 01 ~ 24 [1080p][Multiple Subtitle]",
+      "info_hash": "ead1e154b6a23f106cfe357620266785e752ece4",
+      "language_claim": "MULTI",
+      "status": "unknown",
+      "files": [
+        {
+          "index": 0,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 01 [1080p][Multiple Subtitle].mkv",
+          "length": 1084568002,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 02 [1080p][Multiple Subtitle].mkv",
+          "length": 953768836,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 03 [1080p][Multiple Subtitle].mkv",
+          "length": 942113056,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 04 [1080p][Multiple Subtitle].mkv",
+          "length": 935237085,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 05 [1080p][Multiple Subtitle].mkv",
+          "length": 830361418,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 06 [1080p][Multiple Subtitle].mkv",
+          "length": 954234538,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 07 [1080p][Multiple Subtitle].mkv",
+          "length": 1019971083,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 08 [1080p][Multiple Subtitle].mkv",
+          "length": 882520702,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 09 [1080p][Multiple Subtitle].mkv",
+          "length": 1005952528,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 10 [1080p][Multiple Subtitle].mkv",
+          "length": 895402595,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 11 [1080p][Multiple Subtitle].mkv",
+          "length": 929024397,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 12 [1080p][Multiple Subtitle].mkv",
+          "length": 902004715,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 13 [1080p][Multiple Subtitle].mkv",
+          "length": 983006322,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 14 [1080p][Multiple Subtitle].mkv",
+          "length": 975774127,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 15 [1080p][Multiple Subtitle].mkv",
+          "length": 924066432,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 16 [1080p][Multiple Subtitle].mkv",
+          "length": 905202850,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 17 [1080p][Multiple Subtitle].mkv",
+          "length": 868021723,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 18 [1080p][Multiple Subtitle].mkv",
+          "length": 822970824,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 19 [1080p][Multiple Subtitle].mkv",
+          "length": 1115093155,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 20 [1080p][Multiple Subtitle].mkv",
+          "length": 848458881,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 21 [1080p][Multiple Subtitle].mkv",
+          "length": 964642474,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 22 [1080p][Multiple Subtitle].mkv",
+          "length": 918977182,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 23 [1080p][Multiple Subtitle].mkv",
+          "length": 927435667,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 24 [1080p][Multiple Subtitle].mkv",
+          "length": 873142723,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 24.5 [1080p][Multiple Subtitle].mkv",
+          "length": 1068785292,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "[Erai-raws] Tensei shitara Slime Datta Ken - 01 [1080p][Multiple Subtitle].mkv",
+        "length": 1084568002,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "metadata": {
+        "probe_status": "complete",
+        "duration_sec": 1422.13,
+        "formatted_duration": "23:42",
+        "width": 1920,
+        "height": 1080,
+        "resolution": "1080p",
+        "video_codec": "h264",
+        "audio_codec": "aac",
+        "bitrate_bps": 0,
+        "total_bytes": 1084568002,
+        "audio_tracks": [
+          {
+            "index": 0,
+            "stream_index": 1,
+            "language": "und",
+            "title": "Track (Stereo, AAC)",
+            "codec": "aac",
+            "channels": 2,
+            "is_default": false
+          }
+        ],
+        "subtitle_tracks": [
+          {
+            "index": 0,
+            "stream_index": 2,
+            "language": "eng",
+            "title": "English(US)",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 1,
+            "stream_index": 3,
+            "language": "ara",
+            "title": "Arabic",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 2,
+            "stream_index": 4,
+            "language": "ger",
+            "title": "Deutsch",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 3,
+            "stream_index": 5,
+            "language": "spa",
+            "title": "Espanol(Espana)",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 4,
+            "stream_index": 6,
+            "language": "spa",
+            "title": "Espanol",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 5,
+            "stream_index": 7,
+            "language": "fre",
+            "title": "Francais(France)",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 6,
+            "stream_index": 8,
+            "language": "ita",
+            "title": "Italiano",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 7,
+            "stream_index": 9,
+            "language": "por",
+            "title": "Portugues(Brasil)",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 8,
+            "stream_index": 10,
+            "language": "rus",
+            "title": "Russian",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          }
+        ]
+      },
+      "elapsed_ms": 6547
+    },
+    {
+      "title": "[EMBER] That Time I Got Reincarnated as a Slime (2019-2021) (Season 1 + Season 2 Part 01 + Specials + OVA) [BDRip] [1080p Dual Audio HEVC 10 bits] (Tensei shitara Slime Datta Ken) (Batch)",
+      "info_hash": "4120b574b1237b40b4e9537967f69c9b7ebed37f",
+      "language_claim": "MULTI",
+      "status": "inaccessible",
+      "files": [
+        {
+          "index": 0,
+          "path": "01. Season 1 + Special/S01E01-The Storm Dragon, Veldora [47C8F23B].mkv",
+          "length": 1038945935,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "01. Season 1 + Special/S01E02-Meeting the Goblins [85C8CBEC].mkv",
+          "length": 601232782,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "01. Season 1 + Special/S01E03-Battle at the Goblin Village [8DB036B0].mkv",
+          "length": 520990597,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "01. Season 1 + Special/S01E04-In the Kingdom of the Dwarves [D1DC0293].mkv",
+          "length": 621739745,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "01. Season 1 + Special/S01E05-Hero King, Gazel Dwargo [0A71F0E1].mkv",
+          "length": 439942005,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "01. Season 1 + Special/S01E06-Shizu [C6EBB8E5].mkv",
+          "length": 586652684,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "01. Season 1 + Special/S01E07-Conqueror of Flames [2B4D4C67].mkv",
+          "length": 511152098,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "01. Season 1 + Special/S01E08-Inherited Will [910E58C6].mkv",
+          "length": 463401732,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "01. Season 1 + Special/S01E09-Attack of the Ogres [9E59E2EF].mkv",
+          "length": 547638625,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "01. Season 1 + Special/S01E10-The Orc Lord [411E0C55].mkv",
+          "length": 460595845,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "01. Season 1 + Special/S01E11-Gabiru Is Here! [FDAA5CE0].mkv",
+          "length": 478294834,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "01. Season 1 + Special/S01E12-The Gears Spin Out of Control [CBE5A3EB].mkv",
+          "length": 430148747,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "01. Season 1 + Special/S01E13-The Great Clash [92838303].mkv",
+          "length": 461477313,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "01. Season 1 + Special/S01E14-The One Who Devours All [0CB40BB1].mkv",
+          "length": 539647665,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "01. Season 1 + Special/S01E15-The Jura Forest Alliance [E665E3CC].mkv",
+          "length": 537656959,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "01. Season 1 + Special/S01E16-Demon Lord Milim Attacks [F933BCAB].mkv",
+          "length": 497459200,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "01. Season 1 + Special/S01E17-The Gathering [95251678].mkv",
+          "length": 501453023,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "01. Season 1 + Special/S01E18-Evil Creeps Closer [A928D833].mkv",
+          "length": 468836759,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "01. Season 1 + Special/S01E19-Charybdis [DF248AEF].mkv",
+          "length": 794924870,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "01. Season 1 + Special/S01E20-Yuuki Kagurazaka [C8495106].mkv",
+          "length": 548430784,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "01. Season 1 + Special/S01E21-Shizu-san's Students [649685BB].mkv",
+          "length": 622150758,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "01. Season 1 + Special/S01E22-Conquering the Labyrinth [3A8A0708].mkv",
+          "length": 636585102,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "01. Season 1 + Special/S01E23-Saved Souls [CBD129C6].mkv",
+          "length": 606516229,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "01. Season 1 + Special/S01E24-Black and a Mask [7BA4D251].mkv",
+          "length": 363921674,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "01. Season 1 + Special/S01E24.5-Tales~Veldora's Diary [0D38920E].mkv",
+          "length": 740071426,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 25,
+          "path": "02. OVA/S01OAD01-Hey! Butts [A0AB8871].mkv",
+          "length": 456361947,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 26,
+          "path": "02. OVA/S01OAD02-The Tragedy of M [2E129247].mkv",
+          "length": 506864543,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 27,
+          "path": "02. OVA/S01OAD03-Rimuru's Glamorous Life as a Teacher, Part 1 [7921269B].mkv",
+          "length": 404324309,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 28,
+          "path": "02. OVA/S01OAD04-Rimuru's Glamorous Life as a Teacher, Part 2 [DAB37D55].mkv",
+          "length": 334298269,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 29,
+          "path": "02. OVA/S01OAD05-Rimuru's Glamorous Life as a Teacher, Part 3 [06A090FC].mkv",
+          "length": 361217600,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 30,
+          "path": "03. Season 2 Part 01 + Special/S02E00 [EP-24.9]-Digression~Hinata Sakaguchi [78063161].mkv",
+          "length": 477881515,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 31,
+          "path": "03. Season 2 Part 01 + Special/S02E01-Rimuru's Busy Life [6076AA33].mkv",
+          "length": 470771557,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 32,
+          "path": "03. Season 2 Part 01 + Special/S02E02-Trade with the Animal Kingdom [EA2A96B7].mkv",
+          "length": 448678644,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 33,
+          "path": "03. Season 2 Part 01 + Special/S02E03-Paradise, Once More [BD95A0FD].mkv",
+          "length": 407491590,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 34,
+          "path": "03. Season 2 Part 01 + Special/S02E04-The Scheming of Falmuth [0AE00EA3].mkv",
+          "length": 414404068,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 35,
+          "path": "03. Season 2 Part 01 + Special/S02E05-Prelude to the Disaster [81DFBBBF].mkv",
+          "length": 371009500,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 36,
+          "path": "03. Season 2 Part 01 + Special/S02E06-The Beauty Makes Her Move [5F8B3E3E].mkv",
+          "length": 462200454,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 37,
+          "path": "03. Season 2 Part 01 + Special/S02E07-Despair [27718C0F].mkv",
+          "length": 445212477,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 38,
+          "path": "03. Season 2 Part 01 + Special/S02E08-Hope [86A69C6C].mkv",
+          "length": 428418184,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 39,
+          "path": "03. Season 2 Part 01 + Special/S02E09-Putting Everything on the Line [228630F3].mkv",
+          "length": 491187773,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 40,
+          "path": "03. Season 2 Part 01 + Special/S02E10-Megiddo [F2B25704].mkv",
+          "length": 521948634,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 41,
+          "path": "03. Season 2 Part 01 + Special/S02E11-Birth of a Demon Lord [0AF5ECB5].mkv",
+          "length": 764514700,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 42,
+          "path": "03. Season 2 Part 01 + Special/S02E12-The One Unleashed [3B80FAC7].mkv",
+          "length": 639989401,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "01. Season 1 + Special/S01E01-The Storm Dragon, Veldora [47C8F23B].mkv",
+        "length": 1038945935,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "reason": "TimeoutError: The operation was aborted due to timeout",
+      "elapsed_ms": 7029
+    },
+    {
+      "title": "That.Time.I.Got.Reincarnated.as.a.Slime.S01.P2.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD",
+      "info_hash": "8e49c60739a76ef9745b30e4336c552cf43f8916",
+      "language_claim": "MULTI",
+      "status": "episode_unverified",
+      "files": [
+        {
+          "index": 0,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E18.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1093457871,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E17.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1161594180,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E20.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1169830126,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E24.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1172224643,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E15.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1216401077,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E13.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1273629186,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E22.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1391983325,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E14.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1425337351,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E25.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1438609448,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E16.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1453874175,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E23.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1527620485,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E21.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1576468618,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "That.Time.I.Got.Reincarnated.as.a.Slime.S01E19.1080p.Blu-Ray.10-Bit.Dual-Audio.TrueHD.x265-iAHD.mkv",
+          "length": 1859339419,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "reason": "file missing or ambiguous",
+      "elapsed_ms": 152
+    },
+    {
+      "title": "[Anime Time] Tensei shitara Slime Datta Ken S1+OVA [Dual Audio][BD][1080p][HEVC 10bit x265][AAC][Eng Sub] (That Time I Got Reincarnated as a Slime) [Batch]",
+      "info_hash": "e7b9aae991fd85d511055249df42734f1fe35f21",
+      "language_claim": "MULTI",
+      "status": "absent",
+      "files": [
+        {
+          "index": 0,
+          "path": "Tensei shitara Slime Datta Ken - 01.mkv",
+          "length": 978040294,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "Tensei shitara Slime Datta Ken - 02.mkv",
+          "length": 475212697,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "Tensei shitara Slime Datta Ken - 03.mkv",
+          "length": 416203467,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "Tensei shitara Slime Datta Ken - 04.mkv",
+          "length": 399726331,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "Tensei shitara Slime Datta Ken - 05.mkv",
+          "length": 278184211,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "Tensei shitara Slime Datta Ken - 06.mkv",
+          "length": 414339659,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "Tensei shitara Slime Datta Ken - 07.mkv",
+          "length": 446456806,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "Tensei shitara Slime Datta Ken - 08.mkv",
+          "length": 295402864,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "Tensei shitara Slime Datta Ken - 09.mkv",
+          "length": 416517737,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "Tensei shitara Slime Datta Ken - 10.mkv",
+          "length": 311781467,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "Tensei shitara Slime Datta Ken - 11.mkv",
+          "length": 353403765,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "Tensei shitara Slime Datta Ken - 12.mkv",
+          "length": 311903128,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "Tensei shitara Slime Datta Ken - 13.mkv",
+          "length": 350450590,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "Tensei shitara Slime Datta Ken - 14.mkv",
+          "length": 447383119,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "Tensei shitara Slime Datta Ken - 15.mkv",
+          "length": 339535396,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "Tensei shitara Slime Datta Ken - 16.mkv",
+          "length": 364071201,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "Tensei shitara Slime Datta Ken - 17.mkv",
+          "length": 306128983,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "Tensei shitara Slime Datta Ken - 18.mkv",
+          "length": 276131969,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "Tensei shitara Slime Datta Ken - 19.mkv",
+          "length": 661680545,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "Tensei shitara Slime Datta Ken - 20.mkv",
+          "length": 331967631,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "Tensei shitara Slime Datta Ken - 21.mkv",
+          "length": 433829925,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "Tensei shitara Slime Datta Ken - 22.mkv",
+          "length": 423019790,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "Tensei shitara Slime Datta Ken - 23.mkv",
+          "length": 495244578,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "Tensei shitara Slime Datta Ken - 24.mkv",
+          "length": 364405430,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "Tensei shitara Slime Datta Ken - 25.mkv",
+          "length": 574996623,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 25,
+          "path": "OVA/Tensei shitara Slime Datta Ken - 00.mkv",
+          "length": 527853484,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 26,
+          "path": "OVA/Tensei shitara Slime Datta Ken - 01.mkv",
+          "length": 316810973,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 27,
+          "path": "OVA/Tensei shitara Slime Datta Ken - 02.mkv",
+          "length": 368159128,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 28,
+          "path": "OVA/Tensei shitara Slime Datta Ken - 03.mkv",
+          "length": 326178162,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 29,
+          "path": "OVA/Tensei shitara Slime Datta Ken - 04.mkv",
+          "length": 296589593,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 30,
+          "path": "OVA/Tensei shitara Slime Datta Ken - 05.mkv",
+          "length": 363213283,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "Tensei shitara Slime Datta Ken - 01.mkv",
+        "length": 978040294,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "metadata": {
+        "probe_status": "complete",
+        "duration_sec": 1423.089,
+        "formatted_duration": "23:43",
+        "width": 1920,
+        "height": 1080,
+        "resolution": "1080p",
+        "video_codec": "hevc",
+        "audio_codec": "aac",
+        "bitrate_bps": 0,
+        "total_bytes": 978040294,
+        "audio_tracks": [
+          {
+            "index": 0,
+            "stream_index": 1,
+            "language": "eng",
+            "title": "English (Stereo, AAC)",
+            "codec": "aac",
+            "channels": 2,
+            "is_default": false
+          },
+          {
+            "index": 1,
+            "stream_index": 2,
+            "language": "jpn",
+            "title": "Japanese (Stereo, AAC)",
+            "codec": "aac",
+            "channels": 2,
+            "is_default": false
+          }
+        ],
+        "subtitle_tracks": [
+          {
+            "index": 0,
+            "stream_index": 3,
+            "language": "und",
+            "title": "Full Subs",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 1,
+            "stream_index": 4,
+            "language": "eng",
+            "title": "Signs",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          }
+        ]
+      },
+      "elapsed_ms": 6266
+    }
+  ],
+  "coverage": "bounded",
+  "vf_confirmed": false,
+  "discovery_partial": true,
+  "available_sources": 37,
+  "finished": "2026-10-02T21:18:20.804Z"
+}

@@ -10,13 +10,19 @@
     "test:files": "node scripts/episode-file.test.mjs",
     "test:seasons": "node scripts/season-flow.mjs",
     "test:player": "node scripts/subtitle-assets.mjs && node scripts/player-subtitles.test.mjs",
+    "test:player:fullscreen": "node scripts/player-fullscreen.test.mjs",
+    "test:subtitles:windows": "node scripts/subtitle-window.test.mjs",
     "test:sources": "node scripts/playback-sources.test.mjs && node scripts/auto-playback.test.mjs",
     "test:design": "node scripts/design-flow.mjs",
     "test:hero": "node scripts/featured-hero.test.mjs",
     "test:tracks": "node scripts/media-tracks.test.mjs",
     "test:i18n": "node scripts/i18n-flow.mjs",
     "test:auth": "node scripts/auth-envelope.test.mjs",
-    "test:calendar": "node scripts/calendar.test.mjs"
+    "test:calendar": "node scripts/calendar.test.mjs",
+    "test:vf": "node --experimental-strip-types scripts/vf-evidence.test.mjs",
+    "diagnostic:naruto-vf": "node --experimental-strip-types scripts/naruto-vf-diagnostic.mjs",
+    "test:vf:player": "node scripts/vf-player.test.mjs",
+    "diagnostic:sources": "node --experimental-strip-types scripts/source-audit.mjs"
   },
   "dependencies": {
     "@noble/ciphers": "^2.4.0",

@@ -1,4 +1,26 @@
-import type { AudioTrack, SubtitleTrack } from '../types/api';
+import type { AudioTrack, SubtitleTrack, VideoMetadata } from '../types/api';
+
+/** Track titles only provide evidence when the language tag does not contradict them. */
+export function frenchAudioEvidence(track: AudioTrack): 'confirmed' | 'unknown' | 'other' {
+ const code = trackLanguageCode(track.language || '');
+ if (code === 'fr') return 'confirmed';
+ const frenchTitle = /\b(?:french|fran[cç]ais|vf)\b/i.test(track.title || '');
+ if (!code || code === 'und') return frenchTitle ? 'confirmed' : 'unknown';
+ return frenchTitle ? 'unknown' : 'other';
+}
+
+export function vfStatus(meta: VideoMetadata): 'confirmed' | 'absent' | 'unknown' | 'inaccessible' {
+ if (meta.probe_status !== 'complete') return 'inaccessible';
+ const evidence = (meta.audio_tracks || []).map(frenchAudioEvidence);
+ if (evidence.includes('confirmed')) return 'confirmed';
+ if (evidence.includes('unknown')) return 'unknown';
+ return 'absent';
+}
+
+export function preferredAudioTrack(tracks: AudioTrack[], current: number, manual: boolean): number {
+ if (manual) return current;
+ return tracks.find(track => frenchAudioEvidence(track) === 'confirmed')?.index ?? current;
+}
 
 const languageCodes: Record<string, string> = {
   fre: 'fr', fra: 'fr', eng: 'en', jpn: 'ja', por: 'pt', spa: 'es', ara: 'ar',

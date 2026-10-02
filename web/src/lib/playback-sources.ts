@@ -1,7 +1,6 @@
 import type { EpisodeSource } from '../types/api';
 
-/** Mirror resolver ranking, de-duplicate magnets, and prefer smaller releases
- * only when score and swarm strength are equal. */
+/** Mirror language priority, season-pack preference and quality fallback. */
  // Which codecs this browser cannot decode; checked once, empty outside a browser (tests, SSR).
 let undecodable: RegExp | null | undefined;
 function undecodableCodecs(): RegExp | null {
@@ -21,8 +20,10 @@ export function playbackSources(sources: EpisodeSource[]): EpisodeSource[] {
  return [...sources].sort((a,b) =>
   unplayable(a) - unplayable(b) ||
   Number(b.seeders > 0) - Number(a.seeders > 0) ||
+  (b.score_breakdown?.french ?? (b.language_tag==='VF'?200:b.language_tag==='VOSTFR'?100:0)) - (a.score_breakdown?.french ?? (a.language_tag==='VF'?200:a.language_tag==='VOSTFR'?100:0)) ||
+  Number(b.is_batch) - Number(a.is_batch) ||
+  (b.score_breakdown?.quality ?? 0) - (a.score_breakdown?.quality ?? 0) ||
   b.score_rank - a.score_rank || b.seeders - a.seeders ||
-  Number(a.is_batch) - Number(b.is_batch) ||
   (a.info_hash || a.id).localeCompare(b.info_hash || b.id)
  ).filter(source => {
   const identity = (source.info_hash || source.magnet_uri || source.id).toLowerCase();
@@ -32,10 +33,17 @@ export function playbackSources(sources: EpisodeSource[]): EpisodeSource[] {
  });
 }
 
+/** Keep the current and previously attempted sources stable; rank only pending fallbacks. */
+export function extendPlaybackSources(current: EpisodeSource[], discovered: EpisodeSource[], activeIndex: number): EpisodeSource[] {
+ const fixed = current.slice(0, Math.min(activeIndex + 1, current.length));
+ const hashes = new Set(fixed.map(source => (source.info_hash || source.id).toLowerCase()));
+ return [...fixed, ...playbackSources([...current.slice(fixed.length), ...discovered]).filter(source => !hashes.has((source.info_hash || source.id).toLowerCase()))];
+}
+
 /**
  * Idle windows, not deadlines: a source is only abandoned after this long with no swarm activity
  * (no connected peer while fetching metadata, no new bytes while starting or stalled). A big file on
  * a slow swarm may take as long as it needs; `max` is only a safety net against a source that is
  * "alive" but never delivers.
  */
-export const PLAYBACK_TIMEOUTS = { metadata: 30_000, startup: 40_000, stall: 30_000, max: 600_000 };
+export const PLAYBACK_TIMEOUTS = { metadata: 15_000, startup: 15_000, stall: 30_000, max: 600_000 };

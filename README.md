@@ -248,7 +248,9 @@ frontend, FFmpeg-enabled backend and Prowlarr start automatically. Initializatio
 creates a random API key in the persistent `prowlarr-config` volume. Provisioning
 reuses existing AniDex and The Pirate Bay indexers or creates them from official
 Prowlarr schemas. Missing definitions are skipped with a warning. Existing manual
-settings, disabled indexers and unrelated indexers are preserved.
+settings and disabled indexers are preserved. Other already enabled torrent
+indexers are also exported as gateways, using stable `prowlarr-<id>` names.
+No additional indexers are created by this export.
 
 New indexers are created disabled with `forceSave=true`, then enabled with a
 forced PUT: Prowlarr still tests enabled indexers on POST even with forceSave.
@@ -262,6 +264,8 @@ are not sent to the frontend or included in Gazes/bootstrap error messages.
 Nyaa remains direct and independent. In manifest mode, AniDex and The Pirate Bay
 are queried only through Prowlarr. EXT and MagnetDL are disabled by default; enable
 an optional provider with `INDEXER_EXT_DISABLED=false` or a configured endpoint.
+An optional gateway present in the private manifest is enabled unless explicitly
+disabled. An explicit disable still takes precedence over a configured gateway.
 Individual provider settings may be placed in `.env` (excluded from builds):
 
 - `INDEXER_<NAME>_DISABLED=true` disables the provider.
@@ -270,6 +274,8 @@ Individual provider settings may be placed in `.env` (excluded from builds):
 
 Names: `EXT`, `MAGNETDL`, `ANIDEX`, `THEPIRATEBAY`. Native development without
 `INDEXER_CONFIG_FILE` can still use direct AniDex/The Pirate Bay connectors.
+Additional manifest gateways can be disabled with their stable name, for example
+`INDEXER_PROWLARR_32_DISABLED=true`.
 Prowlarr is not published publicly. Optional local administration:
 
 ```sh

@@ -65,6 +65,7 @@ button:disabled { cursor: default; opacity: .35; }
 .anime-hero-shade { background: rgba(9,9,11,.2); }
 .anime-hero-copy { max-width: 760px; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
 .featured-carousel { position: relative; }
+.featured-dots { display: none; }
 .featured-controls { position: absolute; right: var(--page-gutter); bottom: 33px; display: flex; align-items: center; gap: 8px; color: var(--foreground); }
 .featured-controls button { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
 .featured-controls button:hover { background: var(--surface-hover); }
@@ -343,7 +344,7 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .watch-player .player-content { overflow: hidden; }
 .watch-player .player-video-box { height: 100dvh; }
 .watch-player .player-heading { transition: opacity .15s; }
-.watch-player .watch-heading-hidden { visibility: hidden; pointer-events: none; }
+.player-topbar.watch-heading-hidden { visibility: hidden; pointer-events: none; }
 .watch-player .player-telemetry, .watch-player .player-advanced { display: none; }
 
 /* Player: frosted capsules matching the catalog header pills. */
@@ -363,6 +364,8 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .player-row[data-active="true"] { background: rgba(255, 255, 255, .95); color: #09090b; font-weight: 500; }
 .player-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: var(--radius-pill); font: 500 11px var(--font-geist-mono), monospace; background: rgba(255, 255, 255, .1); color: #e4e4e7; }
 .player-chip--solid { background: var(--accent); color: var(--accent-fg); }
+.player-episode-pill { justify-content: flex-start; gap: 10px; padding: 5px 16px 5px 5px; }
+.player-episode-pill .player-chip { flex-shrink: 0; height: 32px; padding: 0 11px; font-size: 12px; }
 .player-dock-wrap { position: absolute; z-index: 10; left: 24px; right: 24px; bottom: 24px; }
 .player-topbar { position: absolute; z-index: 30; left: 0; right: 0; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 24px; pointer-events: none; }
 .player-topbar > * { pointer-events: auto; }
@@ -429,6 +432,7 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .auth-page { position: relative; display: grid; place-items: center; padding: 96px var(--page-gutter); overflow: hidden; }
 .auth-card { position: relative; z-index: 1; display: flex; width: min(1000px, 100%); border-radius: 28px; overflow: hidden; background: var(--surface-card); border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(0, 0, 0, .35); }
 .auth-pitch { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 32px; padding: 44px; overflow: hidden; background: var(--surface); }
+.auth-pitch-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: .05; pointer-events: none; }
 .auth-pitch-copy { position: relative; display: flex; flex-direction: column; gap: 16px; }
 .auth-pitch-copy h2 { margin: 0; font-size: 44px; line-height: 1.12; }
 .auth-pitch-copy p { margin: 0; max-width: 340px; font-size: 15px; line-height: 1.6; color: var(--design-muted); }
@@ -653,6 +657,29 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
   .anime-hero h1, .anime-hero h1[data-size="md"] { font-size: 36px; }
   .anime-hero h1[data-size="lg"] { font-size: 32px; }
   .anime-hero h1[data-size="xl"] { font-size: 28px; }
+  .featured-carousel .anime-hero { height: auto; min-height: 600px; max-height: none; padding: 104px var(--page-gutter) 88px; }
+  .featured-carousel .anime-hero-copy { max-width: none; gap: 16px; }
+  .featured-carousel .hero-description { font-size: 14px; line-height: 1.5; -webkit-line-clamp: 2; }
+  .featured-carousel .hero-actions { margin-top: 12px; width: 100%; }
+  .featured-carousel .hero-actions > .design-button { flex: 1; min-width: 0; padding-inline: 8px; }
+  .featured-carousel .anime-hero-art { opacity: .6; }
+  .featured-carousel .anime-hero-art .hero-wide { display: none; }
+  .featured-carousel .anime-hero-art .hero-portrait { display: block; }
+  .featured-controls span { white-space: nowrap; }
+  .featured-carousel { touch-action: pan-y pinch-zoom; }
+  .featured-carousel .featured-controls { display: none; }
+  .featured-carousel .featured-ring-progress { animation: none; }
+  .featured-dots { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100% - 32px); }
+  .featured-dots button { display: grid; place-items: center; width: 24px; height: 32px; border-radius: 999px; }
+  .featured-dots button span { width: 6px; height: 6px; border-radius: 999px; background: var(--design-muted); transition: width .2s, background .2s; }
+  .featured-dots button[aria-current="true"] span { width: 16px; background: var(--accent); }
+  .featured-dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .cal-controls { width: 100%; flex-direction: column; align-items: stretch; }
+  .cal-controls .catalog-tabs { display: flex; width: 100%; gap: 2px; }
+  .cal-controls .catalog-tabs button { flex: 1; min-width: 0; padding-inline: 8px; }
+  .cal-controls .cal-nav { justify-content: center; }
+  .cal-controls .cal-today { flex: 1; }
+  .cal-controls .cal-round { flex-shrink: 0; }
 }
 
 /* Episode cards in the player: the ring belongs to the thumbnail (rounded), not to the whole button. */

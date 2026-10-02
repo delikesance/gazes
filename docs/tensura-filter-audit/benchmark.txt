@@ -1,0 +1,8 @@
+goos: linux
+goarch: amd64
+pkg: github.com/gazes/gazes/internal/indexer
+cpu: 13th Gen Intel(R) Core(TM) i7-13620H
+BenchmarkTensuraMatcher/prepare_each_candidate-16         	       2	 551580970 ns/op	133156896 B/op	 1551050 allocs/op
+BenchmarkTensuraMatcher/prepare_once-16                   	      86	  15351359 ns/op	 1302992 B/op	   15896 allocs/op
+PASS
+ok  	github.com/gazes/gazes/internal/indexer	2.962s

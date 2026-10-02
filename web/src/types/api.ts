@@ -190,6 +190,8 @@ export interface SubtitleTrack {
 }
 
 export interface VideoMetadata {
+	probe_status?: 'complete' | 'timeout' | 'failed';
+	probe_error_code?: string;
   duration_sec: number;
   formatted_duration: string;
   width: number;

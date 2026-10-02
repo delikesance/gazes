@@ -1,0 +1,1093 @@
+{
+  "url": "http://192.168.1.46:8081/anime/101280/seasons/101280/episodes/1",
+  "started": "2026-10-02T21:17:36.407Z",
+  "attempts": [
+    {
+      "title": "[Trix] Tensei Shitara Slime Datta Ken - S01+02+OADs+Tensura Nikki [Dual Audio] [Multi Subs] (BD 1080p AV1) - That Time I Got Reincarnated as a Slime - Slime Diaries - Moi quand je me réincarne en Slime VOSTFR",
+      "info_hash": "21ff74256476e035de1de7e04fa368a0abbe9886",
+      "language_claim": "VOSTFR",
+      "status": "absent",
+      "files": [
+        {
+          "index": 0,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E01 (BD 1080p AV1).mkv",
+          "length": 694371752,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E02 (BD 1080p AV1).mkv",
+          "length": 390050768,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E03 (BD 1080p AV1).mkv",
+          "length": 326256549,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E04 (BD 1080p AV1).mkv",
+          "length": 327156127,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E05 (BD 1080p AV1).mkv",
+          "length": 255853335,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E06 (BD 1080p AV1).mkv",
+          "length": 340848071,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E07 (BD 1080p AV1).mkv",
+          "length": 334255283,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E08 (BD 1080p AV1).mkv",
+          "length": 239052134,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E09 (BD 1080p AV1).mkv",
+          "length": 337735928,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E10 (BD 1080p AV1).mkv",
+          "length": 268536168,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E11 (BD 1080p AV1).mkv",
+          "length": 310789624,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E12 (BD 1080p AV1).mkv",
+          "length": 264212529,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E13 (BD 1080p AV1).mkv",
+          "length": 270740494,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E14 (BD 1080p AV1).mkv",
+          "length": 336346400,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E15 (BD 1080p AV1).mkv",
+          "length": 298115669,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E16 (BD 1080p AV1).mkv",
+          "length": 322008022,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E17 (BD 1080p AV1).mkv",
+          "length": 279919380,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E18 (BD 1080p AV1).mkv",
+          "length": 245997266,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E19 (BD 1080p AV1).mkv",
+          "length": 473225255,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E20 (BD 1080p AV1).mkv",
+          "length": 288554277,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E21 (BD 1080p AV1).mkv",
+          "length": 348336397,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E22 (BD 1080p AV1).mkv",
+          "length": 324057403,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E23 (BD 1080p AV1).mkv",
+          "length": 377941425,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E24 (BD 1080p AV1).mkv",
+          "length": 246621721,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD01 (BD 1080p AV1).mkv",
+          "length": 249127746,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 25,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD02 (BD 1080p AV1).mkv",
+          "length": 291590676,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 26,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD03 (BD 1080p AV1).mkv",
+          "length": 288690785,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 27,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD04 (BD 1080p AV1).mkv",
+          "length": 236900415,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 28,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD05 (BD 1080p AV1).mkv",
+          "length": 258413265,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 29,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E01 (BD 1080p AV1).mkv",
+          "length": 323985367,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 30,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E02 (BD 1080p AV1).mkv",
+          "length": 285672141,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 31,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E03 (BD 1080p AV1).mkv",
+          "length": 261738100,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 32,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E04 (BD 1080p AV1).mkv",
+          "length": 240521513,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 33,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E05 (BD 1080p AV1).mkv",
+          "length": 256817189,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 34,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E06 (BD 1080p AV1).mkv",
+          "length": 325817521,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 35,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E07 (BD 1080p AV1).mkv",
+          "length": 314799821,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 36,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E08 (BD 1080p AV1).mkv",
+          "length": 255396447,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 37,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E09 (BD 1080p AV1).mkv",
+          "length": 273109839,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 38,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E10 (BD 1080p AV1).mkv",
+          "length": 329410936,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 39,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E11 (BD 1080p AV1).mkv",
+          "length": 390930711,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 40,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E12 (BD 1080p AV1).mkv",
+          "length": 463016402,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 41,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E13 (BD 1080p AV1).mkv",
+          "length": 321471082,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 42,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E14 (BD 1080p AV1).mkv",
+          "length": 222431351,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 43,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E15 (BD 1080p AV1).mkv",
+          "length": 245103287,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 44,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E16 (BD 1080p AV1).mkv",
+          "length": 223169005,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 45,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E17 (BD 1080p AV1).mkv",
+          "length": 309971254,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 46,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E18 (BD 1080p AV1).mkv",
+          "length": 301980323,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 47,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E19 (BD 1080p AV1).mkv",
+          "length": 219573569,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 48,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E20 (BD 1080p AV1).mkv",
+          "length": 203591953,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 49,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E21 (BD 1080p AV1).mkv",
+          "length": 276662980,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 50,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E22 (BD 1080p AV1).mkv",
+          "length": 244315261,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 51,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E23 (BD 1080p AV1).mkv",
+          "length": 277611986,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 52,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E24 (BD 1080p AV1).mkv",
+          "length": 252050315,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 53,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E01 (BD 1080p AV1).mkv",
+          "length": 245435363,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 54,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E02 (BD 1080p AV1).mkv",
+          "length": 265953408,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 55,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E03 (BD 1080p AV1).mkv",
+          "length": 232028782,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 56,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E04 (BD 1080p AV1).mkv",
+          "length": 213554358,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 57,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E05 (BD 1080p AV1).mkv",
+          "length": 295016842,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 58,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E06 (BD 1080p AV1).mkv",
+          "length": 261277251,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 59,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E07 (BD 1080p AV1).mkv",
+          "length": 237341864,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 60,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E08 (BD 1080p AV1).mkv",
+          "length": 296306665,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 61,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E09 (BD 1080p AV1).mkv",
+          "length": 250490950,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 62,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E10 (BD 1080p AV1).mkv",
+          "length": 219786302,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 63,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E11 (BD 1080p AV1).mkv",
+          "length": 239886497,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 64,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E12 (BD 1080p AV1).mkv",
+          "length": 247123178,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E01 (BD 1080p AV1).mkv",
+        "length": 694371752,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "metadata": {
+        "probe_status": "complete",
+        "duration_sec": 1423.098,
+        "formatted_duration": "23:43",
+        "width": 1920,
+        "height": 1080,
+        "resolution": "1080p",
+        "video_codec": "av1",
+        "audio_codec": "opus",
+        "bitrate_bps": 0,
+        "total_bytes": 694371752,
+        "audio_tracks": [
+          {
+            "index": 0,
+            "stream_index": 1,
+            "language": "jpn",
+            "title": "Japanese - Opus 2.0",
+            "codec": "opus",
+            "channels": 2,
+            "is_default": false
+          },
+          {
+            "index": 1,
+            "stream_index": 2,
+            "language": "eng",
+            "title": "English - Opus 5.1",
+            "codec": "opus",
+            "channels": 6,
+            "is_default": false
+          }
+        ],
+        "subtitle_tracks": [
+          {
+            "index": 0,
+            "stream_index": 3,
+            "language": "eng",
+            "title": "Full [Asakura v2]",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 1,
+            "stream_index": 4,
+            "language": "eng",
+            "title": "Signs & Songs [Asakura/NH]",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 2,
+            "stream_index": 5,
+            "language": "fre",
+            "title": "French",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 3,
+            "stream_index": 6,
+            "language": "ger",
+            "title": "German",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 4,
+            "stream_index": 7,
+            "language": "ita",
+            "title": "Italian",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 5,
+            "stream_index": 8,
+            "language": "spa",
+            "title": "Spanish",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 6,
+            "stream_index": 9,
+            "language": "spa",
+            "title": "Spanish",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 7,
+            "stream_index": 10,
+            "language": "por",
+            "title": "Portuguese",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 8,
+            "stream_index": 11,
+            "language": "rus",
+            "title": "Russian",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          },
+          {
+            "index": 9,
+            "stream_index": 12,
+            "language": "ara",
+            "title": "Arabic",
+            "codec": "ass",
+            "is_default": false,
+            "is_forced": false
+          }
+        ]
+      },
+      "elapsed_ms": 682
+    },
+    {
+      "title": "[Trix] Tensei Shitara Slime Datta Ken - S01+02+OADs+Tensura Nikki [Dual Audio] [Multi Subs] (BD 720p AV1) - That Time I Got Reincarnated as a Slime - Slime Diaries - Moi quand je me réincarne en Slime VOSTFR",
+      "info_hash": "40ab140c978a47c1de5869d23d458ac5b3e8e141",
+      "language_claim": "VOSTFR",
+      "status": "inaccessible",
+      "files": [
+        {
+          "index": 0,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E01 (BD 720p AV1).mkv",
+          "length": 296116702,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 1,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E02 (BD 720p AV1).mkv",
+          "length": 209647193,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 2,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E03 (BD 720p AV1).mkv",
+          "length": 188097964,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 3,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E04 (BD 720p AV1).mkv",
+          "length": 180709941,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 4,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E05 (BD 720p AV1).mkv",
+          "length": 146814393,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 5,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E06 (BD 720p AV1).mkv",
+          "length": 192344924,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 6,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E07 (BD 720p AV1).mkv",
+          "length": 200629346,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 7,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E08 (BD 720p AV1).mkv",
+          "length": 147884990,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 8,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E09 (BD 720p AV1).mkv",
+          "length": 201124640,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 9,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E10 (BD 720p AV1).mkv",
+          "length": 159298338,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 10,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E11 (BD 720p AV1).mkv",
+          "length": 183051305,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 11,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E12 (BD 720p AV1).mkv",
+          "length": 156838569,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 12,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E13 (BD 720p AV1).mkv",
+          "length": 172090653,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 13,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E14 (BD 720p AV1).mkv",
+          "length": 199281368,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 14,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E15 (BD 720p AV1).mkv",
+          "length": 178685369,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 15,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E16 (BD 720p AV1).mkv",
+          "length": 186895389,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 16,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E17 (BD 720p AV1).mkv",
+          "length": 165064135,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 17,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E18 (BD 720p AV1).mkv",
+          "length": 148623174,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 18,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E19 (BD 720p AV1).mkv",
+          "length": 261137617,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 19,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E20 (BD 720p AV1).mkv",
+          "length": 166728668,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 20,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E21 (BD 720p AV1).mkv",
+          "length": 200219285,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 21,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E22 (BD 720p AV1).mkv",
+          "length": 172620079,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 22,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E23 (BD 720p AV1).mkv",
+          "length": 195301016,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 23,
+          "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E24 (BD 720p AV1).mkv",
+          "length": 145143988,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 24,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD01 (BD 720p AV1).mkv",
+          "length": 158097961,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 25,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD02 (BD 720p AV1).mkv",
+          "length": 181859075,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 26,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD03 (BD 720p AV1).mkv",
+          "length": 173640701,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 27,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD04 (BD 720p AV1).mkv",
+          "length": 158310465,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 28,
+          "path": "02 - OADs/[Trix] Tensei Shitara Slime Datta Ken - S01OAD05 (BD 720p AV1).mkv",
+          "length": 156737858,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 29,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E01 (BD 720p AV1).mkv",
+          "length": 208093457,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 30,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E02 (BD 720p AV1).mkv",
+          "length": 188432586,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 31,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E03 (BD 720p AV1).mkv",
+          "length": 172543177,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 32,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E04 (BD 720p AV1).mkv",
+          "length": 156319762,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 33,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E05 (BD 720p AV1).mkv",
+          "length": 172609738,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 34,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E06 (BD 720p AV1).mkv",
+          "length": 210000623,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 35,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E07 (BD 720p AV1).mkv",
+          "length": 204823466,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 36,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E08 (BD 720p AV1).mkv",
+          "length": 163775497,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 37,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E09 (BD 720p AV1).mkv",
+          "length": 178946096,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 38,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E10 (BD 720p AV1).mkv",
+          "length": 211748052,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 39,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E11 (BD 720p AV1).mkv",
+          "length": 223102581,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 40,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E12 (BD 720p AV1).mkv",
+          "length": 268634523,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 41,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E13 (BD 720p AV1).mkv",
+          "length": 190015696,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 42,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E14 (BD 720p AV1).mkv",
+          "length": 135781583,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 43,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E15 (BD 720p AV1).mkv",
+          "length": 149162057,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 44,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E16 (BD 720p AV1).mkv",
+          "length": 135069824,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 45,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E17 (BD 720p AV1).mkv",
+          "length": 177541520,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 46,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E18 (BD 720p AV1).mkv",
+          "length": 187954121,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 47,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E19 (BD 720p AV1).mkv",
+          "length": 142161508,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 48,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E20 (BD 720p AV1).mkv",
+          "length": 134452657,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 49,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E21 (BD 720p AV1).mkv",
+          "length": 173834253,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 50,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E22 (BD 720p AV1).mkv",
+          "length": 156069666,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 51,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E23 (BD 720p AV1).mkv",
+          "length": 177256744,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 52,
+          "path": "03 - Season 2/[Trix] Tensei Shitara Slime Datta Ken - S02E24 (BD 720p AV1).mkv",
+          "length": 164104472,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 53,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E01 (BD 720p AV1).mkv",
+          "length": 162259256,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 54,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E02 (BD 720p AV1).mkv",
+          "length": 184538879,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 55,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E03 (BD 720p AV1).mkv",
+          "length": 155574423,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 56,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E04 (BD 720p AV1).mkv",
+          "length": 141078012,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 57,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E05 (BD 720p AV1).mkv",
+          "length": 197627513,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 58,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E06 (BD 720p AV1).mkv",
+          "length": 162798671,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 59,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E07 (BD 720p AV1).mkv",
+          "length": 151796407,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 60,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E08 (BD 720p AV1).mkv",
+          "length": 187367910,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 61,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E09 (BD 720p AV1).mkv",
+          "length": 161800577,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 62,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E10 (BD 720p AV1).mkv",
+          "length": 148497157,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 63,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E11 (BD 720p AV1).mkv",
+          "length": 159191569,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        },
+        {
+          "index": 64,
+          "path": "Tensura Nikki/[Trix] Tensura Nikki Tensei Shitara Slime Datta Ken - S01E12 (BD 720p AV1).mkv",
+          "length": 161354143,
+          "is_video": true,
+          "mime_type": "video/x-matroska"
+        }
+      ],
+      "file": {
+        "index": 0,
+        "path": "01 - Season 1/[Trix] Tensei Shitara Slime Datta Ken - S01E01 (BD 720p AV1).mkv",
+        "length": 296116702,
+        "is_video": true,
+        "mime_type": "video/x-matroska"
+      },
+      "metadata": {
+        "probe_status": "failed",
+        "probe_error_code": "probe_failed",
+        "duration_sec": 0,
+        "formatted_duration": "",
+        "width": 0,
+        "height": 0,
+        "resolution": "",
+        "video_codec": "",
+        "audio_codec": "",
+        "bitrate_bps": 0,
+        "total_bytes": 296116702,
+        "audio_tracks": null,
+        "subtitle_tracks": null
+      },
+      "reason": "TimeoutError: The operation was aborted due to timeout",
+      "elapsed_ms": 15002
+    }
+  ],
+  "coverage": "bounded",
+  "vf_confirmed": false,
+  "discovery_partial": true,
+  "available_sources": 2,
+  "finished": "2026-10-02T21:17:52.095Z"
+}
