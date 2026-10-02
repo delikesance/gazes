@@ -1,0 +1,11 @@
+# TLS edge. Caddy 2.10+ uses Go 1.24+, which offers the hybrid post-quantum
+# X25519MLKEM768 key exchange by default and prefers it when the client supports it.
+{$GAZES_DOMAIN:localhost} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+	reverse_proxy web:3000
+}

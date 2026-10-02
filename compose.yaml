@@ -52,6 +52,14 @@ services:
       LOG_LEVEL: "${LOG_LEVEL:-debug}"
       LOG_DIR: /app/diagnostics
       TORRENT_PORT: "${TORRENT_PORT:-42069}"
+      ACCOUNTS_DIR: /app/accounts
+      # The backend is only reachable through the web service, so its X-Forwarded-* headers are trusted.
+      TRUST_PROXY: "true"
+      # Required in production: run `make secrets` to generate them into .env.
+      ACCOUNTS_ENC_KEY: "${ACCOUNTS_ENC_KEY:-}"
+      ACCOUNTS_INDEX_KEY: "${ACCOUNTS_INDEX_KEY:-}"
+      ACCOUNTS_PEPPER: "${ACCOUNTS_PEPPER:-}"
+      ALTCHA_HMAC_KEY: "${ALTCHA_HMAC_KEY:-}"
     # Inbound peer connections (TCP + uTP/DHT). Forward the same port on your router for the best swarm reach.
     ports:
       - "${TORRENT_PORT:-42069}:${TORRENT_PORT:-42069}/tcp"
@@ -61,6 +69,7 @@ services:
       - diagnostics:/app/diagnostics
       - torrent-data:/app/data
       - torrent-cache:/app/cache
+      - accounts:/app/accounts
     depends_on:
       prowlarr-configure:
         condition: service_completed_successfully
@@ -90,9 +99,32 @@ services:
       start_period: 20s
       retries: 5
 
+  # Optional TLS edge: `docker compose --profile edge up -d` with GAZES_DOMAIN set.
+  # Caddy 2.10+ (Go 1.24+) negotiates the hybrid post-quantum X25519MLKEM768 key exchange by default.
+  edge:
+    profiles: ["edge"]
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      GAZES_DOMAIN: "${GAZES_DOMAIN:-localhost}"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
 volumes:
   prowlarr-config:
   indexer-secrets:
   diagnostics:
   torrent-data:
   torrent-cache:
+  accounts:
+  caddy-data:
+  caddy-config:
