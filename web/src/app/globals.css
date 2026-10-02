@@ -641,3 +641,14 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .featured-controls { left: 50%; right: auto; transform: translateX(-50%); bottom: 36px; }
 .anime-hero { padding-bottom: 116px; }
 @media (max-width: 600px) { .featured-controls { bottom: 20px; } .anime-hero { padding-bottom: 80px; } }
+
+/* Hero title: the type size follows the length of the title. */
+.anime-hero h1 { text-wrap: balance; }
+.anime-hero h1[data-size="md"] { font-size: clamp(38px, 5.6vw, 80px); }
+.anime-hero h1[data-size="lg"] { font-size: clamp(34px, 4.4vw, 64px); }
+.anime-hero h1[data-size="xl"] { font-size: clamp(30px, 3.4vw, 52px); line-height: 1.1; }
+@media (max-width: 600px) {
+  .anime-hero h1, .anime-hero h1[data-size="md"] { font-size: 36px; }
+  .anime-hero h1[data-size="lg"] { font-size: 32px; }
+  .anime-hero h1[data-size="xl"] { font-size: 28px; }
+}

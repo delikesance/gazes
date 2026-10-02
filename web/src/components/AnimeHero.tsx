@@ -16,6 +16,9 @@ interface Props {
   children?: ReactNode;
 }
 
+/** Longer titles get a smaller type size so they stay within a few lines. */
+const titleSize = (title: string) => (title.length <= 16 ? "sm" : title.length <= 28 ? "md" : title.length <= 44 ? "lg" : "xl");
+
 const plain = (html?: string) => (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 export function AnimeHero({ title, banner, poster, episodes, year, eyebrow, description, children }: Props) {
@@ -30,7 +33,7 @@ export function AnimeHero({ title, banner, poster, episodes, year, eyebrow, desc
     <div className="anime-hero-copy">
       {eyebrow && <span className="eyebrow">{eyebrow}</span>}
       {(episodes || year) && <p className="hero-meta">{episodes ? <span className="chip">{t(episodes === 1 ? "{count} épisode" : "{count} épisodes", {count:episodes})}</span> : null}{year && <span className="chip">{year}</span>}</p>}
-      <h1>{title}</h1>
+      <h1 data-size={titleSize(title)}>{title}</h1>
       {plain(description) && <p className="hero-description">{plain(description)}</p>}
       {children && <div className="hero-actions">{children}</div>}
     </div>
