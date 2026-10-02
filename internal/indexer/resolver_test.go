@@ -248,3 +248,19 @@ func TestSeasonExtrasPackIdentity(t *testing.T) {
 		}
 	}
 }
+
+// Stripping a season/part qualifier from "X Part 6 (Part 2)" used to leave "X ( )",
+// which then never matched as the base of a sibling season's own title.
+func TestCleanTitleForSearchDropsEmptyBrackets(t *testing.T) {
+	cases := map[string]string{
+		"JoJo's Bizarre Adventure Part 6 (Part 2)":    "JoJos Bizarre Adventure",
+		"Tensei Shitara Slime Datta Ken (2nd Season)": "Tensei Shitara Slime Datta Ken",
+		"Show [Part 3]":              "Show",
+		"Keep (Real Subtitle) Title": "Keep (Real Subtitle) Title",
+	}
+	for in, want := range cases {
+		if got := indexer.CleanTitleForSearch(in); got != want {
+			t.Errorf("CleanTitleForSearch(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
