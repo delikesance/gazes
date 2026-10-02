@@ -96,7 +96,7 @@ func sourceContext(w http.ResponseWriter, r *http.Request) *http.Request {
 var telemetryIDs = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`)
 var telemetryHash = regexp.MustCompile(`^[a-fA-F0-9]{40}$`)
 var telemetryCodes = regexp.MustCompile(`^[a-zA-Z0-9_.-]{0,80}$`)
-var telemetryEvents = map[string]bool{"playback.attempt": true, "playback.file_selected": true, "playback.file_rejected": true, "playback.started": true, "playback.buffering": true, "playback.failed": true, "playback.abandoned": true, "playback.exhausted": true, "playback.swarm": true, "playback.media_error": true, "playback.gesture_required": true, "playback.seek": true, "playback.tracks": true, "playback.resolution": true, "browser.error": true}
+var telemetryEvents = map[string]bool{"playback.attempt": true, "playback.file_selected": true, "playback.file_rejected": true, "playback.started": true, "playback.buffering": true, "playback.failed": true, "playback.abandoned": true, "playback.exhausted": true, "playback.swarm": true, "playback.media_error": true, "playback.gesture_required": true, "playback.seek": true, "playback.tracks": true, "playback.resolution": true, "browser.error": true, "playback.subtitle_failed": true, "playback.discovery_started": true, "playback.discovery_completed": true, "playback.discovery_failed": true, "playback.vf_deferred": true}
 var telemetryAttrs = map[string]bool{"reason": true, "error_code": true, "position": true, "duration": true, "file_index": true, "file_path": true, "file_count": true, "ready_state": true, "network_state": true, "video_codec": true, "audio_codec": true, "buffered_seconds": true, "seeders": true, "download_speed": true, "pieces_ready": true, "buffer_percent": true, "width": true, "height": true, "source_count": true, "audio_track": true, "subtitle_track": true, "partial": true}
 
 type clientEvent struct {
@@ -143,6 +143,45 @@ func (l *diagnosticLimiter) allow(key string) bool {
 	l.windows[key] = window
 	return window.count <= 120
 }
+
+// validTelemetryEvent applies the allow-lists and format checks to one client event.
+func validTelemetryEvent(e clientEvent) bool {
+	if !telemetryEvents[e.Event] || !telemetryIDs.MatchString(e.Session) || (e.Attempt != "" && !telemetryIDs.MatchString(e.Attempt)) || (e.InfoHash != "" && !telemetryHash.MatchString(e.InfoHash)) {
+		return false
+	}
+	for _, v := range []string{e.Anime, e.Season, e.Episode} {
+		if len(v) > 12 {
+			return false
+		}
+		for _, c := range v {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
+	}
+	if len(e.Attributes) > 20 {
+		return false
+	}
+	for k, v := range e.Attributes {
+		if !telemetryAttrs[k] {
+			return false
+		}
+		switch value := v.(type) {
+		case string:
+			if len(value) > 2048 {
+				return false
+			}
+		case float64, bool, nil:
+		default:
+			return false
+		}
+	}
+	if code, ok := e.Attributes["error_code"].(string); ok && !telemetryCodes.MatchString(code) {
+		return false
+	}
+	return true
+}
+
 func (s *Server) HandleDiagnosticEvents(w http.ResponseWriter, r *http.Request) {
 	// Use the socket peer, never caller-provided X-Forwarded-For, for this limiter.
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
@@ -170,51 +209,20 @@ func (s *Server) HandleDiagnosticEvents(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "invalid diagnostic event count", 400)
 		return
 	}
+	// One unknown event or attribute must not discard the valid events sent in the same batch
+	// (a failure report travels with swarm and track events): invalid events are skipped, and the
+	// request is refused only when none is valid.
+	valid := body.Events[:0]
 	for _, e := range body.Events {
-		if !telemetryEvents[e.Event] || !telemetryIDs.MatchString(e.Session) || (e.Attempt != "" && !telemetryIDs.MatchString(e.Attempt)) || (e.InfoHash != "" && !telemetryHash.MatchString(e.InfoHash)) {
-			http.Error(w, "invalid diagnostic event", 400)
-			return
-		}
-		for _, v := range []string{e.Anime, e.Season, e.Episode} {
-			if v != "" {
-				for _, c := range v {
-					if c < '0' || c > '9' {
-						http.Error(w, "invalid episode identity", 400)
-						return
-					}
-				}
-				if len(v) > 12 {
-					http.Error(w, "invalid episode identity", 400)
-					return
-				}
-			}
-		}
-		if len(e.Attributes) > 20 {
-			http.Error(w, "invalid diagnostic attributes", 400)
-			return
-		}
-		for k, v := range e.Attributes {
-			if !telemetryAttrs[k] {
-				http.Error(w, "unsupported diagnostic attribute", 400)
-				return
-			}
-			switch v.(type) {
-			case string:
-				if len(v.(string)) > 2048 {
-					http.Error(w, "diagnostic attribute too long", 400)
-					return
-				}
-			case float64, bool, nil:
-			default:
-				http.Error(w, "invalid diagnostic attribute", 400)
-				return
-			}
-		}
-		if code, ok := e.Attributes["error_code"].(string); ok && !telemetryCodes.MatchString(code) {
-			http.Error(w, "invalid diagnostic code", 400)
-			return
+		if validTelemetryEvent(e) {
+			valid = append(valid, e)
 		}
 	}
+	if len(valid) == 0 {
+		http.Error(w, "invalid diagnostic event", 400)
+		return
+	}
+	body.Events = valid
 	for _, e := range body.Events {
 		c := diagnostics.Get(r.Context())
 		c.SessionID = e.Session

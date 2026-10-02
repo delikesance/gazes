@@ -75,3 +75,21 @@ func TestDiagnosticRequestCorrelation(t *testing.T) {
 		t.Fatalf("correlation not persisted: %v %s", e, out.String())
 	}
 }
+
+func TestDiagnosticBatchKeepsValidEventsWhenOneIsRejected(t *testing.T) {
+	s := &Server{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	body := `{"events":[
+		{"event":"playback.failed","playback_session_id":"s","infohash":"` + strings.Repeat("a", 40) + `","attributes":{"error_code":"startup_timeout"}},
+		{"event":"unknown.event","playback_session_id":"s"},
+		{"event":"playback.subtitle_failed","playback_session_id":"s","attributes":{"error_code":"SUB_HTTP_502"}}]}`
+	rr := httptest.NewRecorder()
+	s.HandleDiagnosticEvents(rr, httptest.NewRequest("POST", "/api/v1/diagnostics/events", strings.NewReader(body)))
+	if rr.Code != 204 {
+		t.Fatalf("a batch with valid events must be accepted even when one event is unknown, got %d", rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	s.HandleDiagnosticEvents(rr, httptest.NewRequest("POST", "/api/v1/diagnostics/events", strings.NewReader(`{"events":[{"event":"unknown.event","playback_session_id":"s"}]}`)))
+	if rr.Code != 400 {
+		t.Fatalf("a batch with no valid event must still be refused, got %d", rr.Code)
+	}
+}
