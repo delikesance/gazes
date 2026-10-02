@@ -636,3 +636,8 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .catalog-tabs-row .catalog-tabs button { height: 46px; padding: 0; margin-bottom: -1px; border-radius: 0; border-bottom: 2px solid transparent; background: none; color: var(--design-muted); font-size: 15px; font-weight: 500; }
 .catalog-tabs-row .catalog-tabs button:hover { color: var(--foreground); }
 .catalog-tabs-row .catalog-tabs button[aria-pressed="true"] { background: none; color: var(--foreground); font-weight: 600; border-bottom-color: var(--accent); }
+
+/* Carousel controls: centered at the bottom of the hero, clear of both the copy and the tilted poster. */
+.featured-controls { left: 50%; right: auto; transform: translateX(-50%); bottom: 36px; }
+.anime-hero { padding-bottom: 116px; }
+@media (max-width: 600px) { .featured-controls { bottom: 20px; } .anime-hero { padding-bottom: 80px; } }
