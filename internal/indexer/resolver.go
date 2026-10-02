@@ -221,6 +221,9 @@ func ExtractPartNumber(title string) int {
 }
 
 // MatchEpisodeDebug accepts contextual episode identities and provides a debug decision string.
+// completePackTag marks a release as a bundle of many episodes rather than a single unnumbered one.
+var completePackTag = regexp.MustCompile(`(?i)\b(?:complete|complet|compl[eè]te|int[eé]grale|bd|bdrip|blu-?ray|bdmv|dual[ -]audio|multi[ -]?(?:audio|subs?)|vf|vostfr)\b`)
+
 func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, string) {
 	title = strings.NewReplacer("_", " ", ".", " ").Replace(title)
 	matchTitle := regexp.MustCompile(`^\s*\[[^\]]+\]\s*`).ReplaceAllString(title, "")
@@ -393,6 +396,12 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 
 	if (multiSeasonPack || seasonExtrasPack || batchTag.MatchString(title)) && (season > 0 || identity.AllowUnqualified) {
 		return true, true, fmt.Sprintf("matched: batch pack for season %d", identity.SeasonNumber)
+	}
+
+	// A numberless pack of the whole series (e.g. "Death Note - BDRIP - VF VOSTFR") is valid for
+	// a first-season target: the player picks the episode file by name inside the pack.
+	if season == 0 && identity.SeasonNumber <= 1 && len(rangeMatch) == 0 && completePackTag.MatchString(title) {
+		return true, true, "matched: complete series pack (episode file chosen by name)"
 	}
 
 	if season > 0 && len(rangeMatch) == 0 {
