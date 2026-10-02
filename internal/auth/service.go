@@ -375,7 +375,7 @@ func (s *Service) PutProgress(w http.ResponseWriter, r *http.Request) {
 	now := s.now().Unix()
 	for i := range body.Progress {
 		p := &body.Progress[i]
-		if p.SeasonID <= 0 || p.Episode <= 0 || p.Position < 0 || p.UpdatedAt <= 0 || p.UpdatedAt > now+300 {
+		if p.SeasonID <= 0 || p.AnimeID < 0 || p.Episode <= 0 || p.Position < 0 || p.UpdatedAt <= 0 || p.UpdatedAt > now+300 || utf8.RuneCountInString(p.Title) > 200 || !utf8.ValidString(p.Title) {
 			fail(w, http.StatusBadRequest, "invalid_request")
 			return
 		}

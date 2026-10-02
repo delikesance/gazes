@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import { LocaleDocument } from "@/components/LocaleDocument";
 import { SiteFooter } from "@/components/SiteFooter";
+import { AuthProvider } from "@/components/AuthProvider";
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -41,8 +42,10 @@ export default function RootLayout({
       </head>
       <body id="top" className={`${dmSans.variable} ${fraunces.variable} ${geistMono.variable} antialiased`}>
         <LocaleDocument />
-        <Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense>
-        <div className="site-content">{children}</div>
+        <AuthProvider>
+          <Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense>
+          <div className="site-content">{children}</div>
+        </AuthProvider>
         <SiteFooter />
       </body>
     </html>

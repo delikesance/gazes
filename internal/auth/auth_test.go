@@ -331,7 +331,7 @@ func TestProgressMergeNewestWinsAndRequiresLogin(t *testing.T) {
 		return rr
 	}
 	now := time.Now().Unix()
-	put([]Progress{{SeasonID: 7, Episode: 3, Position: 100, UpdatedAt: now}})
+	put([]Progress{{SeasonID: 7, AnimeID: 70, Title: "Seven", Episode: 3, Position: 100, UpdatedAt: now}})
 	rr := put([]Progress{{SeasonID: 7, Episode: 2, Position: 50, UpdatedAt: now - 100}, {SeasonID: 8, Episode: 1, Position: 20, UpdatedAt: now}})
 	var got struct{ Progress []Progress }
 	_ = json.Unmarshal(rr.Body.Bytes(), &got)
@@ -339,13 +339,27 @@ func TestProgressMergeNewestWinsAndRequiresLogin(t *testing.T) {
 	for _, p := range got.Progress {
 		by[p.SeasonID] = p
 	}
-	if by[7].Episode != 3 || by[8].Episode != 1 {
+	if by[7].Episode != 3 || by[7].Title != "Seven" || by[7].AnimeID != 70 || by[8].Episode != 1 {
 		t.Fatalf("newest must win: %+v", got.Progress)
 	}
 	anon := httptest.NewRecorder()
 	s.GetProgress(anon, httptest.NewRequest("GET", "/me/progress", nil))
 	if anon.Code != http.StatusUnauthorized {
 		t.Fatalf("anonymous: %d", anon.Code)
+	}
+}
+
+func TestProgressRejectsOversizedTitle(t *testing.T) {
+	s := newTestService(t)
+	c := sessionCookie(s.post(t, s.Register, "register", map[string]string{"email": "t@example.com", "password": "longenough", "pseudo": "titler"}))
+	body, _ := json.Marshal(map[string]any{"progress": []Progress{{SeasonID: 1, Episode: 1, Title: strings.Repeat("x", 201), UpdatedAt: time.Now().Unix()}}})
+	req := httptest.NewRequest("PUT", "/me/progress", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(c)
+	rr := httptest.NewRecorder()
+	s.PutProgress(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("got %d", rr.Code)
 	}
 }
 
