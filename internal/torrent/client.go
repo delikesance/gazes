@@ -3,10 +3,12 @@ package torrent
 import (
 	"context"
 	"fmt"
+	"github.com/gazes/gazes/internal/cache"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +26,9 @@ type ClientEngine struct {
 	torrents   map[string]*anacrolixTorrent.Torrent
 	prevStats  map[string]statSnapshot
 	schedulers map[string]*pieceScheduler
+	lastUsed   map[string]time.Time
+	metainfo   *cache.MetainfoStore
+	stop       chan struct{}
 }
 
 type statSnapshot struct {
@@ -52,9 +57,11 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 	}
 
 	// Optimize throughput and balance CPU usage
-	clientConfig.TotalHalfOpenConns = 150
-	clientConfig.TorrentPeersHighWater = 500
-	clientConfig.TorrentPeersLowWater = 50
+	clientConfig.TotalHalfOpenConns = 250
+	clientConfig.TorrentPeersHighWater = 1000
+	clientConfig.TorrentPeersLowWater = 100
+	clientConfig.DisableIPv6 = false
+	clientConfig.NoDefaultPortForwarding = false // UPnP / NAT-PMP when the host network allows it
 	clientConfig.NominalDialTimeout = 5 * time.Second
 	clientConfig.MinDialTimeout = 2 * time.Second
 	clientConfig.HandshakesTimeout = 4 * time.Second
@@ -94,6 +101,19 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 		logger:    logger,
 		torrents:  make(map[string]*anacrolixTorrent.Torrent),
 		prevStats: make(map[string]statSnapshot),
+		lastUsed:  make(map[string]time.Time),
+		stop:      make(chan struct{}),
+	}
+	if cfg.MetainfoDir != "" {
+		if store, storeErr := cache.NewMetainfoStore(cfg.MetainfoDir); storeErr != nil {
+			logger.Warn("metainfo cache disabled", "err", storeErr)
+		} else {
+			engine.metainfo = store
+			go store.Prune(30 * 24 * time.Hour)
+		}
+	}
+	if cfg.CacheMaxBytes > 0 {
+		go engine.evictionLoop()
 	}
 
 	logger.Info("bittorrent client engine initialized",
@@ -102,6 +122,8 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 		"conns_per_torrent", cfg.EstablishedConnsPerTorrent,
 		"lookahead_pieces", cfg.LookaheadPieceCount,
 		"tit_for_tat", cfg.EnableTitForTat,
+		"listen_port", client.LocalPort(),
+		"cache_max_gb", cfg.CacheMaxBytes>>30,
 	)
 
 	return engine, nil
@@ -110,7 +132,21 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 // AddTorrent resolves the file list without downloading video data.
 // GetFileStream schedules headers only for the file selected by the viewer.
 func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string, []FileInfo, error) {
-	t, err := e.client.AddMagnet(magnetURI)
+	magnet, err := metainfo.ParseMagnetUri(magnetURI)
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid magnet uri: %w", err)
+	}
+	var cached *metainfo.MetaInfo
+	if e.metainfo != nil {
+		cached = e.metainfo.Load(magnet.InfoHash.HexString())
+	}
+	var t *anacrolixTorrent.Torrent
+	if cached != nil {
+		// Known source: skip the DHT/tracker metadata exchange entirely.
+		t, err = e.client.AddTorrent(cached)
+	} else {
+		t, err = e.client.AddMagnet(magnetURI)
+	}
 	if err != nil {
 		return "", nil, fmt.Errorf("invalid magnet uri: %w", err)
 	}
@@ -129,6 +165,7 @@ func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string
 
 	e.mu.Lock()
 	e.torrents[infoHash] = t
+	e.markUsedLocked(infoHash)
 	e.mu.Unlock()
 
 	// Wait for metadata resolution with context support
@@ -137,6 +174,12 @@ func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string
 		diagnostics.Logger(ctx, e.logger).Warn("torrent.metadata_failed", "infohash", infoHash, "err", ctx.Err())
 		return "", nil, ctx.Err()
 	case <-t.GotInfo():
+	}
+	if cached == nil && e.metainfo != nil {
+		mi := t.Metainfo()
+		if saveErr := e.metainfo.Save(infoHash, &mi); saveErr != nil {
+			e.logger.Warn("metainfo cache write failed", "infohash", infoHash, "err", saveErr)
+		}
 	}
 
 	files := t.Files()
@@ -168,6 +211,7 @@ func (e *ClientEngine) GetFileStream(ctx context.Context, infoHash string, fileI
 	if !ok {
 		return nil, nil, fmt.Errorf("torrent with infohash %s not found", infoHash)
 	}
+	e.touch(infoHash)
 
 	// Ensure metadata is ready
 	select {
@@ -228,6 +272,7 @@ func (e *ClientEngine) GetStats(infoHash string) (*SwarmStats, error) {
 	if !ok {
 		return nil, fmt.Errorf("torrent %s not found", infoHash)
 	}
+	e.touch(infoHash)
 
 	completed := t.BytesCompleted()
 	total := t.Length()
@@ -278,6 +323,13 @@ func (e *ClientEngine) GetStats(infoHash string) (*SwarmStats, error) {
 // Close gracefully stops all active torrents and closes the client.
 func (e *ClientEngine) Close() error {
 	e.logger.Info("shutting down bittorrent engine")
+	if e.stop != nil {
+		select {
+		case <-e.stop:
+		default:
+			close(e.stop)
+		}
+	}
 	e.client.Close()
 	return nil
 }
@@ -304,3 +356,76 @@ func (e *ClientEngine) getTorrent(infoHash string) (*anacrolixTorrent.Torrent, b
 
 // Verify interface compliance
 var _ Engine = (*ClientEngine)(nil)
+
+func (e *ClientEngine) touch(infoHash string) {
+	e.mu.Lock()
+	e.markUsedLocked(strings.ToLower(infoHash))
+	e.mu.Unlock()
+}
+
+func (e *ClientEngine) markUsedLocked(infoHash string) {
+	if e.lastUsed == nil {
+		e.lastUsed = make(map[string]time.Time)
+	}
+	e.lastUsed[infoHash] = time.Now()
+}
+
+// evictionLoop keeps the on-disk payload under CacheMaxBytes by dropping the
+// least recently used torrents that no viewer is reading.
+func (e *ClientEngine) evictionLoop() {
+	ticker := time.NewTicker(2 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-e.stop:
+			return
+		case <-ticker.C:
+			e.evictIdle()
+		}
+	}
+}
+
+func (e *ClientEngine) evictIdle() {
+	e.mu.RLock()
+	entries := make([]cacheEntry, 0, len(e.torrents))
+	for infoHash, t := range e.torrents {
+		if t.Info() == nil {
+			continue
+		}
+		active := false
+		if scheduler := e.schedulers[infoHash]; scheduler != nil {
+			scheduler.mu.Lock()
+			active = len(scheduler.windows) > 0
+			scheduler.mu.Unlock()
+		}
+		entries = append(entries, cacheEntry{infoHash: infoHash, bytes: t.BytesCompleted(), lastUsed: e.lastUsed[infoHash], active: active})
+	}
+	e.mu.RUnlock()
+	for _, infoHash := range pickEvictions(entries, e.cfg.CacheMaxBytes, e.cfg.CacheIdleTTL, time.Now()) {
+		e.dropTorrent(infoHash)
+	}
+}
+
+func (e *ClientEngine) dropTorrent(infoHash string) {
+	e.mu.Lock()
+	t := e.torrents[infoHash]
+	delete(e.torrents, infoHash)
+	delete(e.prevStats, infoHash)
+	delete(e.schedulers, infoHash)
+	delete(e.lastUsed, infoHash)
+	e.mu.Unlock()
+	if t == nil || t.Info() == nil {
+		return
+	}
+	name := t.Info().BestName()
+	// Clear completion state first so a later re-add re-downloads instead of trusting deleted data.
+	for i := 0; i < t.NumPieces(); i++ {
+		_ = t.Piece(i).Storage().MarkNotComplete()
+	}
+	t.Drop()
+	if err := removeTorrentData(e.cfg.DataDir, name); err != nil && !os.IsNotExist(err) {
+		e.logger.Warn("cache eviction failed", "infohash", infoHash, "err", err)
+		return
+	}
+	e.logger.Info("cache.evicted", "infohash", infoHash, "name", name)
+}
