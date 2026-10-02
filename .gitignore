@@ -1,0 +1,39 @@
+# Devenv & Nix
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+.direnv
+
+# Go
+bin/
+dist/
+*.exe
+*.test
+*.out
+
+# Node / Web
+node_modules/
+.next/
+out/
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Media cache & Torrents
+data/
+cache/
+tmp/
+*.torrent
+
+# Deployment secrets
+.env
+
+# Bootstrap test artifacts and private backups
+__pycache__/
+prowlarr-backup*.tar.gz
+
+# Persistent diagnostic files
+/diagnostics/

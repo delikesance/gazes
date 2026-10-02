@@ -1,0 +1,5 @@
+# Optional administration, bound only to the server's loopback interface.
+services:
+  prowlarr:
+    ports:
+      - "127.0.0.1:9696:9696"
