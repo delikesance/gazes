@@ -13,7 +13,7 @@ import { episodeFile, episodeCandidates } from "@/lib/episode-file";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
+import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata, SubtitleTrack } from "@/types/api";
 import { loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
 import {
   X,
@@ -69,6 +69,12 @@ function loadAmbilight(): AmbilightSettings {
   } catch {
     return AMBILIGHT_DEFAULT;
   }
+}
+
+// Bitmap subtitles (PGS, VobSub, DVB) cannot be converted to ASS/VTT by ffmpeg.
+const BITMAP_SUBTITLE_CODECS = new Set(["hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle", "xsub"]);
+function textSubtitleTracks(tracks?: SubtitleTrack[]): SubtitleTrack[] {
+  return (tracks ?? []).filter((track) => !BITMAP_SUBTITLE_CODECS.has(track.codec));
 }
 
 function formatTime(seconds: number): string {
@@ -358,9 +364,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         setSelectedFileIdx(initialIdx);
         if (data.main_video_metadata && initialIdx === data.main_video_index) {
           setVideoMeta(data.main_video_metadata);
-          if (data.main_video_metadata.subtitle_tracks && data.main_video_metadata.subtitle_tracks.length > 0) {
+          if (textSubtitleTracks(data.main_video_metadata.subtitle_tracks).length > 0) {
             subtitleSelectionRef.current = true;
-            const frenchSub = data.main_video_metadata.subtitle_tracks.find((t) =>
+            const frenchSub = textSubtitleTracks(data.main_video_metadata.subtitle_tracks).find((t) =>
               t.language.toLowerCase().includes("fre") ||
               t.language.toLowerCase().includes("fra") ||
               t.title.toLowerCase().includes("french") ||
@@ -370,8 +376,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
             if (frenchSub) {
               setSelectedSubTrack(frenchSub.index);
             } else {
-              const def = data.main_video_metadata.subtitle_tracks.find((t) => t.is_default);
-              setSelectedSubTrack(def ? def.index : 0);
+              const textTracks = textSubtitleTracks(data.main_video_metadata.subtitle_tracks);
+              setSelectedSubTrack((textTracks.find((t) => t.is_default) ?? textTracks[0]).index);
             }
           }
           if (data.main_video_metadata.audio_tracks && data.main_video_metadata.audio_tracks.length > 0) {
@@ -433,8 +439,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         if (controller.signal.aborted) return;
         if (m && (m.duration_sec > 0 || m.video_codec)) {
           setVideoMeta(m);
-          if (!subtitleSelectionRef.current && m.subtitle_tracks?.length) {
-            const preferred = m.subtitle_tracks.find(t => /^(fre|fra|fr)$/i.test(t.language)) || m.subtitle_tracks.find(t => t.is_default) || m.subtitle_tracks[0];
+          if (!subtitleSelectionRef.current && textSubtitleTracks(m.subtitle_tracks).length) {
+            const preferred = textSubtitleTracks(m.subtitle_tracks).find(t => /^(fre|fra|fr)$/i.test(t.language)) || textSubtitleTracks(m.subtitle_tracks).find(t => t.is_default) || textSubtitleTracks(m.subtitle_tracks)[0];
             setSelectedSubTrack(preferred.index);
             subtitleSelectionRef.current = true;
           }
@@ -967,7 +973,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     selectedAudio={selectedAudioTrack}
                     audioHint={videoMeta?.audio_tracks?.length && !videoMeta.audio_tracks.some(track => trackLanguageCode(track.language) === "fr") ? t(videoMeta.audio_tracks.some(track => !track.language || track.language === "und") ? "VF non confirmée pour ce fichier." : "VF indisponible dans ce fichier.") : null}
                     onSelectAudio={handleAudioTrackSelect}
-                    subtitleOptions={(videoMeta?.subtitle_tracks || []).map((track) => ({ index: track.index, title: track.title, label: mediaTrackLabel(track, videoMeta?.subtitle_tracks || [], locale) }))}
+                    subtitleOptions={textSubtitleTracks(videoMeta?.subtitle_tracks).map((track) => ({ index: track.index, title: track.title, label: mediaTrackLabel(track, textSubtitleTracks(videoMeta?.subtitle_tracks), locale) }))}
                     selectedSubtitle={selectedSubTrack}
                     onSelectSubtitle={handleSubtitleTrackSelect}
                     ambilight={ambilight}
