@@ -86,3 +86,8 @@ test('Darki season-plus-extras pack selects TV episodes and excludes OAV/OAD fol
  assert.deepEqual(episodeCandidates(files,identity).map(f=>f.index),[4]);
  assert.equal(episodeFile(files,identity),4);
 });
+
+test('a numeric release-group tag is not mistaken for an episode number',()=>{
+ const files=[file(0,'OPED/[224] Death Note - OP - 01 [BDRip.1080p.x265.FLAC].mkv'),file(1,'[224] Death Note - 05 [BDRip.1080p.x265.FLAC].mkv'),file(2,'[224] Death Note - 06 [BDRip.1080p.x265.FLAC].mkv')];
+ assert.equal(episodeFile(files,{episode_number:6,season_number:1,anime_aliases:['Death Note']}),2);
+});

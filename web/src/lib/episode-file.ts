@@ -76,6 +76,7 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
 
   // 4. Pre-clean CRC, resolution, codec, and bit-depth tokens before bare number matching
   const cleanedName = name
+    .replace(/^\s*\[[^\]]*\]/, " ") // leading release-group tag: a numeric group such as "[224]" is not an episode
     .replace(/\[[0-9A-Fa-f]{8}\]/g, " ")
     .replace(/\b(10bit|8bit|12bit|x264|x265|h264|h265|hevc|avc|2160p|1080p|810p|720p|576p|480p|360p|4k|aac|flac|dts|ac3)\b/gi, " ");
 
