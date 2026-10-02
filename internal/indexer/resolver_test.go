@@ -264,3 +264,26 @@ func TestCleanTitleForSearchDropsEmptyBrackets(t *testing.T) {
 		}
 	}
 }
+
+func TestCompleteSeriesPack(t *testing.T) {
+	first := indexer.EpisodeIdentity{Titles: []string{"Death Note"}, SeasonNumber: 1, EpisodeNumber: 6, AllowUnqualified: true}
+	for _, tt := range []struct {
+		title string
+		match bool
+	}{
+		{"Death Note - BDRIP - VF VOSTFR - 1080p x265 AC3", true},
+		{"[Sav1our] Death Note (EN|ES|FR|PT|RU) [BD][720p][AV1][OPUS][Multi Dual Audio]", true},
+		{"Death Note [1080p]", false},
+		{"Death Note 07 [BerSerk]", false},
+		{"[Odji-san] Death Note Kaï Films 1 à 6 (intégrale) 1080p [DUB][VO|VF|EN]", false},
+	} {
+		if match, _ := indexer.MatchEpisode(tt.title, first); match != tt.match {
+			t.Errorf("%s: match = %v, want %v", tt.title, match, tt.match)
+		}
+	}
+	later := first
+	later.SeasonNumber = 2
+	if match, _ := indexer.MatchEpisode("Death Note - BDRIP - VF VOSTFR - 1080p x265 AC3", later); match {
+		t.Error("a numberless series pack must not satisfy a season 2 target")
+	}
+}
