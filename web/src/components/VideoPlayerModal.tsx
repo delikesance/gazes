@@ -137,7 +137,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const dockRef = useRef<HTMLDivElement>(null);
   const ambientRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [subtitleError, setSubtitleError] = useState<string | null>(null);
+  const [subtitleError, setSubtitleError] = useState<{ message: string; code?: string } | null>(null);
+  const handleSubtitleError = useCallback((message: string | null, code?: string) => {
+    setSubtitleError(message ? { message, code } : null);
+    if (message) diagnosticEvent(diagnostic, "playback.subtitle_failed", { error_code: code || "unknown" });
+  }, [diagnostic]);
   const resumePlaybackRef = useRef(true);
   const failureReportedRef = useRef(false);
   const hasStartedRef = useRef(false);
@@ -796,11 +800,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   videoRef={videoRef}
                   url={subtitleUrl}
                   timeOffset={timeOffset}
-                  onError={setSubtitleError}
+                  onError={handleSubtitleError}
                 />
                 {subtitleError && (
                   <div role="alert" className="player-toast player-frost flex items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 text-xs text-red-300" style={{ background: "rgba(60,20,24,.5)" }}>
-                    <span>{t(subtitleError)}</span>
+                    <span>{t(subtitleError.message)}</span>
+                    {subtitleError.code && <span className="shrink-0 rounded-full bg-black/30 px-2 py-0.5 font-mono text-[10px] text-red-200" title={t("Code d’erreur")}>{subtitleError.code}{diagnostic?.playback_session_id ? ` · ${diagnostic.playback_session_id.slice(0, 8)}` : ""}</span>}
                     <button type="button" aria-label={t("Fermer")} onClick={() => setSubtitleError(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full hover:bg-white/10"><X className="h-3.5 w-3.5" /></button>
                   </div>
                 )}
