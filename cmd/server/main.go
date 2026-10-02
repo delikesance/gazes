@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -67,6 +68,9 @@ func main() {
 
 	// 5. Initialize BitTorrent Engine
 	torrentCfg := torrent.DefaultEngineConfig(cfg.DataDir)
+	torrentCfg.ListenPort = cfg.TorrentPort
+	torrentCfg.CacheMaxBytes = cfg.TorrentCacheMaxBytes
+	torrentCfg.MetainfoDir = filepath.Join(cfg.CacheDir, "metainfo")
 	torrentEngine, err := torrent.NewClientEngine(torrentCfg, logger)
 	if err != nil {
 		logger.Error("failed to initialize bittorrent engine", "err", err)

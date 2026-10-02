@@ -51,9 +51,16 @@ services:
       INDEXER_CONFIG_FILE: /run/gazes/indexers.json
       LOG_LEVEL: "${LOG_LEVEL:-debug}"
       LOG_DIR: /app/diagnostics
+      TORRENT_PORT: "${TORRENT_PORT:-42069}"
+    # Inbound peer connections (TCP + uTP/DHT). Forward the same port on your router for the best swarm reach.
+    ports:
+      - "${TORRENT_PORT:-42069}:${TORRENT_PORT:-42069}/tcp"
+      - "${TORRENT_PORT:-42069}:${TORRENT_PORT:-42069}/udp"
     volumes:
       - indexer-secrets:/run/gazes:ro
       - diagnostics:/app/diagnostics
+      - torrent-data:/app/data
+      - torrent-cache:/app/cache
     depends_on:
       prowlarr-configure:
         condition: service_completed_successfully
@@ -87,3 +94,5 @@ volumes:
   prowlarr-config:
   indexer-secrets:
   diagnostics:
+  torrent-data:
+  torrent-cache:
