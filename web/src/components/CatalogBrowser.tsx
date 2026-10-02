@@ -51,10 +51,10 @@ export function CatalogBrowser({
     }
   }, [initialQuery, initialGenre, initialTab, initialPage]);
 
-  function update(values: Record<string, string>) {
+  function update(values: Record<string, string>, scroll = true) {
     const current = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     Object.entries(values).forEach(([k, v]) => v ? current.set(k, v) : current.delete(k));
-    router.push(`/?${current.toString()}`);
+    router.push(`/?${current.toString()}`, { scroll });
   }
 
   useEffect(() => {
@@ -110,8 +110,8 @@ export function CatalogBrowser({
           {tab !== "popular" && seasonLabel && <span className="season-period">{t(seasonLabel)} {data?.season_year}</span>}
         </div>
         <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
-          <button type="button" aria-pressed={tab !== "popular"} onClick={() => update({ tab: "", page: "1" })}>{t("Cette saison")}</button>
-          <button type="button" aria-pressed={tab === "popular"} onClick={() => update({ tab: "popular", page: "1" })}>{t("Les incontournables")}</button>
+          <button type="button" aria-pressed={tab !== "popular"} onClick={() => update({ tab: "", page: "1" }, false)}>{t("Cette saison")}</button>
+          <button type="button" aria-pressed={tab === "popular"} onClick={() => update({ tab: "popular", page: "1" }, false)}>{t("Les incontournables")}</button>
         </div>
       </div>
       <SeasonalGrid count={data.items.length}>{cards}</SeasonalGrid>
