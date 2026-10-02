@@ -847,8 +847,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 >
                   {t("Your browser does not support HTML5 video playback.")}</video>
                 <SubtitleRenderer
-                  key={`${streamUrl}-${subtitleUrl}`}
                   videoRef={videoRef}
+                  streamKey={streamUrl}
                   url={subtitleUrl}
                   bitmap={subtitleBitmap}
                   timeOffset={timeOffset}

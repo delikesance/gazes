@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import type JASSUB from "jassub";
 import type { PgsRenderer } from "libpgs";
 
@@ -16,8 +16,10 @@ function subtitleErrorCode(error: unknown): string {
   return "SUB_RENDER_FAILED";
 }
 
-export function SubtitleRenderer({ videoRef, url, bitmap = false, timeOffset, onError }: {
+export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, timeOffset, onError }: {
   videoRef: RefObject<HTMLVideoElement | null>;
+  /** Changes when the player replaces its video element, including audio switches. */
+  streamKey?: string;
   url: string;
   /** The track is a bitmap format (PGS, served raw as .sup) rather than text (ASS). */
   bitmap?: boolean;
@@ -25,51 +27,144 @@ export function SubtitleRenderer({ videoRef, url, bitmap = false, timeOffset, on
   /** Receives a user-facing message and a short machine code, or `null` to clear. */
   onError: (error: string | null, code?: string) => void;
 }) {
+  const sessionRef = useRef<{ sync: (video: HTMLVideoElement, offset: number) => void } | null>(null);
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !url) { onError(null); return; }
+    let video = videoRef.current;
+    if (!video || !url) { onErrorRef.current(null); return; }
+    let offset = 0;
     let disposed = false;
     let renderer: JASSUB | undefined;
     let pgsRenderer: PgsRenderer | undefined;
+    let canvas: HTMLCanvasElement | undefined;
     let requestController: AbortController | undefined;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let loadedStart: number | undefined;
     let pendingStart: number | undefined;
     let failedStart: number | undefined;
     let applyQueue = Promise.resolve();
-    onError(null);
+    let frameId: number | undefined;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    // Keep a bounded set of recent windows for backward and repeated seeks.
+    const windows = new Map<number, string | ArrayBuffer>();
+    onErrorRef.current(null);
+
+    const position = () => Math.max(0, video!.currentTime + offset);
+    const contains = (start: number | undefined, time: number) => start !== undefined && time >= start && time < start + 120;
+    function updateVisibility() {
+      if (canvas) canvas.style.visibility = contains(loadedStart, position()) ? "visible" : "hidden";
+    }
+    function layout() {
+      if (!canvas) return;
+      width = video!.videoWidth || width;
+      height = video!.videoHeight || height;
+      const scale = Math.min(video!.clientWidth / (width || 1), video!.clientHeight / (height || 1));
+      const renderedWidth = width ? width * scale : video!.clientWidth;
+      const renderedHeight = height ? height * scale : video!.clientHeight;
+      Object.assign(canvas.style, {
+        width: `${renderedWidth}px`, height: `${renderedHeight}px`,
+        left: `${video!.offsetLeft + (video!.clientWidth - renderedWidth) / 2}px`,
+        top: `${video!.offsetTop + (video!.clientHeight - renderedHeight) / 2}px`,
+      });
+    }
+    const observer = new ResizeObserver(() => { layout(); renderCurrent(); });
+    function createCanvas() {
+      canvas = document.createElement("canvas");
+      canvas.style.position = "absolute";
+      canvas.style.pointerEvents = "none";
+      canvas.style.visibility = "hidden";
+      if (bitmap) {
+        canvas.style.objectFit = "contain";
+      } else {
+        canvas.className = "JASSUB";
+      }
+      video!.insertAdjacentElement("afterend", canvas);
+      layout();
+      return canvas;
+    }
+    async function repaint(frame?: VideoFrameCallbackMetadata, force = true) {
+      if (disposed) return;
+      const target = video;
+      const frameOffset = offset;
+      updateVisibility();
+      if (pgsRenderer) {
+        pgsRenderer.renderAtTimestamp(position());
+      } else if (renderer) {
+        await renderer.ready;
+        if (disposed || (frame && (target !== video || frameOffset !== offset))) return;
+        // Explicitly render at the new clock even when playback is paused and
+        // requestVideoFrameCallback has no frame to deliver after a seek.
+        await renderer.manualRender({
+          mediaTime: frame?.mediaTime ?? video!.currentTime,
+          width: frame?.width || video!.videoWidth || width,
+          height: frame?.height || video!.videoHeight || height,
+          expectedDisplayTime: performance.now(),
+        }, force);
+      }
+    }
+    function renderCurrent(frame?: VideoFrameCallbackMetadata, force = true) {
+      void repaint(frame, force).catch(error => {
+        if (!disposed) onErrorRef.current("Impossible d’afficher les sous-titres.", subtitleErrorCode(error));
+      });
+    }
+    function nextFrame() {
+      const target = video!;
+      if (disposed || !target.requestVideoFrameCallback) return;
+      frameId = target.requestVideoFrameCallback((_now, frame) => {
+        // A callback from a removed video must never use the new seek offset.
+        if (disposed || target !== video) return;
+        frameId = undefined;
+        renderCurrent(frame, false);
+        nextFrame();
+      });
+    }
 
     async function load(start: number, controller: AbortController, attempt = 0) {
       try {
-        const chunkURL = new URL(url, window.location.href);
-        chunkURL.searchParams.set("start", String(start));
-        chunkURL.searchParams.set("duration", "120");
-        const response = await fetch(chunkURL, { signal: controller.signal });
-        if (!response.ok) throw new SubtitleError(`SUB_HTTP_${response.status}`);
-        const content = bitmap ? await response.arrayBuffer() : await response.text();
+        let content = windows.get(start);
+        if (content === undefined) {
+          const chunkURL = new URL(url, window.location.href);
+          chunkURL.searchParams.set("start", String(start));
+          chunkURL.searchParams.set("duration", "120");
+          const response = await fetch(chunkURL, { signal: controller.signal });
+          if (!response.ok) throw new SubtitleError(`SUB_HTTP_${response.status}`);
+          content = bitmap ? await response.arrayBuffer() : await response.text();
+        }
         if (disposed || controller.signal.aborted) return;
+        windows.delete(start);
+        windows.set(start, content);
+        if (windows.size > 4) windows.delete(windows.keys().next().value!);
 
         // Keep the existing canvas and captions while the next window downloads.
         // Decoder updates are serialized, including when a seek supersedes a load.
         applyQueue = applyQueue.catch(() => {}).then(async () => {
           if (disposed || controller.signal.aborted) return;
+          // An in-flight decoder update can finish after a seek cancels it.
+          // Invalidate the active track before applying so the newest seek
+          // restores its cached track instead of trusting the previous one.
+          loadedStart = undefined;
+          updateVisibility();
           if (bitmap) {
             if (!pgsRenderer) {
               const { PgsRenderer } = await import("libpgs");
               if (disposed || controller.signal.aborted) return;
-              pgsRenderer = new PgsRenderer({ video: video!, timeOffset, workerUrl: "/subtitles/libpgs.worker.js" });
+              // Drive the bitmap clock ourselves so replacing the video does
+              // not discard its decoder, canvas, or recently downloaded cues.
+              pgsRenderer = new PgsRenderer({ canvas: createCanvas(), workerUrl: "/subtitles/libpgs.worker.js" });
             }
             await pgsRenderer.loadFromBuffer(content as ArrayBuffer);
             if (disposed || controller.signal.aborted) return;
             // Reloading can leave the same timestamp index selected: force a repaint.
             pgsRenderer.renderAtTimestamp(-1);
-            pgsRenderer.renderAtTimestamp(video!.currentTime + timeOffset);
           } else {
             if (!renderer) {
               const { default: JASSUB } = await import("jassub");
               if (disposed || controller.signal.aborted) return;
               renderer = new JASSUB({
-                video: video!, subContent: content as string, timeOffset,
+                canvas: createCanvas(), subContent: content as string, timeOffset: offset,
                 workerUrl: "/subtitles/jassub-worker.js",
                 wasmUrl: "/subtitles/jassub-worker.wasm",
                 modernWasmUrl: "/subtitles/jassub-worker-modern.wasm",
@@ -79,16 +174,17 @@ export function SubtitleRenderer({ videoRef, url, bitmap = false, timeOffset, on
               await renderer.ready;
             } else {
               await renderer.renderer.setTrack(content as string);
-              await renderer.resize(true);
             }
           }
+          if (disposed || controller.signal.aborted) return;
+          loadedStart = start;
+          await repaint();
         });
         await applyQueue;
         if (disposed || controller.signal.aborted) return;
-        loadedStart = start;
         pendingStart = undefined;
         failedStart = undefined;
-        onError(null);
+        onErrorRef.current(null);
       } catch (error) {
         if (disposed || controller.signal.aborted) return;
         const transient = error instanceof TypeError || (error instanceof SubtitleError && /^SUB_HTTP_5\d\d$/.test(error.code));
@@ -98,15 +194,23 @@ export function SubtitleRenderer({ videoRef, url, bitmap = false, timeOffset, on
         }
         failedStart = start;
         pendingStart = undefined;
-        onError("Impossible de charger les sous-titres. Désactivez puis resélectionnez la piste pour réessayer.", subtitleErrorCode(error));
+        onErrorRef.current("Impossible de charger les sous-titres. Désactivez puis resélectionnez la piste pour réessayer.", subtitleErrorCode(error));
       }
     }
 
-    function updateWindow() {
+    function updateWindow(seeking = false) {
       // Thirty seconds of overlap preserve cues already on screen. Advance once
       // a minute, leaving ample captions ahead while the next chunk is fetched.
-      const position = Math.max(0, video!.currentTime + timeOffset);
-      const start = Math.max(0, Math.floor(position / 60) * 60 - 30);
+      const time = position();
+      let start = Math.max(0, Math.floor(time / 60) * 60 - 30);
+      if (seeking) {
+        if (contains(loadedStart, time)) start = loadedStart!;
+        else if (!windows.has(start)) {
+          const cached = [...windows.keys()].reverse().find(candidate => contains(candidate, time));
+          if (cached !== undefined) start = cached;
+        }
+      }
+      updateVisibility();
       if (disposed || start === pendingStart) return;
       if (pendingStart !== undefined) {
         requestController?.abort();
@@ -119,18 +223,52 @@ export function SubtitleRenderer({ videoRef, url, bitmap = false, timeOffset, on
       void load(start, requestController);
     }
 
-    video.addEventListener("timeupdate", updateWindow);
-    video.addEventListener("seeked", updateWindow);
-    updateWindow();
+    function onTimeUpdate() { updateWindow(); renderCurrent(undefined, false); }
+    function onSeek() { layout(); updateWindow(true); renderCurrent(); }
+    function bind(target: HTMLVideoElement, attach: boolean) {
+      for (const [event, handler] of [
+        ["timeupdate", onTimeUpdate], ["seeking", onSeek], ["seeked", onSeek],
+        ["loadedmetadata", onSeek], ["canplay", onSeek],
+      ] as const) {
+        if (attach) target.addEventListener(event, handler);
+        else target.removeEventListener(event, handler);
+      }
+      if (attach) { observer.observe(target); nextFrame(); }
+      else {
+        observer.unobserve(target);
+        if (frameId !== undefined) target.cancelVideoFrameCallback?.(frameId);
+        frameId = undefined;
+      }
+    }
+    const session = {
+      sync(target: HTMLVideoElement, nextOffset: number) {
+        const replaced = target !== video;
+        if (replaced) { bind(video!, false); video = target; bind(target, true); }
+        offset = nextOffset;
+        failedStart = undefined;
+        if (renderer) renderer.timeOffset = offset;
+        layout();
+        updateWindow(true);
+        renderCurrent();
+      },
+    };
+    sessionRef.current = session;
+    bind(video, true);
     return () => {
       disposed = true;
+      if (sessionRef.current === session) sessionRef.current = null;
       requestController?.abort();
       clearTimeout(retryTimer);
-      video.removeEventListener("timeupdate", updateWindow);
-      video.removeEventListener("seeked", updateWindow);
+      bind(video!, false);
+      observer.disconnect();
       pgsRenderer?.dispose();
       void renderer?.destroy();
+      canvas?.remove();
+      windows.clear();
     };
-  }, [videoRef, url, bitmap, timeOffset, onError]);
+  }, [videoRef, url, bitmap]);
+  useEffect(() => {
+    if (videoRef.current) sessionRef.current?.sync(videoRef.current, timeOffset);
+  }, [videoRef, streamKey, timeOffset, url, bitmap]);
   return null;
 }
