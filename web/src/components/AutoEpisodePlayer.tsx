@@ -94,7 +94,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
   onChangeSource={()=>setChoosingSource(true)} sourcePicker={picker}
   onProgress={(position,duration)=>{positionRef.current=position;props.onProgress?.(position,duration);}}
   failover={tried.length?({tried,current:sourceLabel(source)} satisfies FailoverInfo):undefined}
-  item={source} initialTime={attempt.position} onPlaybackFailure={failed} diagnostic={diagnostic}
+  debugAttempt={{index:attempt.index,count:candidates.length,tried:tried.map(entry=>entry.label)}} item={source} initialTime={attempt.position} onPlaybackFailure={failed} diagnostic={diagnostic}
 
  />;
 }

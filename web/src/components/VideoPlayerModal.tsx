@@ -6,6 +6,7 @@ import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
 import { ErrorAlert } from "./ErrorAlert";
+import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
 import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } from "./PlayerOptionsModal";
@@ -58,6 +59,7 @@ interface VideoPlayerModalProps {
   episodes?: EpisodeInfo[];
   onSelectEpisode?: (episode: number) => void;
   failover?: FailoverInfo;
+  debugAttempt?: DebugAttempt;
 }
 
 const AMBILIGHT_KEY = "gazes-ambilight";
@@ -103,6 +105,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   episodes,
   onSelectEpisode,
   failover,
+  debugAttempt,
   pageMode = false,
   initialTime = 0,
   onPlaybackFailure,
@@ -110,6 +113,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   diagnostic,
 }) => {
   const { t, locale } = useI18n();
+  const debugMode = useDebugMode();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(null);
@@ -814,6 +818,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   timeOffset={timeOffset}
                   onError={handleSubtitleError}
                 />
+                {debugMode && (
+                  <PlayerDebugPanel
+                    diagnostic={diagnostic} item={item} file={currentFile} fileIndex={selectedFileIdx} fileCount={loadData?.files.length}
+                    meta={videoMeta} audioTrack={selectedAudioTrack} subtitleTrack={selectedSubTrack} remux={forceRemux}
+                    timeOffset={timeOffset} streamUrl={streamUrl} subtitleUrl={subtitleUrl} attempt={debugAttempt}
+                  />
+                )}
                 {subtitleError && (
                   <div onMouseEnter={() => setToastHovered(true)} onMouseLeave={() => setToastHovered(false)} className="contents">
                     <ErrorAlert className="player-toast" message={subtitleError.message} code={subtitleError.code} reference={diagnostic?.playback_session_id} onClose={() => setSubtitleError(null)} />
