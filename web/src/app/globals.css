@@ -520,3 +520,6 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .featured-carousel .hero-poster { animation: hero-poster-in .7s cubic-bezier(.2, .7, .2, 1) both; }
 .featured-carousel .anime-hero-art { animation: hero-art-in .8s ease both; }
 @media (prefers-reduced-motion: reduce) { .featured-carousel .anime-hero-copy, .featured-carousel .hero-poster, .featured-carousel .anime-hero-art { animation: none; } }
+
+/* The home hero fills 90% of the viewport. */
+.featured-carousel .anime-hero { min-height: 90vh; min-height: 90svh; }
