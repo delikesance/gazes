@@ -5,6 +5,7 @@ import { mediaTrackLabel, trackLanguageCode } from "@/lib/media-tracks";
 import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
+import { ErrorAlert } from "./ErrorAlert";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
 import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } from "./PlayerOptionsModal";
@@ -146,7 +147,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const ambientRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [subtitleError, setSubtitleError] = useState<{ message: string; code?: string } | null>(null);
-  const [errorCopied, setErrorCopied] = useState(false);
   const [toastHovered, setToastHovered] = useState(false);
   const handleSubtitleError = useCallback((message: string | null, code?: string) => {
     setSubtitleError(message ? { message, code } : null);
@@ -815,18 +815,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   onError={handleSubtitleError}
                 />
                 {subtitleError && (
-                  <div role="alert" onMouseEnter={() => setToastHovered(true)} onMouseLeave={() => setToastHovered(false)} className="player-toast player-frost flex items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 text-xs text-red-300" style={{ background: "rgba(60,20,24,.5)" }}>
-                    <span>{t(subtitleError.message)}</span>
-                    {subtitleError.code && <span className="shrink-0 rounded-full bg-black/30 px-2 py-0.5 font-mono text-[10px] text-red-200" title={t("Code d’erreur")}>{subtitleError.code}{diagnostic?.playback_session_id ? ` · ${diagnostic.playback_session_id.slice(0, 8)}` : ""}</span>}
-                    <button
-                      type="button"
-                      className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium text-red-100 hover:bg-white/20"
-                      onClick={async () => {
-                        const report = [subtitleError.code && `Code: ${subtitleError.code}`, diagnostic?.playback_session_id && `Reference: ${diagnostic.playback_session_id}`, t(subtitleError.message)].filter(Boolean).join("\n");
-                        if (await copyText(report)) { setErrorCopied(true); setTimeout(() => setErrorCopied(false), 2000); }
-                      }}
-                    >{t(errorCopied ? "Copié" : "Copier")}</button>
-                    <button type="button" aria-label={t("Fermer")} onClick={() => setSubtitleError(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full hover:bg-white/10"><X className="h-3.5 w-3.5" /></button>
+                  <div onMouseEnter={() => setToastHovered(true)} onMouseLeave={() => setToastHovered(false)} className="contents">
+                    <ErrorAlert className="player-toast" message={subtitleError.message} code={subtitleError.code} reference={diagnostic?.playback_session_id} onClose={() => setSubtitleError(null)} />
                   </div>
                 )}
                 </div>

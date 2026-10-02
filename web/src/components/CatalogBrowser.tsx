@@ -1,4 +1,6 @@
 "use client";
+import { ErrorAlert } from "./ErrorAlert";
+import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -37,6 +39,7 @@ export function CatalogBrowser({
   const [data, setData] = useState<CatalogResponse | null>(initialData);
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState("");
+  const [errorCodeValue, setErrorCodeValue] = useState("");
   const [retry, setRetry] = useState(0);
   const [popular, setPopular] = useState<CatalogResponse | null>(initialPopular);
   const [featuredUnavailable, setFeaturedUnavailable] = useState(false);
@@ -75,6 +78,7 @@ export function CatalogBrowser({
     }).catch(err => {
       if (active) {
         setError(err instanceof Error ? err.message : "Impossible de charger le catalogue.");
+        setErrorCodeValue(errorCode(err, "CAT"));
         setLoading(false);
       }
     });
@@ -119,7 +123,7 @@ export function CatalogBrowser({
     </section>}
     {discovery && !error && <AccountCta />}
     {(!discovery || error || (loading && needsData) || (needsData && data && data.items && data.items.length === 0)) && <div className="catalog-tools page-inset">
-      {error ? <div role="alert" className="catalog-message">{t(error)} <button className="text-action" onClick={() => setRetry(retry + 1)}>{t("Réessayer")}</button></div> : (loading && needsData) ? <p role="status" className="catalog-message">{t("Chargement…")}</p> : <>
+      {error ? <ErrorAlert className="my-8" message={error} code={errorCodeValue} onRetry={() => setRetry(retry + 1)} /> : (loading && needsData) ? <p role="status" className="catalog-message">{t("Chargement…")}</p> : <>
         {!discovery && <section><h1 className="results-heading">{q ? t("Résultats pour « {query} »", {query:q}) : genre || t("Explorer les animes")}</h1><div className="poster-grid">{cards}</div></section>}
         {data && data.items && data.items.length === 0 && <p className="catalog-message">{t("Aucun anime trouvé.")}</p>}
       </>}

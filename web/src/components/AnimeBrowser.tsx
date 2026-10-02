@@ -1,4 +1,6 @@
 "use client";
+import { ErrorAlert } from "./ErrorAlert";
+import { errorCode } from "@/lib/error-code";
 import { randomId } from "@/lib/random-id";
 import { useWatchProgress, saveProgress } from "@/lib/watch-progress";
 import { HeaderBreadcrumb } from "./HeaderBreadcrumb";
@@ -50,7 +52,7 @@ export function AnimeBrowser({
    return null;
  });
  const [session]=useState(()=>initialSources?.playback_session_id || randomId());
- const [failure,setFailure]=useState<{key:string;message:string;reference?:string}|null>(null);
+ const [failure,setFailure]=useState<{key:string;message:string;reference?:string;code?:string}|null>(null);
  const [retry,setRetry]=useState(0);
  const requestKey=`${key}:${retry}`;
  useEffect(() => {
@@ -66,24 +68,25 @@ export function AnimeBrowser({
      ep>0?getSeasonSources(id,seasonId,ep,undefined,session):Promise.resolve(undefined),
     ]);
     if (active) {setLoaded({key:requestKey,franchise,season,sources});setFailure(null);}
-   } catch(err) { if (active) setFailure({key:requestKey,message:err instanceof Error?err.message:"Impossible de charger les données.",reference:(err as any)?.diagnosticReference}); }
+   } catch(err) { if (active) setFailure({key:requestKey,message:err instanceof Error?err.message:"Impossible de charger les données.",reference:(err as any)?.diagnosticReference,code:errorCode(err,"SRC")}); }
   }
   load();return()=>{active = false;};
  },[id,seasonId,ep,requestKey,router]);
  const current=loaded?.key===requestKey?loaded:loaded;
  const error=failure?.key===requestKey?failure.message:null;
  const reference=failure?.key===requestKey?failure.reference:undefined;
+ const code=failure?.key===requestKey?failure.code:undefined;
  const selected=current?.franchise.seasons.find((s: any)=>s.id===seasonId);
  const base=`/anime/${current?.franchise.id||id}`, seasonURL=`${base}/seasons/${seasonId}`;
 
  const heroTitle=ep?`${t(selected?.season_name || "Saison")} — ${t("Épisode")} ${ep}`:seasonId?t(selected?.season_name || current?.season?.display_title || "Saison"):current?.franchise.title || "Anime";
  const resume=progress&&current?.season?.episode_list?.some((episode: any)=>episode.episode_number===progress.episode&&!episode.upcoming)?progress:null;
  if(ep>0) return <main className="watch-page">
-  {error?<div className="watch-message" role="alert"><p>{t(error)}</p>{reference&&<p>{t("Référence de diagnostic")} : <code>{reference}</code></p>}<button className="design-button" onClick={()=>setRetry(retry+1)}>{t("Réessayer")}</button><Link href={seasonURL}>{t("Voir les saisons")}</Link></div>:!current?<WatchLoading episode={ep} backHref={seasonURL} />:current.season&&current.sources?<Player pageMode key={`${key}:${retry}`} initialTime={resume?.episode===ep?resume.position:0} onProgress={(position:number,duration:number)=>saveProgress(seasonId,ep,position,duration,{animeId:id,title:current.season?.display_title})} sources={current.sources.sources} diagnosticSession={current.sources.playback_session_id||session} animeId={id} seasonId={seasonId} partial={current.sources.partial} onRetrySources={()=>setRetry(retry+1)} animeTitle={current.season.display_title} episodeNumber={ep} totalEpisodes={current.season.episodes} episodes={current.season.episode_list} onSelectEpisode={(n:number)=>router.push(`${seasonURL}/episodes/${n}`)} onClose={()=>router.push(seasonURL)} onPrevEpisode={ep>1?()=>router.push(`${seasonURL}/episodes/${ep-1}`):undefined} onNextEpisode={current.season.episode_list?.some((e: any)=>e.episode_number===ep+1&&!e.upcoming)?()=>router.push(`${seasonURL}/episodes/${ep+1}`):undefined}/>:null}
+  {error?<div className="watch-message"><ErrorAlert message={error} code={code} reference={reference} onRetry={()=>setRetry(retry+1)} /><Link href={seasonURL}>{t("Voir les saisons")}</Link></div>:!current?<WatchLoading episode={ep} backHref={seasonURL} />:current.season&&current.sources?<Player pageMode key={`${key}:${retry}`} initialTime={resume?.episode===ep?resume.position:0} onProgress={(position:number,duration:number)=>saveProgress(seasonId,ep,position,duration,{animeId:id,title:current.season?.display_title})} sources={current.sources.sources} diagnosticSession={current.sources.playback_session_id||session} animeId={id} seasonId={seasonId} partial={current.sources.partial} onRetrySources={()=>setRetry(retry+1)} animeTitle={current.season.display_title} episodeNumber={ep} totalEpisodes={current.season.episodes} episodes={current.season.episode_list} onSelectEpisode={(n:number)=>router.push(`${seasonURL}/episodes/${n}`)} onClose={()=>router.push(seasonURL)} onPrevEpisode={ep>1?()=>router.push(`${seasonURL}/episodes/${ep-1}`):undefined} onNextEpisode={current.season.episode_list?.some((e: any)=>e.episode_number===ep+1&&!e.upcoming)?()=>router.push(`${seasonURL}/episodes/${ep+1}`):undefined}/>:null}
  </main>;
  return <main className="detail-page">
   <HeaderBreadcrumb><nav aria-label={t("Fil d’Ariane")} className="detail-breadcrumb"><Link href="/">{t("Catalogue")}</Link>{seasonId>0?<><span aria-hidden="true">›</span><Link href={base} title={current?.franchise.title}>{current?.franchise.title||t("Anime")}</Link><span aria-hidden="true">›</span>{ep>0?<Link href={seasonURL}>{selected?.season_number?t(`Saison ${selected.season_number}`):t("Saison")}</Link>:<span className="breadcrumb-current" aria-current="page">{selected?.season_number?t(`Saison ${selected.season_number}`):t("Saison")}</span>}</>:<><span aria-hidden="true">›</span><span className="breadcrumb-current" aria-current="page">{current?.franchise.title||t("Anime")}</span></>}{ep>0&&<><span aria-hidden="true">›</span><span className="breadcrumb-current" aria-current="page">{t("Épisode")} {ep}</span></>}</nav></HeaderBreadcrumb>
-  {error?<div className="page-inset pt-24" role="alert">{t(error)} <button className="text-action" onClick={()=>setRetry(retry+1)}>{t("Réessayer")}</button></div>:!current?<div className="hero-skeleton" role="status"><p>{t("Chargement…")}</p><div /><div /></div>:<>
+  {error?<div className="page-inset pt-24"><ErrorAlert message={error} code={code} reference={reference} onRetry={()=>setRetry(retry+1)} /></div>:!current?<div className="hero-skeleton" role="status"><p>{t("Chargement…")}</p><div /><div /></div>:<>
    <AnimeHero title={heroTitle} banner={current.season?.banner_image} poster={current.season?.poster_image || current.franchise.poster_image} episodes={current.season?.episodes} year={current.season?.season_year}>
     {!seasonId && <a className="design-button" href="#seasons">{t("Voir les saisons")}</a>}
     {seasonId>0&&!ep&&resume&&<Link className="design-button" href={`${seasonURL}/episodes/${resume.episode}`}>{t("Reprendre")} · {t("Épisode")} {resume.episode}</Link>}

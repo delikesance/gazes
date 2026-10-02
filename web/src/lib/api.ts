@@ -1,3 +1,4 @@
+import { httpError } from "@/lib/error-code";
 import { diagnosticHeaders, diagnosticURL, type PlaybackDiagnostic } from "./diagnostics";
 import {
   SearchResponse,
@@ -33,7 +34,7 @@ export async function getCatalogTrending(page: number = 1, perPage: number = 20)
 export async function getCatalogPopular(page: number = 1, perPage: number = 20): Promise<CatalogResponse> {
   const res = await fetch(`${getApiBase()}/catalog/popular?page=${page}&per_page=${perPage}`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch popular anime: ${res.statusText}`);
+    throw httpError("Impossible de charger les animes populaires.", "CAT", res);
   }
   return res.json();
 }
@@ -52,7 +53,7 @@ export async function searchCatalog(
 
   const res = await fetch(`${getApiBase()}/catalog/search?${params.toString()}`);
   if (!res.ok) {
-    throw new Error(`Failed to search anime catalog: ${res.statusText}`);
+    throw httpError("Impossible de charger le catalogue.", "CAT", res);
   }
   return res.json();
 }
@@ -189,19 +190,19 @@ async function catalogFetch<T>(path: string, signal?: AbortSignal,diagnostic?:Pl
  if (!response.ok) {
   const body=await response.json().catch(()=>({}));
   const message=response.status===404?"Cette saison ou cet épisode est introuvable.":"Les fournisseurs de torrents sont temporairement indisponibles.";
-  throw Object.assign(new Error(message),{diagnosticReference:body.playback_session_id||response.headers.get('X-Playback-Session-ID')||diagnostic?.playback_session_id});
+  throw httpError(message, "SRC", response, body.playback_session_id||diagnostic?.playback_session_id);
  }
  return response.json();
 }
 
 export async function getSchedule(from: number, to: number, signal?: AbortSignal): Promise<ScheduleResponse> {
  const response = await fetch(`${getApiBase()}/catalog/schedule?from=${from}&to=${to}`, { signal });
- if (!response.ok) throw new Error("Impossible de charger le calendrier des sorties.");
+ if (!response.ok) throw httpError("Impossible de charger le calendrier des sorties.", "CAL", response);
  return response.json();
 }
 
 export async function getCatalogSeasonal(page = 1, perPage = 24): Promise<CatalogResponse> {
  const response = await fetch(`${getApiBase()}/catalog/seasonal?page=${page}&per_page=${perPage}`);
- if (!response.ok) throw new Error("Impossible de charger les sorties de cette saison.");
+ if (!response.ok) throw httpError("Impossible de charger les sorties de cette saison.", "CAT", response);
  return response.json();
 }
