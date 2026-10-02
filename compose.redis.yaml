@@ -1,0 +1,43 @@
+# One Redis shared by every Gazes stack on this host (production and dev). It holds the caches,
+# the fleet-wide AniList/indexer rate limits and the auth state, so two stacks behind the same IP
+# behave like a single polite client instead of rate-limiting each other.
+#
+#   make redis-up        # creates the gazes-shared network, then starts this file
+#
+# Each stack reaches it as redis://:$REDIS_PASSWORD@gazes-redis:6379 (see compose.yaml). Nothing is
+# published on the host: only containers attached to the gazes-shared network can connect.
+name: gazes-redis
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?run make secrets}"
+    # AOF (everysec) keeps the cache across restarts, so a reboot does not trigger an AniList burst.
+    # Every key has a TTL, so volatile-lru can always evict under memory pressure.
+    command:
+      - sh
+      - -c
+      - >-
+        exec redis-server --requirepass "$$REDIS_PASSWORD"
+        --appendonly yes --appendfsync everysec
+        --save 300 10
+        --maxmemory 256mb --maxmemory-policy volatile-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      gazes-shared:
+        aliases: [gazes-redis]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  gazes-shared:
+    external: true
+
+volumes:
+  redis-data:

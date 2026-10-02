@@ -5,6 +5,8 @@ services:
       dockerfile: deploy/backend.dev.Dockerfile
     environment:
       APP_ENV: development
+      # The dev stack shares the upstream cache and rate limits with production, but keeps its own auth state.
+      REDIS_NAMESPACE: "${REDIS_NAMESPACE:-gazes-dev}"
     volumes:
       - .:/src:ro
       - go-modules:/go/pkg/mod

@@ -431,3 +431,40 @@ generated into `ACCOUNTS_DIR` on first start. Data lives in `ACCOUNTS_DIR`
 | --- | --- | --- |
 | `ACCOUNTS_DIR` | `./accounts` | SQLite database, KEM key and dev keys |
 | `TRUST_PROXY` | `false` (`true` in compose) | Trust `X-Forwarded-For/Proto/Host` from the edge |
+
+## Redis: shared cache, rate limits and auth state
+
+Every backend instance, and every stack on the same host (production and dev share one IP), talks
+to the same Redis. It replaces the per-process caches that used to be lost on restart and made two
+stacks rate-limit each other on AniList.
+
+```bash
+make redis-up      # generates REDIS_PASSWORD in .env, creates the gazes-shared network, starts Redis
+make up            # (or make dev) then starts the app, which refuses to boot without Redis
+```
+
+| Concern | Behaviour |
+|---|---|
+| AniList catalog, details, franchises, calendar, title lookups | Two-level cache (process memory 15 s, then Redis) with stale-while-revalidate: an expired entry is served at once while one instance refreshes it. Entries stay in Redis 7 days past their TTL as a stand-in if AniList is down. |
+| Episode sources and indexer searches | One resolution per episode / query across the whole fleet (distributed lock); complete source lists may be served stale for 1 h, empty or partial ones never. |
+| Upstream rate limits | A token bucket per upstream (AniList: 25 req/min, burst 10) shared by all instances. A `429` starts a cooldown (its `Retry-After`) honoured by everyone; the API answers `503` with `Retry-After` instead of hammering. |
+| Warm-up | One instance per 9 minutes (elected through Redis) renews the home-page data before it expires. |
+| Auth state | KEM nonces (single use), captcha replay protection and login/IP rate limits live in Redis, so several backends behave as one. It **fails closed**: if Redis is unreachable, `/auth/kem` answers `503` and no login is accepted. |
+
+Keys are `gz:v1:up:<domain>:…` (shared by stacks, same upstreams) and
+`gz:v1:<REDIS_NAMESPACE>:auth:…` (per stack: each stack has its own KEM key; the dev stack uses
+`gazes-dev`). Bump `keyVersion` in `internal/kv/client.go` to invalidate everything.
+
+Configuration: `REDIS_URL` (required, `redis://:password@gazes-redis:6379/0`) and
+`REDIS_NAMESPACE` (default `gazes`). Redis runs with AOF (`everysec`), `maxmemory 256mb` and
+`volatile-lru`, and publishes no port: only containers on the `gazes-shared` network reach it.
+
+Observability: `GET /api/v1/diagnostics/cache` returns Redis latency and key count, hit counters
+(`l1_hits`, `l2_hits`, `stale_served`, `misses`, `lock_waits`, `refreshes`), throttled upstream
+calls and the remaining shared AniList cooldown in milliseconds.
+
+Adding another stack on the same host (for example a separate deployment directory): create the
+network once (`docker network create gazes-shared`), attach its backend to it with
+`REDIS_URL=redis://:<same password>@gazes-redis:6379/0` and a distinct `REDIS_NAMESPACE`, exactly
+as `compose.yaml` does. The accounts database (SQLite) remains per stack: running several backends
+for one stack needs a shared accounts volume.
