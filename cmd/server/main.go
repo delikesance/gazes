@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gazes/gazes/internal/api"
+	"github.com/gazes/gazes/internal/auth"
 	"github.com/gazes/gazes/internal/config"
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/indexer/nyaa"
@@ -82,7 +83,14 @@ func main() {
 	streamPipeline := stream.NewPipelineManager(logger)
 
 	// 7. Initialize API server
-	server := api.NewServer(cfg, logger, catalogIndexers, torrentEngine, streamPipeline)
+	accounts, err := auth.New(auth.Options{Dir: cfg.AccountsDir, Production: cfg.AppEnv == "production", TrustProxy: cfg.TrustProxy, Getenv: os.Getenv})
+	if err != nil {
+		logger.Error("failed to initialize accounts", "err", err)
+		os.Exit(1)
+	}
+	defer accounts.Close()
+
+	server := api.NewServer(cfg, logger, catalogIndexers, torrentEngine, streamPipeline, api.WithAuth(accounts))
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	httpServer := &http.Server{

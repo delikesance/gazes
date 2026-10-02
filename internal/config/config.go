@@ -19,6 +19,8 @@ type Config struct {
 	MaxMemoryCache       int64         `json:"max_memory_cache_bytes"`
 	TorrentPort          int           `json:"torrent_port"`
 	TorrentCacheMaxBytes int64         `json:"torrent_cache_max_bytes"`
+	AccountsDir          string        `json:"accounts_dir"`
+	TrustProxy           bool          `json:"trust_proxy"`
 }
 
 // Load loads configuration from environment variables with fallback defaults.
@@ -35,6 +37,8 @@ func Load() *Config {
 		MaxMemoryCache:       getEnvInt64("MAX_MEMORY_CACHE_BYTES", 256*1024*1024), // 256MB default
 		TorrentPort:          getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
 		TorrentCacheMaxBytes: getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
+		AccountsDir:          getEnv("ACCOUNTS_DIR", "./accounts"),
+		TrustProxy:           getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
 	}
 }
 

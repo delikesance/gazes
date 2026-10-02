@@ -11,10 +11,17 @@ GO_TAGS ?= nosqlite
 
 .PHONY: help deps build build-backend build-web dev-backend dev-web start-web \
 	test test-backend test-race test-web lint lint-backend lint-web typecheck check \
-	up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-check dev-test dev-build
+	secrets up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-check dev-test dev-build
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+secrets: ## Generate account encryption keys into .env (kept if already set)
+	@touch .env
+	@for k in ACCOUNTS_ENC_KEY ACCOUNTS_INDEX_KEY ACCOUNTS_PEPPER ALTCHA_HMAC_KEY; do \
+		grep -q "^$$k=" .env || echo "$$k=$$(openssl rand -base64 32)" >> .env; \
+	done
+	@echo ".env now holds the account keys. Back it up: losing them makes stored emails unreadable."
 
 deps: ## Download Go modules and install locked frontend dependencies
 	$(GO) mod download
@@ -63,10 +70,10 @@ typecheck: ## Check frontend TypeScript types
 
 check: lint typecheck test ## Run lint, type checks, and tests
 
-up: ## Build and start the Docker stack, waiting for health checks
+up: secrets ## Build and start the Docker stack, waiting for health checks
 	$(DOCKER_COMPOSE) up -d --build --wait
 
-up-admin: ## Start Docker with loopback-only Prowlarr administration
+up-admin: secrets ## Start Docker with loopback-only Prowlarr administration
 	$(DOCKER_COMPOSE) -f compose.yaml -f compose.admin.yaml up -d --build --wait
 
 down: ## Stop the Docker stack while preserving its volumes

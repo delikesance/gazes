@@ -402,3 +402,32 @@ The episode player now selects the requested file using `episodeFile`; an absent
 or ambiguous match never silently selects the pack's main video. Errors distinguish
 no matching torrents, unavailable providers and exhausted playback attempts,
 with a searchable diagnostic reference. See [the verified Tensura report](deploy/TENSURA-DIAGNOSTIC.md).
+
+## Accounts
+
+Accounts are optional: playback works without one, and a signed-in viewer keeps
+their watch progress across devices.
+
+- **Passwords** are mixed with a server pepper (HMAC-SHA256) and hashed with
+  argon2id. **Emails** are encrypted at rest with AES-256-GCM; a keyed HMAC blind
+  index enforces uniqueness without storing a readable address.
+- **Credentials in transit** are wrapped in an ML-KEM-768 envelope (browser:
+  `@noble/post-quantum`; server: Go `crypto/mlkem`, HKDF-SHA256, AES-256-GCM).
+  Each envelope is bound to its route and to a single-use server nonce, so it
+  cannot be replayed. This sits on top of TLS, it does not replace it.
+- **Bots** are stopped by a self-hosted ALTCHA proof-of-work on login and
+  register, plus per-IP and per-email rate limits.
+- **TLS**: `docker compose --profile edge up -d` with `GAZES_DOMAIN` set starts
+  Caddy, which negotiates the hybrid post-quantum X25519MLKEM768 key exchange.
+
+`make secrets` generates the keys into `.env` (`ACCOUNTS_ENC_KEY`,
+`ACCOUNTS_INDEX_KEY`, `ACCOUNTS_PEPPER`, `ALTCHA_HMAC_KEY`; 32 bytes, base64).
+Production refuses to start without them. **Back them up**: losing
+`ACCOUNTS_ENC_KEY` makes stored emails unreadable. In development the keys are
+generated into `ACCOUNTS_DIR` on first start. Data lives in `ACCOUNTS_DIR`
+(`/app/accounts`, the `accounts` volume).
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `ACCOUNTS_DIR` | `./accounts` | SQLite database, KEM key and dev keys |
+| `TRUST_PROXY` | `false` (`true` in compose) | Trust `X-Forwarded-For/Proto/Host` from the edge |
