@@ -51,6 +51,7 @@ func WithRedis(c *kv.Client) Option {
 		s.kv = c
 		s.catalogService.SetRedis(c)
 		s.animeService.SetRedis(c)
+		s.startWarmer()
 	}
 }
 
@@ -114,6 +115,7 @@ func (s *Server) setupRoutes() {
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Get("/health", s.HandleHealth)
 		api.Post("/diagnostics/events", s.HandleDiagnosticEvents)
+		api.Get("/diagnostics/cache", s.HandleCacheDiagnostics)
 		api.Get("/search", s.HandleSearch)
 		api.Get("/latest", s.HandleLatest)
 

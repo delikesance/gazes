@@ -84,3 +84,8 @@ func asRateLimit(err error) error {
 	}
 	return err
 }
+
+// UpstreamCooldown returns how long the fleet-wide AniList cooldown still lasts (0 when none).
+func (s *AnimeCatalogService) UpstreamCooldown(ctx context.Context) time.Duration {
+	return s.anilist.gov.Cooldown(ctx)
+}

@@ -162,3 +162,52 @@ func TestGovernorTokenBucket(t *testing.T) {
 		t.Fatalf("burst exhausted and maxWait too short: want LimitedError, got %v", err)
 	}
 }
+
+func TestElectGivesExactlyOneWinnerPerPeriod(t *testing.T) {
+	mr := miniredis.RunT(t)
+	var clients []*Client
+	for i := 0; i < 5; i++ {
+		clients = append(clients, New(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "test"))
+	}
+	wins := 0
+	for _, c := range clients {
+		if c.Elect(context.Background(), "warm", time.Minute) {
+			wins++
+		}
+	}
+	if wins != 1 {
+		t.Fatalf("5 instances, one period: want 1 winner, got %d", wins)
+	}
+	mr.FastForward(2 * time.Minute)
+	if !clients[3].Elect(context.Background(), "warm", time.Minute) {
+		t.Fatal("a new period must elect again")
+	}
+}
+
+func TestRenewWithinRefreshesEntriesAboutToExpire(t *testing.T) {
+	c, _ := newClient(t)
+	ca := NewCache[doc](c, "d", CacheOptions{L1TTL: time.Millisecond})
+	var version atomic.Int32
+	fetch := func(context.Context) (*doc, error) { return &doc{N: int(version.Add(1))}, nil }
+	pol := Policy[doc]{TTL: 10 * time.Minute}
+	if got, _ := ca.Get(context.Background(), "k", pol, fetch); got.N != 1 {
+		t.Fatalf("first fetch: %v", got)
+	}
+	time.Sleep(5 * time.Millisecond)
+	// Plain reads leave the fresh entry alone.
+	if got, _ := ca.Get(context.Background(), "k", pol, fetch); got.N != 1 || version.Load() != 1 {
+		t.Fatalf("a fresh entry must not be refetched: %v", got)
+	}
+	// The warmer asks for anything expiring within 20 minutes: the 10-minute entry qualifies.
+	warm := WithRenewWithin(context.Background(), 20*time.Minute)
+	if got, _ := ca.Get(warm, "k", pol, fetch); got.N != 1 {
+		t.Fatalf("the current value is served while renewing: %v", got)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for version.Load() < 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if version.Load() != 2 {
+		t.Fatalf("entry about to expire must be renewed in the background, fetches=%d", version.Load())
+	}
+}

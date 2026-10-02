@@ -93,6 +93,14 @@ func NewCache[T any](c *Client, domain string, opts CacheOptions) *Cache[T] {
 	return &Cache[T]{c: c, domain: domain, opts: opts, l1: newLRU[T](opts.L1Max)}
 }
 
+type renewKey struct{}
+
+// WithRenewWithin makes Get refresh, in the background, any entry that will expire within d.
+// The cache warmer uses it so visitors never meet an expiring entry.
+func WithRenewWithin(ctx context.Context, d time.Duration) context.Context {
+	return context.WithValue(ctx, renewKey{}, d)
+}
+
 // Get returns the cached value for key, fetching it at most once across the whole fleet.
 //   - fresh in memory or Redis: returned immediately;
 //   - stale: returned immediately and refreshed in the background;
@@ -102,13 +110,19 @@ func (ca *Cache[T]) Get(ctx context.Context, key string, p Policy[T], fetch func
 	if ca.c == nil {
 		return ca.getLocal(ctx, key, p, fetch)
 	}
-	if v, ok := ca.l1.get(key); ok {
-		ca.c.stats.l1Hits.Add(1)
-		return v, nil
+	renew, _ := ctx.Value(renewKey{}).(time.Duration)
+	if renew == 0 { // the warmer looks at Redis itself: process memory could hide an expiring entry
+		if v, ok := ca.l1.get(key); ok {
+			ca.c.stats.l1Hits.Add(1)
+			return v, nil
+		}
 	}
 	rk := ca.c.Up(ca.domain, key)
 	entry, found := ca.read(ctx, rk)
 	if found && entry.fresh() {
+		if renew > 0 && entry.remaining() < renew {
+			go ca.refresh(rk, key, p, fetch, true) // about to expire: renew now, serve the current value
+		}
 		ca.c.stats.l2Hits.Add(1)
 		ca.l1.put(key, entry.val, min(ca.opts.L1TTL, entry.remaining()))
 		return entry.val, nil
@@ -119,11 +133,11 @@ func (ca *Cache[T]) Get(ctx context.Context, key string, p Policy[T], fetch func
 	if found { // stale: serve now, refresh behind
 		ca.c.stats.stale.Add(1)
 		ca.l1.put(key, entry.val, 2*time.Second)
-		go ca.refresh(rk, key, p, fetch)
+		go ca.refresh(rk, key, p, fetch, false)
 		return entry.val, nil
 	}
 	ca.c.stats.misses.Add(1)
-	res := ca.flight.DoChan(rk, func() (any, error) { return ca.loadShared(rk, key, p, fetch) })
+	res := ca.flight.DoChan(rk, func() (any, error) { return ca.loadShared(rk, key, p, fetch, false) })
 	select {
 	case r := <-res:
 		if r.Err != nil {
@@ -182,15 +196,21 @@ func (ca *Cache[T]) Invalidate(ctx context.Context, key string) {
 }
 
 // refresh renews a stale entry in the background, at most once per process and per backoff window.
-func (ca *Cache[T]) refresh(rk, key string, p Policy[T], fetch func(context.Context) (*T, error)) {
+func (ca *Cache[T]) refresh(rk, key string, p Policy[T], fetch func(context.Context) (*T, error), force bool) {
 	ca.flight.DoChan("refresh:"+rk, func() (any, error) {
 		bg, cancel := context.WithTimeout(context.Background(), ca.opts.FetchTimeout)
 		defer cancel()
 		if n, err := ca.c.rdb.Exists(bg, rk+":nofetch").Result(); err == nil && n > 0 {
 			return nil, nil
 		}
+		if force {
+			// One renewal per entry across the fleet: a marker keeps the other instances out.
+			if ok, err := ca.c.rdb.SetNX(bg, rk+":renew", 1, time.Minute).Result(); err != nil || !ok {
+				return nil, nil
+			}
+		}
 		ca.c.stats.refreshes.Add(1)
-		if _, err := ca.loadShared(rk, key, p, fetch); err != nil {
+		if _, err := ca.loadShared(rk, key, p, fetch, force); err != nil {
 			_ = ca.c.rdb.Set(bg, rk+":nofetch", 1, refreshBackoff).Err()
 		}
 		return nil, nil
@@ -199,7 +219,7 @@ func (ca *Cache[T]) refresh(rk, key string, p Policy[T], fetch func(context.Cont
 
 // loadShared runs one fetch for rk across every instance: the lock holder fetches, the others poll
 // Redis for the result. Redis errors fall back to a plain local fetch.
-func (ca *Cache[T]) loadShared(rk, key string, p Policy[T], fetch func(context.Context) (*T, error)) (*T, error) {
+func (ca *Cache[T]) loadShared(rk, key string, p Policy[T], fetch func(context.Context) (*T, error), force bool) (*T, error) {
 	fctx, cancel := context.WithTimeout(context.Background(), ca.opts.FetchTimeout)
 	defer cancel()
 	deadline := time.Now().Add(ca.opts.WaitBudget)
@@ -213,7 +233,7 @@ func (ca *Cache[T]) loadShared(rk, key string, p Policy[T], fetch func(context.C
 		}
 		if held {
 			defer ca.c.unlock(rk, token)
-			if e, ok := ca.read(fctx, rk); ok && e.fresh() { // filled while we queued
+			if e, ok := ca.read(fctx, rk); ok && e.fresh() && !force { // filled while we queued
 				return e.val, nil
 			}
 			return ca.fetchAndStore(fctx, rk, key, p, fetch)
