@@ -1,0 +1,62 @@
+"use client";
+import { useI18n } from "@/lib/i18n";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { EpisodeSource } from '@/types/api';
+import { diagnosticEvent } from "@/lib/diagnostics";
+import { playbackSources } from '@/lib/playback-sources';
+import { VideoPlayerModal } from './VideoPlayerModal';
+
+interface Props {
+ sources: EpisodeSource[];
+ diagnosticSession?:string;
+ animeId?:number;
+ seasonId?:number;
+ partial?:boolean;
+ onRetrySources?:()=>void;
+ animeTitle: string;
+ episodeNumber: number;
+ pageMode?: boolean;
+ totalEpisodes?: number;
+ initialTime?: number;
+ onProgress?: (position:number,duration:number)=>void;
+ onClose: () => void;
+ onNextEpisode?: () => void;
+ onPrevEpisode?: () => void;
+}
+
+export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
+  const { t } = useI18n();
+ const [fallbackSession]=useState(()=>crypto.randomUUID());
+ const session=diagnosticSession||fallbackSession;
+ const candidates = useMemo(() => playbackSources(sources), [sources]);
+ const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:crypto.randomUUID() });
+ const source = candidates[attempt.index];
+ const diagnostic=useMemo(()=>({playback_session_id:session,attempt_id:attempt.id,anime_id:animeId?String(animeId):undefined,season_id:seasonId?String(seasonId):undefined,episode:String(props.episodeNumber),infohash:source?.info_hash}),[session,attempt.id,animeId,seasonId,props.episodeNumber,source?.info_hash]);
+ useEffect(()=>{diagnosticEvent(diagnostic,source?'playback.attempt':'playback.exhausted',{source_count:candidates.length,partial:Boolean(partial)});},[diagnostic,source,candidates.length,partial]);
+ useEffect(()=>{
+  const error=(event:ErrorEvent)=>diagnosticEvent(diagnostic,'browser.error',{reason:event.message,error_code:'javascript_error'});
+  const rejection=(event:PromiseRejectionEvent)=>diagnosticEvent(diagnostic,'browser.error',{reason:String(event.reason?.message||event.reason),error_code:'unhandled_rejection'});
+  window.addEventListener('error',error);window.addEventListener('unhandledrejection',rejection);
+  return()=>{window.removeEventListener('error',error);window.removeEventListener('unhandledrejection',rejection);};
+ },[diagnostic]);
+ const failed = useCallback((failure: { reason: string; position: number }) => {
+  setAttempt(current => current.index === attempt.index
+   ? { index: current.index + 1, position: Math.max(0, failure.position), reason: failure.reason, id:crypto.randomUUID() }
+   : current);
+ }, [attempt.index]);
+ if (!source) return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6">
+  <div role="alert" className="max-w-lg space-y-4 text-center text-zinc-100">
+   <p>{t(candidates.length?"Toutes les tentatives de lecture ont échoué.":partial?"La recherche de torrents est incomplète. Réessayez.":"Aucun torrent ne correspond à cet épisode.")}</p>
+   <p className="text-xs text-zinc-400">{t("Référence de diagnostic")} : <code>{session}</code></p>
+   {attempt.reason && <p className="text-sm text-zinc-400">{t(attempt.reason)}</p>}
+   <div className="flex justify-center gap-4">
+    {<button className="rounded bg-white text-black px-4 py-2" onClick={() => candidates.length?setAttempt({ index: 0, position: attempt.position, reason: '', id:crypto.randomUUID() }):onRetrySources?.()}>{t("Réessayer")}</button>}
+    <button className="underline" onClick={props.onClose}>{t("Fermer")}</button>
+   </div>
+  </div>
+ </div>;
+ return <VideoPlayerModal key={attempt.id} {...props}
+  item={source} initialTime={attempt.position} onPlaybackFailure={failed} diagnostic={diagnostic}
+
+ />;
+}
