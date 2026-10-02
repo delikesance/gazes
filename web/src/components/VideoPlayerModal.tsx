@@ -81,6 +81,16 @@ function textSubtitleTracks(tracks?: SubtitleTrack[]): SubtitleTrack[] {
   return (tracks ?? []).filter((track) => !UNSUPPORTED_SUBTITLE_CODECS.has(track.codec));
 }
 
+// Partial tracks (forced signs, SDH, dubbing credits, commentary) are never a good default.
+const PARTIAL_SUBTITLE = /\b(forced|sdh|cc|dubbing|dubtitle|signs?|songs?|commentary|karaoke)\b/i;
+/** Default subtitle: a full French track, else any full track, else the default one. */
+function pickDefaultSubtitle(tracks: SubtitleTrack[]): SubtitleTrack {
+  const full = tracks.filter((track) => !track.is_forced && !PARTIAL_SUBTITLE.test(track.title));
+  const pool = full.length ? full : tracks;
+  const french = (track: SubtitleTrack) => /^(fre|fra|fr)$/i.test(track.language) || /french|français|vostfr/i.test(track.title);
+  return pool.find(french) ?? pool.find((track) => track.is_default) ?? pool[0];
+}
+
 function formatTime(seconds: number): string {
   if (!seconds || isNaN(seconds) || seconds < 0) return "00:00";
   const total = Math.floor(seconds);
@@ -371,19 +381,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           setVideoMeta(data.main_video_metadata);
           if (textSubtitleTracks(data.main_video_metadata.subtitle_tracks).length > 0) {
             subtitleSelectionRef.current = true;
-            const frenchSub = textSubtitleTracks(data.main_video_metadata.subtitle_tracks).find((t) =>
-              t.language.toLowerCase().includes("fre") ||
-              t.language.toLowerCase().includes("fra") ||
-              t.title.toLowerCase().includes("french") ||
-              t.title.toLowerCase().includes("français") ||
-              t.title.toLowerCase().includes("vostfr")
-            );
-            if (frenchSub) {
-              setSelectedSubTrack(frenchSub.index);
-            } else {
-              const textTracks = textSubtitleTracks(data.main_video_metadata.subtitle_tracks);
-              setSelectedSubTrack((textTracks.find((t) => t.is_default) ?? textTracks[0]).index);
-            }
+            setSelectedSubTrack(pickDefaultSubtitle(textSubtitleTracks(data.main_video_metadata.subtitle_tracks)).index);
           }
           if (data.main_video_metadata.audio_tracks && data.main_video_metadata.audio_tracks.length > 0) {
             const frenchAudio = data.main_video_metadata.audio_tracks.find((t) =>
@@ -445,7 +443,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         if (m && (m.duration_sec > 0 || m.video_codec)) {
           setVideoMeta(m);
           if (!subtitleSelectionRef.current && textSubtitleTracks(m.subtitle_tracks).length) {
-            const preferred = textSubtitleTracks(m.subtitle_tracks).find(t => /^(fre|fra|fr)$/i.test(t.language)) || textSubtitleTracks(m.subtitle_tracks).find(t => t.is_default) || textSubtitleTracks(m.subtitle_tracks)[0];
+            const preferred = pickDefaultSubtitle(textSubtitleTracks(m.subtitle_tracks));
             setSelectedSubTrack(preferred.index);
             subtitleSelectionRef.current = true;
           }
