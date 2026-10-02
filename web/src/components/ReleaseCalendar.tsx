@@ -1,4 +1,6 @@
 "use client";
+import { ErrorAlert } from "./ErrorAlert";
+import { errorCode } from "@/lib/error-code";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, CalendarX } from "lucide-react";
@@ -10,7 +12,7 @@ import { LazyImage } from "./ui/LazyImage";
 
 type View = "week" | "month" | "list";
 
-interface Loaded { key: string; entries: ScheduleEntry[]; partial: boolean; error: boolean }
+interface Loaded { key: string; entries: ScheduleEntry[]; partial: boolean; error: string | null }
 
 const VIEWS: [View, string][] = [["week", "Semaine"], ["month", "Mois"], ["list", "Liste"]];
 
@@ -36,8 +38,8 @@ export function ReleaseCalendar() {
     const controller = new AbortController();
     const { from, to } = apiBounds(range);
     getSchedule(from, to, controller.signal).then(
-      (result) => setLoaded({ key, entries: result.entries || [], partial: Boolean(result.partial), error: false }),
-      (error) => { if (error?.name !== "AbortError") setLoaded({ key, entries: [], partial: false, error: true }); },
+      (result) => setLoaded({ key, entries: result.entries || [], partial: Boolean(result.partial), error: null }),
+      (error) => { if (error?.name !== "AbortError") setLoaded({ key, entries: [], partial: false, error: errorCode(error, "CAL") }); },
     );
     return () => controller.abort();
   }, [key, range]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -140,7 +142,7 @@ export function ReleaseCalendar() {
         </div>
       </div>
 
-      {loaded?.error && !loading ? <p role="alert" className="catalog-message">{t("Impossible de charger le calendrier des sorties.")} <button type="button" className="text-action" onClick={() => setRetry((n) => n + 1)}>{t("Réessayer")}</button></p> : null}
+      {loaded?.error && !loading ? <ErrorAlert message="Impossible de charger le calendrier des sorties." code={loaded.error} onRetry={() => setRetry((n) => n + 1)} /> : null}
       {loaded?.partial && !loading && <p role="status" className="catalog-message">{t("Certaines sorties n’ont pas pu être chargées.")}</p>}
 
       {view === "week" && (
