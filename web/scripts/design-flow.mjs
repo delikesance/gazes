@@ -20,7 +20,7 @@ try {
   await page.setViewportSize({width,height:900});await page.goto(base);await page.getByRole('heading',{name:featuredTitle,exact:true}).first().waitFor();await page.evaluate(()=>document.fonts.ready);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`page overflow at ${width}`);
   for(const selector of ['.site-wordmark','.catalog-search','.theme-toggle']) {
-   assert.equal(await page.locator(selector).evaluate(el=>getComputedStyle(el).backdropFilter),'none','header controls are solid surfaces, not glass');
+   assert.notEqual(await page.locator(selector).evaluate(el=>getComputedStyle(el).backdropFilter),'none','header controls keep the standard backdrop-filter over imagery');
   }
   assert.equal(await page.getByRole('link',{name:'Regarder',exact:true}).getAttribute('href'),'/anime/900/seasons/901/episodes/1','play the featured season, not the canonical franchise ID');
   const hero=await page.locator('.anime-hero').boundingBox(), heading=await page.locator('.anime-hero h1').boundingBox(), rail=await page.locator('.seasonal-grid').boundingBox();
