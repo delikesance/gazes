@@ -106,3 +106,25 @@ func (c *Client) Stats() Stats {
 	s := &c.stats
 	return Stats{s.l1Hits.Load(), s.l2Hits.Load(), s.stale.Load(), s.misses.Load(), s.lockWaits.Load(), s.refreshes.Load(), s.errors.Load(), s.rateLimited.Load(), s.tokenDenied.Load()}
 }
+
+// Elect reports whether this instance wins the periodic job name for the next period: of all the
+// instances calling it, exactly one gets true per period (SET NX with the period as expiry).
+func (c *Client) Elect(ctx context.Context, name string, period time.Duration) bool {
+	ok, err := c.rdb.SetNX(ctx, keyVersion+"leader:"+name, 1, period).Result()
+	if err != nil {
+		c.stats.errors.Add(1)
+		return false
+	}
+	return ok
+}
+
+// Health pings Redis and counts its keys, for the diagnostics endpoint.
+func (c *Client) Health(ctx context.Context) (latency time.Duration, keys int64, err error) {
+	start := time.Now()
+	if err = c.rdb.Ping(ctx).Err(); err != nil {
+		return 0, 0, err
+	}
+	latency = time.Since(start)
+	keys, err = c.rdb.DBSize(ctx).Result()
+	return latency, keys, err
+}
