@@ -7,11 +7,14 @@ function normalized(value: string): string {
 /** Avoid original-series files in mixed packs while accepting numbered-only filenames. */
 function matchesSeries(path: string, source: EpisodeSource): boolean {
  const aliases = source.anime_aliases?.length ? source.anime_aliases : source.anime_title ? [source.anime_title] : [];
- const keys = aliases.map(normalized).filter(Boolean);
+ // Catalog aliases use "3rd Season" while releases often use S03E01.
+ // Compare the series title here; episodeCandidates checks the season separately.
+ const seriesKey = (value: string) => normalized(value.replace(/\b\d+(?:st|nd|rd|th)\s+season\b/gi, " "));
+ const keys = aliases.map(seriesKey).filter(Boolean);
  if (!keys.length) return true;
  const firstWords = keys.map(key=>key.split(" ")[0]).filter(word=>word.length>=3);
  for (const segment of path.replace(/\\/g,"/").split("/").reverse()) {
-  const key = ` ${normalized(segment)} `;
+  const key = ` ${seriesKey(segment)} `;
   if (firstWords.some(word=>key.includes(` ${word} `))) {
    return keys.some(alias=>key.includes(` ${alias} `));
   }
@@ -71,8 +74,8 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
   }
 
   // Directory season check: if in "Season 02/..." but looking for Season 1, reject
-  const directorySeason = path.match(/\b(?:S|season|saison)\s*0*(\d+)\b/i);
-  if (directorySeason && Number(directorySeason[1]) !== seasonNum) {
+  const directorySeason = path.match(/\b(?:S|season|saison)\s*0*(\d+)\b|\b0*(\d+)(?:st|nd|rd|th)\s+season\b/i);
+  if (directorySeason && Number(directorySeason[1] || directorySeason[2]) !== seasonNum) {
     return false;
   }
 
