@@ -58,7 +58,7 @@ button:disabled { cursor: default; opacity: .35; }
 .anime-hero-art, .anime-hero-shade, .anime-hero .page-grid, .anime-hero .scribble { z-index: -1; }
 .anime-hero-art, .anime-hero-shade { position: absolute; inset: 0; pointer-events: none; }
 /* The banner is a quiet backdrop: dimmed, fully visible at the top and fading to nothing at the bottom (alpha mask, no color). */
-.anime-hero-art { opacity: .3; -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); }
+.anime-hero-art { opacity: .14; -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); }
 .anime-hero-art .hero-wide, .anime-hero-art .hero-portrait { position: absolute; inset: 0; height: 100%; width: 100%; border: 0; background: transparent; }
 .anime-hero-art .hero-wide img { object-position: center top; }
 .anime-hero-art .hero-portrait { display: none; }
