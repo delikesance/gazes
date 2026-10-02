@@ -19,16 +19,14 @@ const mock=async route=>{
 await page.route('https://preview.invalid/**',route=>route.fulfill({status:404,body:''}));
 await page.route('**/api/v1/**',mock);
 try {
- await page.goto(base);await page.getByRole('heading',{name:'This season'}).waitFor();
+ await page.goto(base);await page.getByRole('heading',{name:'This week'}).waitFor();
  assert.equal(await page.locator('html').getAttribute('lang'),'en');
  await page.locator('.header-search-toggle').click();await page.getByRole('textbox',{name:'Search anime',exact:true}).waitFor();await page.getByRole('textbox',{name:'Search anime',exact:true}).press('Escape');
  await page.getByText('Episode 1 ·',{exact:false}).waitFor();
- assert.match(await page.locator('.premiere-date').innerText(),/4 Oct 2026/);
  await page.getByRole('combobox',{name:'Language',exact:true}).selectOption('fr');
- await page.getByRole('heading',{name:'Cette saison'}).waitFor();assert.equal(await page.locator('html').getAttribute('lang'),'fr');
- assert.match(await page.locator('.premiere-date').innerText(),/4 oct\. 2026/);
- await page.reload();await page.getByRole('heading',{name:'Cette saison'}).waitFor();
- await page.locator('.seasonal-card').click();await page.waitForURL('**/anime/1/seasons/2');
+ await page.getByRole('heading',{name:'Cette semaine'}).waitFor();assert.equal(await page.locator('html').getAttribute('lang'),'fr');
+ await page.reload();await page.getByRole('heading',{name:'Cette semaine'}).waitFor();
+ await page.goto(`${base}/anime/1/seasons/2`);
  await page.getByRole('heading',{name:'Saison 2',exact:true}).waitFor();
  assert.equal(await page.locator('.episode-copy').first().innerText(),'Épisode 1');
  await page.waitForFunction(()=>document.querySelectorAll('.episode-preview').length===0);
@@ -57,12 +55,12 @@ try {
  assert.equal(await page.locator('header.catalog-header').isVisible(),false);
  assert.equal(await page.locator('footer.site-footer').isVisible(),false);
 await page.getByRole('button',{name:'Close',exact:true}).click();
- await page.getByRole('link',{name:'Gazes, home',exact:true}).click();await page.getByRole('heading',{name:'This season'}).waitFor();
+ await page.getByRole('link',{name:'Gazes, home',exact:true}).click();await page.getByRole('heading',{name:'This week'}).waitFor();
  await page.locator('.header-search-toggle').click();await page.getByRole('textbox',{name:'Search anime',exact:true}).fill('Example');await page.getByRole('button',{name:'Search',exact:true}).click();
  await page.getByRole('heading',{name:'Results for “Example”'}).waitFor();
  assert.match(await page.locator('.footer-disclaimer').innerText(),/does not permanently host videos/);
  await page.setViewportSize({width:320,height:800});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  assert.equal(await page.evaluate(()=>localStorage.getItem('gazes-language')),'en');
- const french=await browser.newPage({locale:'fr-FR'});await french.route('**/api/v1/**',mock);await french.goto(base);await french.getByRole('heading',{name:'Cette saison'}).waitFor();assert.equal(await french.locator('html').getAttribute('lang'),'fr');await french.close();
+ const french=await browser.newPage({locale:'fr-FR'});await french.route('**/api/v1/**',mock);await french.goto(base);await french.getByRole('heading',{name:'Cette semaine'}).waitFor();assert.equal(await french.locator('html').getAttribute('lang'),'fr');await french.close();
  assert.deepEqual(errors,[]);console.log('PASS: automatic EN/FR detection, footer switching, persistence, localized dates, search, seasons, episodes, player failures, shared navigation and mobile layout.');
 } finally {await browser.close();}

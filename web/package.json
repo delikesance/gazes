@@ -15,7 +15,8 @@
     "test:hero": "node scripts/featured-hero.test.mjs",
     "test:tracks": "node scripts/media-tracks.test.mjs",
     "test:i18n": "node scripts/i18n-flow.mjs",
-    "test:auth": "node scripts/auth-envelope.test.mjs"
+    "test:auth": "node scripts/auth-envelope.test.mjs",
+    "test:calendar": "node scripts/calendar.test.mjs"
   },
   "dependencies": {
     "@noble/ciphers": "^2.4.0",

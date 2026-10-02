@@ -112,6 +112,7 @@ type AnimeCatalogService struct {
 	cache          map[string]cachedCatalog
 	detailCache    map[int]cachedItem
 	franchiseCache map[int]cachedFranchise
+	scheduleCache  map[string]cachedSchedule
 	mu             sync.RWMutex
 }
 
@@ -135,6 +136,7 @@ func NewAnimeCatalogService(client *http.Client) *AnimeCatalogService {
 		cache:          make(map[string]cachedCatalog),
 		detailCache:    make(map[int]cachedItem),
 		franchiseCache: make(map[int]cachedFranchise),
+		scheduleCache:  make(map[string]cachedSchedule),
 	}
 
 	return s

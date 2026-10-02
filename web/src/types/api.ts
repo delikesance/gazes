@@ -223,3 +223,22 @@ export interface SwarmStats {
 }
 
 export interface Franchise { id: number; title: string; description?: string; poster_image?: string; seasons: AnimeSeason[]; complete: boolean; warning?: string; }
+
+export interface ScheduleEntry {
+  airing_at: number;
+  episode: number;
+  media_id: number;
+  title: string;
+  poster_image?: string;
+  genres?: string[];
+  studio?: string;
+  format?: string;
+  episodes?: number;
+}
+
+export interface ScheduleResponse {
+  from: number;
+  to: number;
+  partial?: boolean;
+  entries: ScheduleEntry[];
+}

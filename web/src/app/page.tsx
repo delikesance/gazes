@@ -19,7 +19,7 @@ export default async function Home({
       initialData = await searchCatalog(q, genre, page, 24);
     } else if (tab === "popular") {
       initialData = await getCatalogPopular(page, 24);
-    } else {
+    } else if (page > 1) {
       initialData = await getCatalogSeasonal(page, 24);
     }
   } catch (e) {

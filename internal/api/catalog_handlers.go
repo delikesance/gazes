@@ -338,3 +338,22 @@ func (s *Server) HandleCatalogSeasonal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
 }
+
+// HandleCatalogSchedule returns the episodes airing between two unix timestamps.
+func (s *Server) HandleCatalogSchedule(w http.ResponseWriter, r *http.Request) {
+	from, err1 := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
+	to, err2 := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)
+	if err1 != nil || err2 != nil || to <= from || to-from > 42*24*3600 {
+		http.Error(w, `{"error": "from and to are required unix timestamps spanning at most 42 days"}`, http.StatusBadRequest)
+		return
+	}
+	res, err := s.catalogService.GetSchedule(r.Context(), from, to)
+	if err != nil {
+		diagnostics.Logger(r.Context(), s.logger).Error("failed to get release schedule", "err", err)
+		http.Error(w, `{"error": "failed to get release schedule"}`, http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_ = json.NewEncoder(w).Encode(res)
+}
