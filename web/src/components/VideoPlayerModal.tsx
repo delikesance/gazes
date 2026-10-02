@@ -4,9 +4,11 @@ import { useI18n } from "@/lib/i18n";
 import { mediaTrackLabel, trackLanguageCode } from "@/lib/media-tracks";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
+import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
+import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } from "./PlayerOptionsModal";
 import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
-import { episodeFile, episodeCandidates, episodeQualities } from "@/lib/episode-file";
-import type { EpisodeSource } from "@/types/api";
+import { episodeFile, episodeCandidates } from "@/lib/episode-file";
+import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
@@ -25,12 +27,14 @@ import {
   Copy,
   Check,
   AlertCircle,
-  Headphones,
   MessageSquare,
   SkipForward,
   SkipBack,
   Layers,
   Loader2,
+  SlidersHorizontal,
+  List,
+  Sun,
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -48,6 +52,20 @@ interface VideoPlayerModalProps {
   onPrevEpisode?: () => void;
   onChangeSource?: () => void;
   sourcePicker?: React.ReactNode;
+  episodes?: EpisodeInfo[];
+  onSelectEpisode?: (episode: number) => void;
+}
+
+const AMBILIGHT_KEY = "gazes-ambilight";
+const AMBILIGHT_DEFAULT: AmbilightSettings = { on: true, level: "medium", dim: true };
+
+function loadAmbilight(): AmbilightSettings {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(AMBILIGHT_KEY) : null;
+    return raw ? { ...AMBILIGHT_DEFAULT, ...JSON.parse(raw) } : AMBILIGHT_DEFAULT;
+  } catch {
+    return AMBILIGHT_DEFAULT;
+  }
 }
 
 function formatTime(seconds: number): string {
@@ -71,6 +89,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   onPrevEpisode,
   onChangeSource,
   sourcePicker,
+  episodes,
+  onSelectEpisode,
   pageMode = false,
   initialTime = 0,
   onPlaybackFailure,
@@ -94,9 +114,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // Audio and Subtitle Tracks
   const [selectedAudioTrack, setSelectedAudioTrack] = useState<number>(0);
   const [selectedSubTrack, setSelectedSubTrack] = useState<number | null>(null);
-  const [showAudioMenu, setShowAudioMenu] = useState<boolean>(false);
-  const [showSubMenu, setShowSubMenu] = useState<boolean>(false);
-  const [showQualityMenu,setShowQualityMenu]=useState(false);
+  const [optionsTab, setOptionsTab] = useState<PlayerOptionsTab | null>(null);
+  const [showEpisodes, setShowEpisodes] = useState(false);
+  const [ambilight, setAmbilight] = useState<AmbilightSettings>(loadAmbilight);
 
   // Player controls state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -110,6 +130,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [hoverPosition, setHoverPosition] = useState<number>(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const ambientRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
   const resumePlaybackRef = useRef(true);
@@ -215,9 +237,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     if (isPlaying) {
       hideControlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-        setShowAudioMenu(false);
-        setShowSubMenu(false);
-        setShowQualityMenu(false);
       }, 2500);
     }
   }, [isPlaying]);
@@ -444,15 +463,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   const matchingFiles = loadData && item && "episode_number" in item ? episodeCandidates(loadData.files,item as EpisodeSource) : [];
   const selectionFiles = (matchingFiles.length ? matchingFiles : loadData?.files.filter(file=>file.is_video) || []).filter(file=>file.path.toLowerCase().includes(fileSearch.toLowerCase()));
-  const qualities=loadData&&item&&"episode_number" in item?episodeQualities(loadData.files,item as EpisodeSource):[];
-  const changeQuality=(index:number)=>{
-   setShowQualityMenu(false);if(index===selectedFileIdx)return;
-   const position=timeOffset+(videoRef.current?.currentTime||0);
-   hasStartedRef.current=false;lastProgressRef.current={time:0,at:0};
-   setSelectedFileIdx(index);setTimeOffset(position);setForceRemux(position>0);
-   setSelectedAudioTrack(0);setSelectedSubTrack(null);subtitleSelectionRef.current=false;
-   setVideoMeta(null);setPlaybackError(null);setIsBuffering(true);currentTimeRef.current=0;
-  };
   const currentFile: FileInfo | undefined = loadData?.files[selectedFileIdx];
   const streamUrl = loadData && selectedFileIdx >= 0
     ? getStreamUrl(loadData.info_hash, selectedFileIdx, forceRemux, timeOffset, selectedAudioTrack,diagnostic)
@@ -483,14 +493,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   }, [streamUrl, volume, loading, needsFileSelection]);
 
   const handleAudioTrackSelect = (trackIdx: number) => {
-    setShowAudioMenu(false);
+    setOptionsTab(null);
     if (trackIdx === selectedAudioTrack) return;
     const currentAbsoluteTime = timeOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
     hasStartedRef.current = false;
     lastProgressRef.current = { time: 0, at: 0 };
     setForceRemux(true);
     setSelectedAudioTrack(trackIdx);
-    setShowAudioMenu(false);
     setIsBuffering(true);
     setTimeOffset(currentAbsoluteTime);
     currentTimeRef.current = 0;
@@ -501,7 +510,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const handleSubtitleTrackSelect = (trackIdx: number | null) => {
     subtitleSelectionRef.current = true;
     setSelectedSubTrack(trackIdx);
-    setShowSubMenu(false);
+    setOptionsTab(null);
     triggerShowControls();
   };
 
@@ -538,6 +547,68 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const updateAmbilight = (patch: Partial<AmbilightSettings>) => {
+    setAmbilight((current) => {
+      const next = { ...current, ...patch };
+      try { window.localStorage.setItem(AMBILIGHT_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+      return next;
+    });
+  };
+
+  // Ambilight: paint a tiny copy of the current frame (cover-fit to the stage); CSS blurs and fades it.
+  useEffect(() => {
+    const canvas = ambientRef.current;
+    const video = videoRef.current;
+    const box = containerRef.current;
+    if (!ambilight.on || isFullscreen || !canvas || !video || !box) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let frame = 0;
+    let last = 0;
+    let stopped = false;
+    const draw = () => {
+      if (video.readyState < 2 || !video.videoWidth) return;
+      const width = 64;
+      const height = Math.max(8, Math.round((width * (box.clientHeight || 1)) / (box.clientWidth || 1)));
+      if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+      const scale = Math.max(width / video.videoWidth, height / video.videoHeight);
+      const w = video.videoWidth * scale;
+      const h = video.videoHeight * scale;
+      try { ctx.drawImage(video, (width - w) / 2, (height - h) / 2, w, h); } catch { /* frame unavailable */ }
+    };
+    const loop = (now: number) => {
+      if (stopped) return;
+      if (now - last >= 100 && !document.hidden && !video.paused) { last = now; draw(); }
+      frame = requestAnimationFrame(loop);
+    };
+    const events = ["loadeddata", "seeked", "pause", "playing"] as const;
+    events.forEach((name) => video.addEventListener(name, draw));
+    draw();
+    frame = requestAnimationFrame(loop);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(frame);
+      events.forEach((name) => video.removeEventListener(name, draw));
+    };
+  }, [ambilight.on, isFullscreen, streamUrl, loading, error, needsFileSelection, item]);
+
+  // While the dock is visible, shrink the subtitle layer (not the video) so captions stay above it.
+  useEffect(() => {
+    const stage = containerRef.current;
+    const dock = dockRef.current;
+    if (!stage || !dock) return;
+    const update = () => {
+      const height = stage.clientHeight;
+      const reserve = dock.offsetHeight + (parseFloat(getComputedStyle(dock).bottom) || 0) + 12;
+      stage.style.setProperty("--sub-scale", String(height > 0 ? Math.max(0.5, (height - reserve) / height) : 1));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(stage);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, [loading, error, needsFileSelection, item]);
+
   if (!item) return null;
 
   return (
@@ -546,36 +617,38 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       onClick={pageMode?undefined:onClose}
     >
       <div
-        className={pageMode?"watch-player-shell":"relative flex flex-col w-full max-w-5xl max-h-[95vh] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl"}
+        className={pageMode?"watch-player-shell":"relative flex flex-col w-full max-w-5xl max-h-[95vh] rounded-[28px] border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl"}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className={`player-heading flex items-center justify-between border-b border-zinc-800 px-4 sm:px-5 py-3 bg-zinc-900/40${pageMode&&!showControls?" watch-heading-hidden":""}`}>
-          <div className="flex items-center gap-2.5 overflow-hidden">
-
-            <div className="truncate">
-              <div className="flex items-center gap-2">
-                {episodeNumber && (
-                  <span className="rounded bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 text-[10px] font-mono text-zinc-200 uppercase">
-                    EP {episodeNumber}
-                  </span>
-                )}
-                <h2 className="truncate text-xs sm:text-sm font-medium text-zinc-100" title={animeTitle || item.title}>
-                  {animeTitle || item.anime_details?.display_title || item.title}
-                </h2>
-              </div>
-
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
+        {/* Floating top bar */}
+        <div className={`player-heading player-topbar${!showControls?" watch-heading-hidden":""}`}>
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               aria-label={t(pageMode?"Voir les saisons":"Fermer le lecteur")}
               onClick={onClose}
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
+              className="player-frost player-pill player-pill--icon"
             >
               <X className="h-5 w-5" />
             </button>
+            <div className="player-frost player-pill min-w-0 !gap-2.5 !pl-2 !pr-5">
+              {episodeNumber && <span className="player-chip player-chip--solid">EP {episodeNumber}</span>}
+              <h2 className="truncate text-sm font-semibold" title={animeTitle || item.title}>
+                {animeTitle || item.anime_details?.display_title || item.title}
+              </h2>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2.5">
+            {stats && (
+              <div className="player-frost player-pill hidden !gap-2 sm:inline-flex" role="status">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+                <span className="font-mono text-xs">{stats.active_seeders} {t("Seeders")} · {formatBytes(stats.download_rate_bps)}/s</span>
+              </div>
+            )}
+            {onChangeSource && (
+              <button onClick={onChangeSource} aria-label={t("Changer de source pour cet épisode")} title={t("Changer de source pour cet épisode")} className="player-frost player-pill player-pill--collapse">
+                <Layers className="h-4 w-4" /><span className="player-label">{t("Sources")}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -590,12 +663,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               </div>
             </div>
           ) : needsFileSelection ? (
-            <div className="p-6 space-y-4">
+            <div className="p-6 pt-24 space-y-4">
               <p>{onPlaybackFailure ? t("Cet épisode ne peut pas être identifié dans ce pack. Essai de la source suivante…") : t("Choisissez le fichier correspondant à l’épisode {episode}. Aucun fichier n’a été lancé automatiquement.", {episode:episodeNumber ?? "—"})}</p>
               {!onPlaybackFailure && <>
-              <input aria-label={t("Rechercher un fichier")} placeholder={t("Rechercher un fichier…")} value={fileSearch} onChange={event=>setFileSearch(event.target.value)} className="w-full bg-zinc-900 border border-zinc-700 p-3 rounded-lg" />
+              <input aria-label={t("Rechercher un fichier")} placeholder={t("Rechercher un fichier…")} value={fileSearch} onChange={event=>setFileSearch(event.target.value)} className="w-full bg-zinc-900 border border-zinc-700 p-3 rounded-full" />
               <p>{selectionFiles.length} {" "}{t("fichiers")}{matchingFiles.length ? t(" correspondant à cet épisode") : t(" vidéo")}</p>
-              {selectionFiles.slice(0,50).map(file => <button key={file.index} className="block p-3 bg-zinc-900 rounded-lg text-left w-full" onClick={() => { setSelectedFileIdx(file.index); setNeedsFileSelection(false); }}>{file.path}</button>)}
+              {selectionFiles.slice(0,50).map(file => <button key={file.index} className="block p-3 bg-zinc-900 rounded-2xl text-left w-full" onClick={() => { setSelectedFileIdx(file.index); setNeedsFileSelection(false); }}>{file.path}</button>)}
               {selectionFiles.length>50 && <p>{t("Affichage des 50 premiers fichiers. Affinez la recherche.")}</p>}
               </>}
             </div>
@@ -613,9 +686,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 ref={containerRef}
                 onMouseMove={triggerShowControls}
                 onMouseEnter={triggerShowControls}
+                data-controls={showControls}
                 className={`player-video-box relative w-full bg-black select-none group overflow-hidden flex flex-col${pageMode?"":" aspect-video"}`}
               >
                 <div className="relative flex-1 min-h-0 overflow-hidden" data-player-stage>
+                {ambilight.on && !isFullscreen && (
+                  <canvas ref={ambientRef} aria-hidden="true" className="player-ambient" data-level={ambilight.level} data-dim={ambilight.dim && !isPlaying ? "true" : "false"} />
+                )}
                 <video
                   key={streamUrl}
                   muted={isMuted}
@@ -690,271 +767,165 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   timeOffset={timeOffset}
                   onError={setSubtitleError}
                 />
-                {subtitleError && <p role="alert" className="absolute top-3 left-3 z-20 rounded bg-black/80 p-2 text-xs text-red-300">{t(subtitleError)}</p>}
+                {subtitleError && <p role="alert" className="player-toast player-frost rounded-full px-4 py-2.5 text-xs text-red-300" style={{ background: "rgba(60,20,24,.5)" }}>{t(subtitleError)}</p>}
                 </div>
                 {needsPlaybackGesture&&<div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"><button className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900/90 px-6 py-4 text-white border border-zinc-700" onClick={togglePlay}><Play size={22} />{t("Lecture")}</button></div>}
                 {playbackError && (
                   <div role="alert" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/90 p-6 text-center">
                     <p className="text-sm text-zinc-200">{t(playbackError)}</p>
-                    <button className="rounded-lg bg-white px-4 py-2 text-black" onClick={() => { setPlaybackError(null); videoRef.current?.load(); }}>{t("Réessayer")}</button>
+                    <button className="rounded-full bg-white px-4 py-2 text-black" onClick={() => { setPlaybackError(null); videoRef.current?.load(); }}>{t("Réessayer")}</button>
                     {onChangeSource && <button className="underline" onClick={onChangeSource}>{t("Changer de source")}</button>}
                   </div>
                 )}
 
                 {/* Buffering Indicator */}
                 {isBuffering && (
-                  <div className="absolute top-4 right-4 flex items-center gap-2 rounded-lg bg-zinc-950/90 px-3 py-1 text-xs text-zinc-300 border border-zinc-800 z-20 font-mono">
+                  <div className="player-frost absolute right-6 top-24 z-20 flex items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-xs text-zinc-200">
                     <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
                     <span>{t("Buffering stream...")}</span>
                   </div>
                 )}
 
-                {/* Minimalist Overlay Control Bar */}
+                {/* Floating control dock */}
                 <div
+                  ref={dockRef}
                   data-player-controls
-                  className={`relative shrink-0 pointer-events-auto bg-zinc-950/90 border-t border-zinc-800/80 p-3 sm:p-4 z-10 ${
-                    showControls ? "visible" : "invisible !pointer-events-none"
-                  }`}
+                  className={`player-dock-wrap pointer-events-auto ${showControls ? "visible" : "invisible !pointer-events-none"}`}
                 >
-                  {/* Scrubber */}
-                  <div
-                    ref={progressBarRef}
-                    onClick={handleProgressBarClick}
-                    onMouseMove={handleProgressBarMouseMove}
-                    onMouseLeave={() => setHoverTime(null)}
-                    className="relative mb-3 h-1.5 w-full cursor-pointer rounded-full bg-zinc-800 hover:h-2 transition-all group/bar"
-                  >
-                    <div
-                      ref={playedBarRef}
-                      className="absolute top-0 left-0 h-full rounded-full bg-white"
-                      style={{ width: "0%" }}
+                  {showEpisodes && episodes && episodes.length > 0 && onSelectEpisode && (
+                    <PlayerEpisodePicker
+                      episodes={episodes}
+                      currentEpisode={episodeNumber}
+                      onClose={() => setShowEpisodes(false)}
+                      onSelect={(number) => { setShowEpisodes(false); if (number !== episodeNumber) onSelectEpisode(number); }}
                     />
-                    <div
-                      ref={knobRef}
-                      className="absolute top-1/2 -mt-1.5 -ml-1.5 h-3 w-3 rounded-full bg-white opacity-0 group-hover/bar:opacity-100 transition-opacity"
-                      style={{ left: "0%" }}
-                    />
-
-                    {hoverTime !== null && (
+                  )}
+                  <div className="player-frost flex flex-col gap-3 px-4 py-3.5 text-zinc-200 sm:gap-3.5 sm:px-[18px] sm:py-4" style={{ borderRadius: "var(--radius-dock, 32px)" }}>
+                    {/* Scrubber */}
+                    <div className="flex items-center gap-3.5 px-1.5">
+                      <span ref={timeDisplayRef} className="min-w-11 font-mono text-xs text-zinc-50">{formatTime(timeOffset)}</span>
                       <div
-                        className="absolute bottom-3 -translate-x-1/2 rounded bg-zinc-900 border border-zinc-700 px-2 py-0.5 text-[10px] font-mono text-white shadow-lg pointer-events-none"
-                        style={{ left: `${hoverPosition}%` }}
+                        ref={progressBarRef}
+                        onClick={handleProgressBarClick}
+                        onMouseMove={handleProgressBarMouseMove}
+                        onMouseLeave={() => setHoverTime(null)}
+                        className="group/bar relative flex h-5 flex-1 cursor-pointer items-center"
                       >
-                        {formatTime(hoverTime)}
+                        <div className="relative h-1.5 w-full rounded-full bg-white/20 transition-all group-hover/bar:h-2">
+                          <div ref={playedBarRef} className="absolute left-0 top-0 h-full rounded-full bg-white" style={{ width: "0%" }} />
+                          <div
+                            ref={knobRef}
+                            className="absolute top-1/2 -ml-2 -mt-2 h-4 w-4 rounded-full bg-white shadow-[0_0_0_5px_rgba(255,255,255,.18)]"
+                            style={{ left: "0%" }}
+                          />
+                        </div>
+                        {hoverTime !== null && (
+                          <div
+                            className="player-frost pointer-events-none absolute bottom-6 -translate-x-1/2 rounded-full px-2.5 py-0.5 font-mono text-[11px] text-white"
+                            style={{ left: `${hoverPosition}%` }}
+                          >
+                            {formatTime(hoverTime)}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-
-                  {/* Controls Row */}
-                  <div className="flex items-center justify-between text-zinc-200 text-xs">
-                    {/* Left: Play/Pause, Navigation, Seek, Volume, Timecode */}
-                    <div className="flex items-center gap-2">
-                      {onPrevEpisode && (
-                        <button
-                          onClick={onPrevEpisode}
-                          className="rounded p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                          title={t("Previous Episode")}
-                        >
-                          <SkipBack className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      <button
-                        onClick={togglePlay}
-                        className="rounded p-1 text-white hover:text-zinc-300 transition-colors cursor-pointer"
-                        title={isPlaying ? t("Pause (Space)") : t("Play (Space)")}
-                      >
-                        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
-                      </button>
-
-                      {onNextEpisode && (
-                        <button
-                          onClick={onNextEpisode}
-                          className="rounded p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                          title={t("Next Episode")}
-                        >
-                          <SkipForward className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => handleSeek(timeOffset + currentTimeRef.current - 10)}
-                        className="rounded p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                        title={t("Rewind 10s (←)")}
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </button>
-
-                      <button
-                        onClick={() => handleSeek(timeOffset + currentTimeRef.current + 10)}
-                        className="rounded p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                        title={t("Forward 10s (→)")}
-                      >
-                        <RotateCw className="h-3.5 w-3.5" />
-                      </button>
-
-                      {/* Volume */}
-                      <div className="flex items-center gap-1 ml-1">
-                        <button
-                          onClick={toggleMute}
-                          className="rounded p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                          title={t(isMuted ? "Unmute (M)" : "Mute (M)")}
-                        >
-                          {isMuted || volume === 0 ? (
-                            <VolumeX className="h-3.5 w-3.5 text-zinc-400" />
-                          ) : volume < 0.5 ? (
-                            <Volume1 className="h-3.5 w-3.5" />
-                          ) : (
-                            <Volume2 className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                        <input
-                          aria-label={t("Volume")}
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={isMuted ? 0 : volume}
-                          onChange={handleVolumeChange}
-                          className="w-14 h-1 bg-zinc-700 rounded appearance-none cursor-pointer accent-white"
-                        />
-                      </div>
-
-                      {/* Timecode */}
-                      <div className="font-mono text-[11px] text-zinc-400 select-none pl-2">
-                        <span ref={timeDisplayRef} className="text-zinc-100 font-medium">
-                          {formatTime(timeOffset)}
-                        </span>
-                        <span className="text-zinc-600 mx-1">/</span>
-                        <span>
-                          {totalDuration > 0 ? formatTime(totalDuration) : videoMeta?.formatted_duration || "--:--"}
-                        </span>
-                      </div>
+                      <span className="min-w-11 text-right font-mono text-xs text-zinc-400">
+                        {totalDuration > 0 ? formatTime(totalDuration) : videoMeta?.formatted_duration || "--:--"}
+                      </span>
                     </div>
 
-                    {onChangeSource && <button onClick={onChangeSource} aria-label={t("Changer de source pour cet épisode")} title={t("Changer de source pour cet épisode")} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"><Layers className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t("Sources")}</span></button>}
-                    {/* Right: Audio, Subtitles, Quality, Fullscreen */}
-                    <div className="flex items-center gap-1.5">
-                      {/* Audio */}
-                      <div className="relative">
+                    {/* Controls Row */}
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <button onClick={togglePlay} className="player-pill player-pill--icon player-pill--solid" aria-label={isPlaying ? t("Pause (Space)") : t("Play (Space)")} title={isPlaying ? t("Pause (Space)") : t("Play (Space)")}>
+                          {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
+                        </button>
+                        {onPrevEpisode && (
+                          <button onClick={onPrevEpisode} className="player-pill player-pill--icon" aria-label={t("Previous Episode")} title={t("Previous Episode")}>
+                            <SkipBack className="h-[18px] w-[18px]" />
+                          </button>
+                        )}
+                        {onNextEpisode && (
+                          <button onClick={onNextEpisode} className="player-pill player-pill--icon" aria-label={t("Next Episode")} title={t("Next Episode")}>
+                            <SkipForward className="h-[18px] w-[18px]" />
+                          </button>
+                        )}
+                        <button onClick={() => handleSeek(timeOffset + currentTimeRef.current - 10)} className="player-pill player-pill--icon" aria-label={t("Rewind 10s (←)")} title={t("Rewind 10s (←)")}>
+                          <RotateCcw className="h-[18px] w-[18px]" />
+                        </button>
+                        <button onClick={() => handleSeek(timeOffset + currentTimeRef.current + 10)} className="player-pill player-pill--icon" aria-label={t("Forward 10s (→)")} title={t("Forward 10s (→)")}>
+                          <RotateCw className="h-[18px] w-[18px]" />
+                        </button>
+                        {/* Volume */}
+                        <div className="hidden items-center gap-3 rounded-full bg-white/[.06] pr-5 sm:flex">
+                          <button onClick={toggleMute} className="player-pill player-pill--icon" aria-label={t(isMuted ? "Unmute (M)" : "Mute (M)")} title={t(isMuted ? "Unmute (M)" : "Mute (M)")}>
+                            {isMuted || volume === 0 ? <VolumeX className="h-[18px] w-[18px]" /> : volume < 0.5 ? <Volume1 className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
+                          </button>
+                          <input
+                            aria-label={t("Volume")}
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={isMuted ? 0 : volume}
+                            onChange={handleVolumeChange}
+                            className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-white/20 accent-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Right: Episodes, Settings, Fullscreen */}
+                      <div className="flex items-center gap-2">
+                        {episodes && episodes.length > 0 && onSelectEpisode && (
+                          <button
+                            onClick={() => { setShowEpisodes(!showEpisodes); }}
+                            data-active={showEpisodes}
+                            aria-expanded={showEpisodes}
+                            className="player-pill player-pill--collapse"
+                            title={t("Épisodes")}
+                          >
+                            <List className="h-4 w-4" /><span className="player-label">{t("Épisodes")}</span>
+                          </button>
+                        )}
                         <button
-                          onClick={() => {
-                            setShowAudioMenu(!showAudioMenu);
-                            setShowSubMenu(false);
-                          }}
-                          className={`flex items-center gap-1 rounded px-2 py-1 transition-colors cursor-pointer ${
-                            showAudioMenu ? "bg-zinc-800 text-white" : "hover:bg-zinc-800 text-zinc-400"
-                          }`}
+                          onClick={() => { setShowEpisodes(false); setOptionsTab(optionsTab ? null : "audio"); }}
+                          data-active={optionsTab !== null}
+                          aria-haspopup="dialog"
+                          className="player-pill player-pill--collapse"
                           title={t("Select Audio Track")}
                         >
-                          <Headphones className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline text-[11px]">{t("Audio")}</span>
+                          <SlidersHorizontal className="h-4 w-4" /><span className="player-label">{t("Réglages")}</span>
                         </button>
-
-                        {showAudioMenu && (
-                          <div className="absolute bottom-8 right-0 w-52 rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-2xl z-30 animate-in fade-in duration-100">
-                            <p className="px-2.5 py-1 text-[10px] font-mono text-zinc-400 border-b border-zinc-800 mb-1">
-                              {t("Audio Tracks")}</p>
-                            {videoMeta?.audio_tracks?.length && !videoMeta.audio_tracks.some(track => trackLanguageCode(track.language) === "fr") ? <p className="px-2.5 py-2 text-xs text-zinc-400">{t(videoMeta.audio_tracks.some(track => !track.language || track.language === "und") ? "VF non confirmée pour ce fichier." : "VF indisponible dans ce fichier.")}</p> : null}
-                            {videoMeta?.audio_tracks && videoMeta.audio_tracks.length > 0 ? (
-                              videoMeta.audio_tracks.map((track) => (
-                                <button
-                                  key={track.index}
-                                  onClick={() => handleAudioTrackSelect(track.index)}
-                                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs text-left transition-colors cursor-pointer ${
-                                    selectedAudioTrack === track.index
-                                      ? "bg-zinc-800 text-white font-medium"
-                                      : "hover:bg-zinc-800/60 text-zinc-300"
-                                  }`}
-                                >
-                                  <span className="truncate" title={track.title}>{mediaTrackLabel(track, videoMeta.audio_tracks || [], locale)}</span>
-                                  {selectedAudioTrack === track.index && <Check className="h-3.5 w-3.5 ml-1 shrink-0" />}
-                                </button>
-                              ))
-                            ) : (
-                              <div className="px-2.5 py-2 text-xs text-zinc-400">{t("Default Audio")}</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Subtitles (CC) */}
-                      <div className="relative">
-                        <button
-                          onClick={() => {
-                            setShowSubMenu(!showSubMenu);
-                            setShowAudioMenu(false);
-                          }}
-                          className={`flex items-center gap-1 rounded px-2 py-1 transition-colors cursor-pointer ${
-                            selectedSubTrack !== null
-                              ? "bg-zinc-800 text-white"
-                              : showSubMenu
-                              ? "bg-zinc-800 text-white"
-                              : "hover:bg-zinc-800 text-zinc-400"
-                          }`}
-                          title={t("Select Subtitles")}
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline text-[11px]">CC</span>
+                        <button onClick={toggleFullscreen} className="player-pill player-pill--icon" aria-label={t("Toggle Fullscreen (F)")} title={t("Toggle Fullscreen (F)")}>
+                          {isFullscreen ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
                         </button>
-
-                        {showSubMenu && (
-                          <div className="absolute bottom-8 right-0 w-56 rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-2xl z-30 max-h-60 overflow-y-auto animate-in fade-in duration-100">
-                            <p className="px-2.5 py-1 text-[10px] font-mono text-zinc-400 border-b border-zinc-800 mb-1">
-                              {t("Subtitles")}</p>
-                            <button
-                              onClick={() => handleSubtitleTrackSelect(null)}
-                              className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs text-left transition-colors cursor-pointer ${
-                                selectedSubTrack === null
-                                  ? "bg-zinc-800 text-white font-medium"
-                                  : "hover:bg-zinc-800/60 text-zinc-300"
-                              }`}
-                            >
-                              <span>{t("Off")}</span>
-                              {selectedSubTrack === null && <Check className="h-3.5 w-3.5 ml-1 shrink-0" />}
-                            </button>
-
-                            {videoMeta?.subtitle_tracks && videoMeta.subtitle_tracks.length > 0 ? (
-                              videoMeta.subtitle_tracks.map((track) => (
-                                <button
-                                  key={track.index}
-                                  onClick={() => handleSubtitleTrackSelect(track.index)}
-                                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs text-left transition-colors cursor-pointer ${
-                                    selectedSubTrack === track.index
-                                      ? "bg-zinc-800 text-white font-medium"
-                                      : "hover:bg-zinc-800/60 text-zinc-300"
-                                  }`}
-                                >
-                                  <span className="truncate" title={track.title}>{mediaTrackLabel(track, videoMeta.subtitle_tracks || [], locale)}</span>
-                                  {selectedSubTrack === track.index && <Check className="h-3.5 w-3.5 ml-1 shrink-0" />}
-                                </button>
-                              ))
-                            ) : null}
-                          </div>
-                        )}
                       </div>
-
-                      <div className="relative">
-                       <button disabled={qualities.length<2} aria-label={t("Qualité")} aria-expanded={showQualityMenu} title={t(qualities.length<2?"Une seule qualité disponible":"Choisir la qualité")} onClick={()=>{setShowQualityMenu(!showQualityMenu);setShowAudioMenu(false);setShowSubMenu(false);}} className="rounded bg-zinc-800 px-2 py-1 text-[10px] font-mono text-zinc-200 disabled:!opacity-100">{videoMeta?.resolution||qualities.find(q=>q.file.index===selectedFileIdx)?.height&&`${qualities.find(q=>q.file.index===selectedFileIdx)?.height}p`||t("Original")}</button>
-                       {showQualityMenu&&<div className="absolute bottom-8 right-0 w-32 rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 z-30" role="group" aria-label={t("Qualité")}>{qualities.map(q=><button key={q.height} className="flex w-full justify-between rounded px-3 py-2 text-xs text-white hover:bg-zinc-800" onClick={()=>changeQuality(q.file.index)} aria-pressed={q.file.index===selectedFileIdx}>{q.height}p{q.file.index===selectedFileIdx&&<Check size={14}/>}</button>)}</div>}
-                      </div>
-                      <button
-                        onClick={toggleFullscreen}
-                        className="rounded p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                        title={t("Toggle Fullscreen (F)")}
-                      >
-                        {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
-                      </button>
                     </div>
                   </div>
                 </div>
+
+                {optionsTab && (
+                  <PlayerOptionsModal
+                    tab={optionsTab}
+                    onTabChange={setOptionsTab}
+                    onClose={() => setOptionsTab(null)}
+                    audioOptions={(videoMeta?.audio_tracks || []).map((track) => ({ index: track.index, title: track.title, label: mediaTrackLabel(track, videoMeta?.audio_tracks || [], locale) }))}
+                    selectedAudio={selectedAudioTrack}
+                    audioHint={videoMeta?.audio_tracks?.length && !videoMeta.audio_tracks.some(track => trackLanguageCode(track.language) === "fr") ? t(videoMeta.audio_tracks.some(track => !track.language || track.language === "und") ? "VF non confirmée pour ce fichier." : "VF indisponible dans ce fichier.") : null}
+                    onSelectAudio={handleAudioTrackSelect}
+                    subtitleOptions={(videoMeta?.subtitle_tracks || []).map((track) => ({ index: track.index, title: track.title, label: mediaTrackLabel(track, videoMeta?.subtitle_tracks || [], locale) }))}
+                    selectedSubtitle={selectedSubTrack}
+                    onSelectSubtitle={handleSubtitleTrackSelect}
+                    ambilight={ambilight}
+                    onAmbilightChange={updateAmbilight}
+                  />
+                )}
               </div>
 
               {/* Swarm & Metadata Telemetry HUD */}
               <div className="player-telemetry border-b border-zinc-800 bg-zinc-900/20 p-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   {/* Seeders */}
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2.5">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
                     <p className="text-[11px] text-zinc-400">{t("Seeders")}</p>
                     <p className="font-mono text-zinc-200 font-medium mt-0.5">
                       {stats?.active_seeders ?? item.seeders} <span className="text-zinc-500 font-normal">({stats?.total_peers ?? 0} {" "}{t("peers)")}</span>
@@ -962,7 +933,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   </div>
 
                   {/* Download Speed */}
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2.5">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
                     <p className="text-[11px] text-zinc-400">{t("Download Speed")}</p>
                     <p className="font-mono text-zinc-200 font-medium mt-0.5">
                       {stats ? `${formatBytes(stats.download_rate_bps)}/s` : t("Buffering...")}
@@ -970,7 +941,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   </div>
 
                   {/* Duration */}
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2.5">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
                     <p className="text-[11px] text-zinc-400">{t("Duration")}</p>
                     <p className="font-mono text-zinc-200 font-medium mt-0.5">
                       {totalDuration > 0 ? formatTime(totalDuration) : videoMeta?.formatted_duration || t("Detecting...")}
@@ -978,7 +949,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   </div>
 
                   {/* File Size */}
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2.5">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
                     <p className="text-[11px] text-zinc-400">{t("File Size")}</p>
                     <p className="font-mono text-zinc-200 font-medium mt-0.5">
                       {formatBytes(videoMeta?.total_bytes || currentFile?.length || item.size_bytes)}
@@ -1005,7 +976,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         setSelectedSubTrack(null);
                         updateProgressDisplay(0);
                       }}
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none font-mono"
+                      className="w-full rounded-full border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none font-mono"
                     >
                       {loadData.files.map((file) => (
                         <option key={file.index} value={file.index}>
@@ -1029,7 +1000,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
                   <button
                     onClick={handleCopyMagnet}
-                    className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
                   >
                     {copied ? (
                       <>

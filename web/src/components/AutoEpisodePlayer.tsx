@@ -1,8 +1,9 @@
 "use client";
 import { useI18n } from "@/lib/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { EpisodeSource } from '@/types/api';
+import type { EpisodeInfo, EpisodeSource } from '@/types/api';
 import { diagnosticEvent } from "@/lib/diagnostics";
+import { loadTorrent } from "@/lib/api";
 import { playbackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
 import { EpisodeSourceSelectorModal } from './EpisodeSourceSelectorModal';
@@ -23,6 +24,8 @@ interface Props {
  onClose: () => void;
  onNextEpisode?: () => void;
  onPrevEpisode?: () => void;
+ episodes?: EpisodeInfo[];
+ onSelectEpisode?: (episode: number) => void;
 }
 
 export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
@@ -47,13 +50,26 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    ? { index: current.index + 1, position: Math.max(0, failure.position), reason: failure.reason, id:crypto.randomUUID() }
    : current);
  }, [attempt.id]);
+ // Warm the next candidates' metadata in the background: a failing source then hands over to a ready one.
+ useEffect(()=>{
+  const upcoming=candidates.slice(attempt.index+1,attempt.index+3);
+  if(!upcoming.length)return;
+  const controller=new AbortController();
+  const timer=setTimeout(async()=>{
+   for(const next of upcoming){
+    if(controller.signal.aborted)return;
+    try{await loadTorrent(next.magnet_uri,{metadataOnly:true,prewarm:true,signal:controller.signal});}catch{/* best effort */}
+   }
+  },3000);
+  return()=>{clearTimeout(timer);controller.abort();};
+ },[candidates,attempt.index]);
  if (!source) return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6">
   <div role="alert" className="max-w-lg space-y-4 text-center text-zinc-100">
    <p>{t(candidates.length?"Toutes les tentatives de lecture ont échoué.":partial?"La recherche de torrents est incomplète. Réessayez.":"Aucun torrent ne correspond à cet épisode.")}</p>
    <p className="text-xs text-zinc-400">{t("Référence de diagnostic")} : <code>{session}</code></p>
    {attempt.reason && <p className="text-sm text-zinc-400">{t(attempt.reason)}</p>}
    <div className="flex justify-center gap-4">
-    {<button className="rounded bg-white text-black px-4 py-2" onClick={() => candidates.length?setAttempt({ index: 0, position: attempt.position, reason: '', id:crypto.randomUUID() }):onRetrySources?.()}>{t("Réessayer")}</button>}
+    {<button className="rounded-full bg-white text-black px-4 py-2" onClick={() => candidates.length?setAttempt({ index: 0, position: attempt.position, reason: '', id:crypto.randomUUID() }):onRetrySources?.()}>{t("Réessayer")}</button>}
     <button className="underline" onClick={props.onClose}>{t("Fermer")}</button>
    </div>
   </div>

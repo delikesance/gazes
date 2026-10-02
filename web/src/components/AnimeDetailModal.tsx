@@ -131,7 +131,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="relative flex flex-col w-full max-w-5xl max-h-[92vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative flex flex-col w-full max-w-5xl max-h-[92vh] bg-zinc-950 border border-zinc-800 rounded-[28px] shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -153,7 +153,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
               <div className="flex flex-col sm:flex-row gap-5 items-start">
                 {/* Poster Image */}
                 {anime.poster_image && (
-                  <div className="hidden sm:block shrink-0 w-28 h-40 rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900">
+                  <div className="hidden sm:block shrink-0 w-28 h-40 rounded-[14px] overflow-hidden border border-zinc-800 bg-zinc-900">
                     <LazyImage
                       src={anime.poster_image}
                       alt={anime.franchise_title || anime.display_title}
@@ -179,7 +179,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
 
                     <button
                       onClick={onClose}
-                      className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       <X className="h-5 w-5" />
                     </button>
@@ -188,27 +188,27 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                   {/* Badges */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-3">
                     {anime.average_score && anime.average_score > 0 ? (
-                      <span className="rounded bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-mono text-zinc-200">
+                      <span className="rounded-full bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-mono text-zinc-200">
                         ★ {anime.average_score.toFixed(1)}
                       </span>
                     ) : null}
 
                     {anime.episodes ? (
-                      <span className="rounded bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-mono text-zinc-300">
+                      <span className="rounded-full bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-[10px] font-mono text-zinc-300">
                         {anime.episodes} {t("Episodes")}</span>
                     ) : null}
 
                     {anime.genres?.map((genre) => (
                       <span
                         key={genre}
-                        className="rounded bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400"
+                        className="rounded-full bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400"
                       >
                         {genre}
                       </span>
                     ))}
 
                     {anime.season_year ? (
-                      <span className="rounded bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 font-mono">
+                      <span className="rounded-full bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 font-mono">
                         {anime.season_year}
                       </span>
                     ) : null}
@@ -272,7 +272,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                             setShowFullDesc(false);
                           }
                         }}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                           isCurrent
                             ? "bg-white text-zinc-950 shadow-sm"
                             : "bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white"
@@ -281,7 +281,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                         <span>{season.season_name || season.title}</span>
                         {season.episodes ? (
                           <span
-                            className={`text-[10px] font-mono px-1 py-0.2 rounded ${
+                            className={`text-[10px] font-mono px-1 py-0.2 rounded-full ${
                               isCurrent ? "bg-zinc-200 text-zinc-800" : "bg-zinc-800 text-zinc-400"
                             }`}
                           >
@@ -297,7 +297,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
                   <span className="text-zinc-500 font-mono flex items-center gap-1 shrink-0 mr-1 text-[11px]">
                     <Layers className="h-3.5 w-3.5" /> {t("SAISONS:")}</span>
-                  <span className="rounded-lg bg-white text-zinc-950 font-medium px-3 py-1.5 text-xs whitespace-nowrap shadow-sm">
+                  <span className="rounded-full bg-white text-zinc-950 font-medium px-3 py-1.5 text-xs whitespace-nowrap shadow-sm">
                     {t("Saison 1 (")}{anime.episodes ? t("{count} ép.", {count:anime.episodes}) : t("Principale")})
                   </span>
                   {seasonRelations.map((rel) => (
@@ -305,7 +305,7 @@ export const AnimeDetailModal: React.FC<AnimeDetailModalProps> = ({
                       key={rel.id}
                       onClick={() => handleSelectRelation(rel)}
                       title={rel.display_title}
-                      className="rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-3 py-1.5 text-xs transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5"
+                      className="rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-3 py-1.5 text-xs transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5"
                     >
                       <span>{rel.display_title}</span>
                       <span className="text-[10px] font-mono text-zinc-500">

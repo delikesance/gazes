@@ -25,7 +25,7 @@ export const AnimeGroupCard: React.FC<AnimeGroupCardProps> = ({
   return (
     <div
       onClick={() => onSelectGroup(group)}
-      className="group flex flex-col justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/90 hover:border-zinc-700 transition-all duration-200 cursor-pointer overflow-hidden"
+      className="group flex flex-col justify-between rounded-[20px] border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/90 hover:border-zinc-700 transition-all duration-200 cursor-pointer overflow-hidden"
     >
       {/* Poster Box */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-950">
@@ -39,13 +39,13 @@ export const AnimeGroupCard: React.FC<AnimeGroupCardProps> = ({
         {/* Badges */}
         <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between pointer-events-none">
           <div className="flex items-center gap-1">
-            <span className="rounded bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-300">
+            <span className="rounded-full bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-300">
               {group.release_count} {group.release_count === 1 ? "source" : "sources"}
             </span>
           </div>
 
           {anime?.average_score && anime.average_score > 0 ? (
-            <span className="rounded bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-200">
+            <span className="rounded-full bg-zinc-950/80 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-200">
               ★ {anime.average_score.toFixed(1)}
             </span>
           ) : null}
@@ -93,7 +93,7 @@ export const AnimeGroupCard: React.FC<AnimeGroupCardProps> = ({
               {anime.genres.slice(0, 3).map((g) => (
                 <span
                   key={g}
-                  className="rounded bg-zinc-800/60 border border-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-300"
+                  className="rounded-full bg-zinc-800/60 border border-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-300"
                 >
                   {g}
                 </span>

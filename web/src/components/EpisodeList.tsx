@@ -63,10 +63,10 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
   return (
     <div className="space-y-4">
       {/* Episodes Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/40 border border-zinc-800/80 p-3 rounded-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/40 border border-zinc-800/80 p-3 rounded-[20px]">
         <div className="flex items-center gap-2">
           <span className="text-xs sm:text-sm font-medium text-zinc-200">{t("Episodes")}</span>
-          <span className="rounded bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-xs font-mono text-zinc-300">
+          <span className="rounded-full bg-zinc-800 border border-zinc-700 px-2 py-0.5 text-xs font-mono text-zinc-300">
             {filteredEpisodes.length}
           </span>
         </div>
@@ -82,7 +82,7 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
               setFilterQuery(e.target.value);
               setPage(1);
             }}
-            className="w-full bg-zinc-900/80 border border-zinc-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono"
+            className="w-full bg-zinc-900/80 border border-zinc-800 rounded-full pl-8 pr-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono"
           />
         </div>
       </div>
@@ -98,7 +98,7 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
               <button
                 key={chunk.label}
                 onClick={() => setPage(chunkPage)}
-                className={`rounded px-2 py-0.5 font-mono text-[11px] transition-colors whitespace-nowrap cursor-pointer ${
+                className={`rounded-full px-2 py-0.5 font-mono text-[11px] transition-colors whitespace-nowrap cursor-pointer ${
                   isSelected
                     ? "bg-zinc-100 text-zinc-950 font-semibold"
                     : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
@@ -128,7 +128,7 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
                 <div
                   key={ep.episode_number}
                   onClick={() => onPlayEpisode(ep)}
-                  className={`group flex flex-col justify-between rounded-xl border bg-zinc-900/40 hover:bg-zinc-900/80 transition-all duration-150 overflow-hidden cursor-pointer ${
+                  className={`group flex flex-col justify-between rounded-[20px] border bg-zinc-900/40 hover:bg-zinc-900/80 transition-all duration-150 overflow-hidden cursor-pointer ${
                     isPlaying
                       ? "border-white/80 ring-1 ring-white/40"
                       : "border-zinc-800/80 hover:border-zinc-700"
@@ -145,7 +145,7 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
 
                     {/* Episode Number Badge */}
                     <div className="absolute top-2 left-2 pointer-events-none">
-                      <span className="rounded bg-zinc-950/85 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-200">
+                      <span className="rounded-full bg-zinc-950/85 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-zinc-200">
                         EP {ep.episode_number}
                       </span>
                     </div>
@@ -178,7 +178,7 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
                           onPlayEpisode(ep);
                         }}
                         disabled={isLoading}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-full bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                       >
                         {isLoading ? (
                           <>
@@ -199,7 +199,7 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
                           onOpenSources(ep);
                         }}
                         title={t("Browse all available sources / resolutions")}
-                        className="flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2 py-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                        className="flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2 py-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer"
                       >
                         <Layers className="h-3.5 w-3.5" />
                       </button>
@@ -220,14 +220,14 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="p-1.5 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 disabled:opacity-30 hover:bg-zinc-800 cursor-pointer"
+                  className="p-1.5 rounded-full border border-zinc-800 bg-zinc-900 text-zinc-300 disabled:opacity-30 hover:bg-zinc-800 cursor-pointer"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-1.5 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 disabled:opacity-30 hover:bg-zinc-800 cursor-pointer"
+                  className="p-1.5 rounded-full border border-zinc-800 bg-zinc-900 text-zinc-300 disabled:opacity-30 hover:bg-zinc-800 cursor-pointer"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>

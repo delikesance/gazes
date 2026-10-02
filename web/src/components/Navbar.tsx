@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onSearch, initialQuery = "" }) =
             onSearch("");
           }}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-950 font-bold text-sm tracking-tighter">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-950 font-bold text-sm tracking-tighter">
             G
           </div>
           <div>
@@ -48,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onSearch, initialQuery = "" }) =
               <span className="text-base font-semibold tracking-tight text-zinc-100 group-hover:text-white transition-colors">
                 GAZES
               </span>
-              <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.2 rounded-full">
                 STREAM
               </span>
             </div>
@@ -64,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onSearch, initialQuery = "" }) =
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("Search anime (e.g. Frieren, Dandadan, One Piece)...")}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 py-2 pl-10 pr-20 text-xs sm:text-sm text-zinc-100 placeholder-zinc-400 transition-all focus:border-zinc-500 focus:bg-zinc-900 focus:outline-none"
+              className="w-full rounded-full border border-zinc-800 bg-zinc-900/80 py-2 pl-10 pr-20 text-xs sm:text-sm text-zinc-100 placeholder-zinc-400 transition-all focus:border-zinc-500 focus:bg-zinc-900 focus:outline-none"
             />
             {query && (
               <button
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onSearch, initialQuery = "" }) =
             )}
             <button
               type="submit"
-              className="absolute right-1.5 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-all cursor-pointer"
+              className="absolute right-1.5 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full transition-all cursor-pointer"
             >
               {t("Search")}</button>
           </form>

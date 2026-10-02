@@ -29,7 +29,9 @@ const server=createServer(async (req,res)=>{
  if(url.pathname.endsWith('/torrent/load')) {
   let body='';for await (const chunk of req) body+=chunk;
   const payload=JSON.parse(body), id=payload.magnet.split(':').pop();
-  assert.equal(payload.metadata_only,true);attempts.push(id);
+  assert.equal(payload.metadata_only,true);
+  if(req.headers['x-gazes-prewarm']){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({info_hash:id,files,main_video_index:0,main_video_metadata:metadata}));return;}
+  attempts.push(id);
   if(id==='metadata-stalled'){res.setHeader('Content-Type','application/json');res.write('{');res.on('close',()=>metadataAborted=true);return;}
   if(id==='offline'||(id==='last'&&failedLast)){res.statusCode=504;res.end('unavailable');return;}
   res.setHeader('Content-Type','application/json');res.end(JSON.stringify({info_hash:id,files:id==='ambiguous'?[{index:0,path:'unknown.mkv',is_video:true}]:files,main_video_index:0,main_video_metadata:metadata}));return;

@@ -114,10 +114,10 @@ export async function getLatestAnime(
   return res.json();
 }
 
-export async function loadTorrent(magnetURI: string, options: {metadataOnly?: boolean; signal?: AbortSignal; diagnostic?:PlaybackDiagnostic} = {}): Promise<LoadTorrentResponse> {
+export async function loadTorrent(magnetURI: string, options: {metadataOnly?: boolean; signal?: AbortSignal; diagnostic?:PlaybackDiagnostic; prewarm?: boolean} = {}): Promise<LoadTorrentResponse> {
   const res = await fetch(`${getApiBase()}/torrent/load`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...diagnosticHeaders(options.diagnostic) },
+    headers: { "Content-Type": "application/json", ...diagnosticHeaders(options.diagnostic), ...(options.prewarm ? { "X-Gazes-Prewarm": "1" } : {}) },
     body: JSON.stringify({ magnet: magnetURI, metadata_only: options.metadataOnly }),
  signal: options.signal,
   });
