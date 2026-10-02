@@ -2,10 +2,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { AtSign, Eye, EyeOff, Lock, Mail, Play } from "lucide-react";
-import { AuthError, type AuthErrorCode } from "@/lib/auth";
+import { AtSign, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
+import { AuthError, solveFreshCaptcha, type AuthErrorCode } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { CaptchaField } from "./CaptchaField";
 import { useAuth } from "./AuthProvider";
 import { PageGrid } from "./ui/PageGrid";
 import { Scribble } from "./ui/Scribble";
@@ -25,7 +24,6 @@ const ERRORS: Record<string, string> = {
   rate_limited: "Trop de tentatives. Réessayez dans quelques minutes.",
   network: "Impossible de joindre le serveur.",
   terms: "Vous devez accepter les conditions d’utilisation.",
-  captcha_missing: "Confirmez que vous n’êtes pas un robot.",
 };
 
 /** 0 to 4: length, length+, letter case mix, digit/symbol. */
@@ -64,8 +62,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [terms, setTerms] = useState(false);
-  const [captcha, setCaptcha] = useState<string | null>(null);
-  const [captchaReset, setCaptchaReset] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -82,20 +78,18 @@ export function AuthPage({ mode }: { mode: Mode }) {
     if (isRegister && !PSEUDO.test(pseudo.trim())) found.pseudo = translateCode("invalid_pseudo");
     if (password.length < 8) found.password = translateCode("invalid_password");
     if (isRegister && !terms) found.terms = translateCode("terms");
-    if (!captcha) found.captcha = translateCode("captcha_missing");
     setErrors(found);
     setFormError("");
     if (Object.keys(found).length) return;
     setBusy(true);
     try {
-      if (isRegister) await register({ email: email.trim(), pseudo: pseudo.trim(), password, captcha: captcha! });
-      else await login({ email: email.trim(), password, captcha: captcha! });
+      // The proof-of-work runs when the form is sent; each solution is single-use.
+      const captcha = await solveFreshCaptcha();
+      if (isRegister) await register({ email: email.trim(), pseudo: pseudo.trim(), password, captcha });
+      else await login({ email: email.trim(), password, captcha });
       router.replace(next);
     } catch (error) {
-      const code = error instanceof AuthError ? error.code : "server_error";
-      // A captcha payload is single-use: whatever failed, ask for a new one.
-      setCaptcha(null);
-      setCaptchaReset((n) => n + 1);
+      const code = error instanceof AuthError ? error.code : (error as Error).message === "captcha_failed" ? "captcha_failed" : "server_error";
       if (code === "email_taken") setErrors({ email: translateCode(code) });
       else if (code === "invalid_email" || code === "invalid_pseudo" || code === "invalid_password") setErrors({ [code.replace("invalid_", "")]: translateCode(code) });
       else setFormError(translateCode(code));
@@ -118,7 +112,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
             <h2 className="serif">{t(isRegister ? "Gardez votre progression partout." : "Reprenez là où vous vous êtes arrêté.")}</h2>
             <p>{t(isRegister ? "Un compte, c’est votre historique de lecture sur tous vos appareils." : "Votre progression est enregistrée et vous suit d’un appareil à l’autre.")}</p>
           </div>
-          <span className="chip auth-chip"><Play size={12} aria-hidden="true" />[{t("Titre")}] · {t("Épisode")} 7 · 40:13</span>
         </div>
 
         <form className="auth-form" onSubmit={submit} noValidate>
@@ -154,8 +147,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
             </div>
           )}
 
-          <CaptchaField onChange={setCaptcha} resetKey={captchaReset} />
-          {errors.captcha && <p className="field-error" role="alert">{errors.captcha}</p>}
 
           {isRegister && (
             <>
@@ -169,7 +160,10 @@ export function AuthPage({ mode }: { mode: Mode }) {
           )}
 
           {formError && <p className="form-error" role="alert">{formError}</p>}
-          <button type="submit" className="clay clay-primary clay-lg" disabled={busy}>{t(busy ? "Un instant…" : isRegister ? "Créer mon compte" : "Se connecter")}</button>
+          <button type="submit" className="clay clay-primary clay-lg" disabled={busy} aria-busy={busy}>
+            {busy ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" />{t("Vérification…")}</> : t(isRegister ? "Créer mon compte" : "Se connecter")}
+          </button>
+          <p className="auth-note"><ShieldCheck size={14} aria-hidden="true" />{t("Vérification automatique à l’envoi, sans case à cocher.")}</p>
           <p className="auth-switch">
             {t(isRegister ? "Déjà un compte ?" : "Pas encore de compte ?")} <Link href={otherHref}>{t(isRegister ? "Se connecter" : "S’inscrire")}</Link>
           </p>
