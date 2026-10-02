@@ -3,7 +3,6 @@ import { useI18n } from "@/lib/i18n";
 import Link from "next/link";
 import { LazyImage } from "./ui/LazyImage";
 import { PageGrid } from "./ui/PageGrid";
-import { Scribble } from "./ui/Scribble";
 import type { ReactNode } from "react";
 
 interface Props {
@@ -28,8 +27,6 @@ export function AnimeHero({ title, banner, poster, episodes, year, eyebrow, desc
     </div>
     <div className="anime-hero-shade" />
     <PageGrid />
-    <Scribble shape="a" width={420} rotate={-12} opacity={0.05} strokeWidth={30} style={{ left: -120, bottom: -60 }} />
-    <Scribble shape="b" width={460} rotate={8} opacity={0.045} strokeWidth={30} style={{ right: "26%", top: 40 }} />
     <div className="anime-hero-copy">
       {eyebrow && <span className="eyebrow">{eyebrow}</span>}
       {(episodes || year) && <p className="hero-meta">{episodes ? <span className="chip">{t(episodes === 1 ? "{count} épisode" : "{count} épisodes", {count:episodes})}</span> : null}{year && <span className="chip">{year}</span>}</p>}
