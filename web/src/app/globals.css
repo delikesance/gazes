@@ -54,7 +54,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 button:disabled { cursor: default; opacity: .35; }
 .page-inset { padding-inline: var(--page-gutter); }
 .catalog-page { position: relative; min-height: 100vh; padding-bottom: 50px; }
-.anime-hero { position: relative; min-height: 90vh; max-height: 90vh; min-height: 90dvh; max-height: 90dvh; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 48px; padding: 150px var(--page-gutter) 96px; isolation: isolate; overflow: hidden; }
+.anime-hero { position: relative; height: 90vh; min-height: 90vh; max-height: 90vh; height: 90dvh; min-height: 90dvh; max-height: 90dvh; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 48px; padding: 150px var(--page-gutter) 96px; isolation: isolate; overflow: hidden; }
 .anime-hero-art, .anime-hero-shade, .anime-hero .page-grid, .anime-hero .scribble { z-index: -1; }
 .anime-hero-art, .anime-hero-shade { position: absolute; inset: 0; pointer-events: none; }
 /* The banner is a quiet backdrop: dimmed, fully visible at the top and fading to nothing at the bottom (alpha mask, no color). */
@@ -153,10 +153,9 @@ button:disabled { cursor: default; opacity: .35; }
 .episode-card p { font-size: 13px; color: #a1a1aa; margin-top: 8px; line-height: 1.5; }
 .episode-card.upcoming { color: #71717a; }
 .detail-notice { color: #a1a1aa; font-size: 14px; line-height: 1.7; margin-bottom: 20px; }
-@media (min-width: 1600px) { .anime-hero { min-height: 540px; padding-top: 300px; } }
 @media (max-width: 1023px) { .poster-grid { grid-template-columns: repeat(5,minmax(0,1fr)); } .season-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } .episode-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media (max-width: 600px) {
-  .anime-hero { min-height: 680px; padding: 374px var(--page-gutter) 24px; }
+  .anime-hero { padding: 130px var(--page-gutter) 80px; }
   .anime-hero-art .hero-wide { display: none; }
   .anime-hero-art .hero-portrait { display: block; }
   .anime-hero-art .hero-portrait img { object-position: center top; }
@@ -522,4 +521,3 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 @media (prefers-reduced-motion: reduce) { .featured-carousel .anime-hero-copy, .featured-carousel .hero-poster, .featured-carousel .anime-hero-art { animation: none; } }
 
 /* The home hero fills 90% of the viewport. */
-.featured-carousel .anime-hero { min-height: 90vh; min-height: 90svh; }
