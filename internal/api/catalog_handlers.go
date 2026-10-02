@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"net/http"
 	"regexp"
@@ -316,13 +318,23 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 		diagnostics.Logger(r.Context(), s.logger).Info("resolving season sources", "anime", item.DisplayTitle, "season_id", item.ID, "season_num", identity.SeasonNumber, "episode", ep, "excluded", len(identity.ExcludedTitles))
 	}
 
-	res, err := s.episodeResolver.ResolveSeasonSources(r.Context(), identity)
+	key := fmt.Sprintf("%d|%d", item.ID, ep)
+	res, hit, err := s.sources().resolve(r.Context(), key, func(ctx context.Context) (*indexer.EpisodeSourcesResponse, error) {
+		return s.episodeResolver.ResolveSeasonSources(ctx, identity)
+	})
 	if err != nil {
 		sourceFailure(w, r, err)
 		return
 	}
+	// Cached findings are shared; each response carries the caller's own ids.
+	reply := *res
+	reply.RequestID = diagnostics.Get(r.Context()).RequestID
+	reply.PlaybackSessionID = diagnostics.Get(r.Context()).SessionID
+	if hit && s.logger != nil {
+		diagnostics.Logger(r.Context(), s.logger).Info("sources.cache_hit", "season_id", item.ID, "episode", ep, "sources", len(res.Sources))
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(res)
+	_ = json.NewEncoder(w).Encode(&reply)
 }
 
 // HandleCatalogSeasonal returns releases belonging to the current calendar season.

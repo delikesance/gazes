@@ -659,12 +659,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         {/* Player & Content Area */}
         <div className="player-content flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-28 space-y-3">
-              <Loader2 className="h-8 w-8 text-zinc-400 animate-spin" />
-              <div className="text-center">
-                <p className="text-xs text-zinc-300">{t("Connecting to BitTorrent swarm...")}</p>
-                <p className="text-[11px] font-mono text-zinc-500 mt-0.5">{t("Fetching metadata & sequential pieces")}</p>
-              </div>
+            <div className="player-connecting" role="status" aria-live="polite">
+              <svg className="watch-loading-ring" viewBox="0 0 72 72" aria-hidden="true">
+                <circle className="watch-loading-track" cx="36" cy="36" r="32" />
+                <circle className="watch-loading-arc" cx="36" cy="36" r="32" pathLength={100} />
+              </svg>
+              <h2 className="serif">{t("Connexion au swarm…")}</h2>
+              <p>{t("Récupération des métadonnées et des premières pièces")}</p>
             </div>
           ) : needsFileSelection ? (
             <div className="p-6 pt-24 space-y-4">
