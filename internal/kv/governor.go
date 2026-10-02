@@ -106,13 +106,16 @@ func (g *Governor) Penalize(ctx context.Context, d time.Duration) {
 	if d <= 0 {
 		return
 	}
-	if cur := g.Cooldown(ctx); cur >= d {
+	// Always remembered locally too: if Redis is down this instance must still back off.
+	g.mu.Lock()
+	if until := time.Now().Add(d); until.After(g.localBlocked) {
+		g.localBlocked = until
+	}
+	g.mu.Unlock()
+	if g.c == nil {
 		return
 	}
-	if g.c == nil {
-		g.mu.Lock()
-		g.localBlocked = time.Now().Add(d)
-		g.mu.Unlock()
+	if cur := g.Cooldown(ctx); cur >= d {
 		return
 	}
 	if err := g.c.rdb.Set(ctx, g.key("cooldown"), 1, d).Err(); err != nil {
@@ -122,20 +125,21 @@ func (g *Governor) Penalize(ctx context.Context, d time.Duration) {
 
 // Cooldown returns the remaining shared cooldown (0 when none).
 func (g *Governor) Cooldown(ctx context.Context) time.Duration {
+	g.mu.Lock()
+	local := max(0, time.Until(g.localBlocked))
+	g.mu.Unlock()
 	if g.c == nil {
-		g.mu.Lock()
-		defer g.mu.Unlock()
-		return max(0, time.Until(g.localBlocked))
+		return local
 	}
 	d, err := g.c.rdb.PTTL(ctx, g.key("cooldown")).Result()
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
 			g.c.stats.errors.Add(1)
 		}
-		return 0
+		return local
 	}
 	if d < 0 { // -2 key missing, -1 no expiry
-		return 0
+		return local
 	}
-	return d
+	return max(d, local)
 }

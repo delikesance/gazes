@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -17,11 +18,19 @@ const (
 	// anilistDefaultBackoff applies when AniList answers 429 without a Retry-After header.
 	anilistDefaultBackoff = 30 * time.Second
 	anilistMaxBackoff     = 2 * time.Minute
-	// AniList allows 90 requests/min nominally but is currently degraded to 30: stay under it.
-	anilistPerMinute = 25
-	anilistBurst     = 10
-	anilistMaxWait   = 8 * time.Second
+	anilistMaxWait        = 8 * time.Second
 )
+
+// anilistRate is the fleet-wide budget in requests per minute (ANILIST_PER_MINUTE, default 60).
+// AniList allows 90/min nominally and 30/min while degraded; a 429 starts a shared cooldown anyway,
+// so this only has to be low enough to avoid triggering it in normal use.
+func anilistRate() (perMinute, burst int) {
+	perMinute = 60
+	if v, err := strconv.Atoi(os.Getenv("ANILIST_PER_MINUTE")); err == nil && v > 0 {
+		perMinute = v
+	}
+	return perMinute, max(10, perMinute/2)
+}
 
 // RateLimitError means AniList is throttling us; RetryAfter says when calls may resume.
 type RateLimitError struct{ RetryAfter time.Duration }
@@ -38,7 +47,8 @@ type anilistClient struct {
 }
 
 func newAnilistClient(hc *http.Client, c *kv.Client) *anilistClient {
-	return &anilistClient{http: hc, gov: c.NewGovernor("anilist", anilistPerMinute, anilistBurst, anilistMaxWait)}
+	perMinute, burst := anilistRate()
+	return &anilistClient{http: hc, gov: c.NewGovernor("anilist", perMinute, burst, anilistMaxWait)}
 }
 
 // post runs one GraphQL request and decodes the answer into out.

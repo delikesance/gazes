@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -32,21 +33,21 @@ func Open(ctx context.Context, url, namespace string, wait time.Duration) (*Clie
 	if err != nil {
 		return nil, fmt.Errorf("invalid REDIS_URL: %w", err)
 	}
-	opts.MaxRetries = 2
-	opts.DialTimeout = 2 * time.Second
+	opts.MaxRetries = 0 // the breaker below decides when to try again
+	opts.DialTimeout = time.Second
 	opts.ReadTimeout = 2 * time.Second
 	opts.WriteTimeout = 2 * time.Second
-	c := New(redis.NewClient(opts), namespace)
+	rdb := redis.NewClient(opts)
 	deadline := time.Now().Add(wait)
 	for {
 		pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		err = c.rdb.Ping(pingCtx).Err()
+		err = rdb.Ping(pingCtx).Err()
 		cancel()
 		if err == nil {
-			return c, nil
+			return New(rdb, namespace), nil
 		}
 		if time.Now().After(deadline) || ctx.Err() != nil {
-			_ = c.rdb.Close()
+			_ = rdb.Close()
 			return nil, fmt.Errorf("redis unreachable: %w", err)
 		}
 		time.Sleep(time.Second)
@@ -58,7 +59,60 @@ func New(rdb *redis.Client, namespace string) *Client {
 	if namespace == "" {
 		namespace = "gazes"
 	}
-	return &Client{rdb: rdb, namespace: namespace}
+	c := &Client{rdb: rdb, namespace: namespace}
+	rdb.AddHook(&breaker{c: c})
+	return c
+}
+
+// breakerOpenFor is how long Redis is ignored after a network failure.
+const breakerOpenFor = 5 * time.Second
+
+// breaker is a circuit breaker on the Redis connection. During an outage every operation would
+// otherwise wait for its own dial/read timeout, and a request making several of them stalls for
+// tens of seconds. After one network failure Redis is skipped for a few seconds: operations fail
+// at once, caches fall back to direct upstream calls, and the auth state fails closed instantly.
+type breaker struct {
+	c     *Client
+	until atomic.Int64 // unix nanoseconds
+}
+
+var errBreakerOpen = errors.New("redis circuit open")
+
+func (b *breaker) DialHook(next redis.DialHook) redis.DialHook { return next }
+
+func (b *breaker) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		if time.Now().UnixNano() < b.until.Load() {
+			return errBreakerOpen
+		}
+		err := next(ctx, cmd)
+		b.observe(err)
+		return err
+	}
+}
+
+func (b *breaker) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		if time.Now().UnixNano() < b.until.Load() {
+			return errBreakerOpen
+		}
+		err := next(ctx, cmds)
+		b.observe(err)
+		return err
+	}
+}
+
+// observe opens the circuit on connection-level failures only: a missing key, a server error or
+// the caller's own cancellation say nothing about Redis' health.
+func (b *breaker) observe(err error) {
+	if err == nil || errors.Is(err, redis.Nil) || errors.Is(err, context.Canceled) {
+		return
+	}
+	var serverErr redis.Error
+	if errors.As(err, &serverErr) {
+		return
+	}
+	b.until.Store(time.Now().Add(breakerOpenFor).UnixNano())
 }
 
 // Close releases the connection pool.

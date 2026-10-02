@@ -56,6 +56,7 @@ services:
       # Required: caches, upstream rate limits and auth state live in the shared Redis (make redis-up).
       REDIS_URL: "redis://:${REDIS_PASSWORD:-}@gazes-redis:6379/0"
       REDIS_NAMESPACE: "${REDIS_NAMESPACE:-gazes}"
+      ANILIST_PER_MINUTE: "${ANILIST_PER_MINUTE:-60}"
       # The backend is only reachable through the web service, so its X-Forwarded-* headers are trusted.
       TRUST_PROXY: "true"
       # Required in production: run `make secrets` to generate them into .env.
