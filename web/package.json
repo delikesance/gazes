@@ -24,6 +24,7 @@
     "@noble/post-quantum": "^0.7.1",
     "clsx": "^2.1.1",
     "jassub": "2.5.16",
+    "libpgs": "^0.9.0",
     "lucide-react": "^1.49.0",
     "next": "16.3.7",
     "react": "19.2.8",

@@ -71,10 +71,11 @@ function loadAmbilight(): AmbilightSettings {
   }
 }
 
-// Bitmap subtitles (PGS, VobSub, DVB) cannot be converted to ASS/VTT by ffmpeg.
-const BITMAP_SUBTITLE_CODECS = new Set(["hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle", "xsub"]);
+// Only PGS can be rendered as a bitmap; other bitmap codecs (VobSub, DVB, XSUB) cannot be converted.
+const UNSUPPORTED_SUBTITLE_CODECS = new Set(["dvd_subtitle", "dvb_subtitle", "xsub"]);
+const isBitmapSubtitle = (track?: SubtitleTrack) => track?.codec === "hdmv_pgs_subtitle";
 function textSubtitleTracks(tracks?: SubtitleTrack[]): SubtitleTrack[] {
-  return (tracks ?? []).filter((track) => !BITMAP_SUBTITLE_CODECS.has(track.codec));
+  return (tracks ?? []).filter((track) => !UNSUPPORTED_SUBTITLE_CODECS.has(track.codec));
 }
 
 function formatTime(seconds: number): string {
@@ -522,9 +523,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     }
   }, [streamUrl, videoMeta?.video_codec, loading, needsFileSelection]);
 
+  const subtitleBitmap = isBitmapSubtitle(videoMeta?.subtitle_tracks?.find((track) => track.index === selectedSubTrack));
   const subtitleUrl =
     loadData && selectedSubTrack !== null
-      ? getSubtitleUrl(loadData.info_hash, selectedFileIdx, selectedSubTrack, "ass",diagnostic)
+      ? getSubtitleUrl(loadData.info_hash, selectedFileIdx, selectedSubTrack, subtitleBitmap ? "sup" : "ass",diagnostic)
       : "";
 
   // Mount a fresh decoder for each source and restore the user's audio settings.
@@ -808,6 +810,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   key={`${streamUrl}-${subtitleUrl}`}
                   videoRef={videoRef}
                   url={subtitleUrl}
+                  bitmap={subtitleBitmap}
                   timeOffset={timeOffset}
                   onError={handleSubtitleError}
                 />

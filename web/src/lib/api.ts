@@ -162,7 +162,7 @@ export function getStreamUrl(
   return diagnosticURL(url,diagnostic);
 }
 
-export function getSubtitleUrl(infoHash: string, fileIdx: number = 0, trackIdx: number = 0, format: "webvtt" | "ass" = "webvtt",diagnostic?:PlaybackDiagnostic): string {
+export function getSubtitleUrl(infoHash: string, fileIdx: number = 0, trackIdx: number = 0, format: "webvtt" | "ass" | "sup" = "webvtt",diagnostic?:PlaybackDiagnostic): string {
   return diagnosticURL(`${getApiBase()}/subtitles?ih=${encodeURIComponent(infoHash)}&file_idx=${fileIdx}&track_idx=${trackIdx}&format=${format}`,diagnostic);
 }
 

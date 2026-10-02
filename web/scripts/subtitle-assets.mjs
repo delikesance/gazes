@@ -25,3 +25,6 @@ for (const file of ['jassub-worker.wasm', 'jassub-worker-modern.wasm']) {
 }
 await copyFile(resolve(dist, 'default.woff2'), resolve(output, 'default.woff2'));
 await copyFile(resolve(dist, '../LICENSE'), resolve(output, 'LICENSE'));
+// libpgs renders bitmap (PGS) subtitles; its worker must be served as a plain file.
+const pgsDist = dirname(require.resolve('libpgs'));
+await copyFile(resolve(pgsDist, 'libpgs.worker.js'), resolve(output, 'libpgs.worker.js'));
