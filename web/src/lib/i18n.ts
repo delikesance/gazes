@@ -48,7 +48,7 @@ const pairs: [string, string][] = [
  ["Cette saison","This season"],["Les incontournables","All-time favorites"],["Hiver","Winter"],["Printemps","Spring"],["Été","Summer"],["Automne","Autumn"],
  ["Animes à découvrir","Discover anime"],["À la une","Featured anime"],["Aucun anime trouvé.","No anime found."],
  ["Source actuelle","Current source"],["Recherche partielle : certaines sources peuvent manquer.","Partial search: some sources may be missing."],
- ["VF indisponible dans ce fichier.","French audio is unavailable in this file."],["VF non confirmée pour ce fichier.","French audio is unconfirmed for this file."],
+ 
  ["Anime précédent","Previous anime"],["Anime suivant","Next anime"],
  ["Reprendre le défilement","Resume slideshow"],["Mettre le défilement en pause","Pause slideshow"],
  ["Explorer les animes","Explore anime"],["Résultats pour « {query} »","Results for “{query}”"],

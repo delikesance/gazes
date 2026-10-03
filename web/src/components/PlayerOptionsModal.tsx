@@ -17,7 +17,6 @@ interface PlayerOptionsModalProps {
   onClose: () => void;
   audioOptions: PlayerTrackOption[];
   selectedAudio: number;
-  audioHint?: string | null;
   onSelectAudio: (index: number) => void;
   subtitleOptions: PlayerTrackOption[];
   selectedSubtitle: number | null;
@@ -27,7 +26,7 @@ interface PlayerOptionsModalProps {
 }
 
 /** One frosted dialog for the tracks a viewer picks: audio and subtitles. */
-export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, selectedAudio, audioHint, onSelectAudio, subtitleOptions, selectedSubtitle, onSelectSubtitle, ambilight, onAmbilightChange }: PlayerOptionsModalProps) {
+export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, selectedAudio, onSelectAudio, subtitleOptions, selectedSubtitle, onSelectSubtitle, ambilight, onAmbilightChange }: PlayerOptionsModalProps) {
   const { t } = useI18n();
   const tabs: [PlayerOptionsTab, string][] = [["audio", "Audio"], ["subtitles", "Sous-titres"], ["ambilight", "Ambilight"]];
 
@@ -54,7 +53,6 @@ export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, se
           {tab === "audio" && (
             <div className="flex flex-col gap-1">
               <p className="player-panel-title">{t("Audio Tracks")}</p>
-              {audioHint && <p className="px-4 py-2 text-xs text-zinc-400">{audioHint}</p>}
               {audioOptions.length > 0 ? audioOptions.map((option) => (
                 <button key={option.index} onClick={() => onSelectAudio(option.index)} data-active={selectedAudio === option.index} className="player-row">
                   <span className="truncate" title={option.title}>{option.label}</span>
