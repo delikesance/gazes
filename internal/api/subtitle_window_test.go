@@ -129,3 +129,96 @@ func TestSubtitleWindowFFmpegPreservesTimestamps(t *testing.T) {
 		})
 	}
 }
+
+// fakeSubtitleFFmpeg writes each launch to a counter file, takes delay seconds, then emits a cue.
+func fakeSubtitleFFmpeg(t *testing.T, delay string) (counter string) {
+	t.Helper()
+	dir := t.TempDir()
+	counter = filepath.Join(dir, "launches")
+	t.Setenv("GAZES_SUBTITLE_TEST_COUNTER", counter)
+	script := "#!/bin/sh\necho x >> \"$GAZES_SUBTITLE_TEST_COUNTER\"\nsleep " + delay + "\nprintf 'WEBVTT\\n\\n00:00:01.000 --> 00:00:02.000\\nhello\\n'\n"
+	executable := filepath.Join(dir, "ffmpeg")
+	if err := os.WriteFile(executable, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FFMPEG_PATH", executable)
+	return counter
+}
+
+func launches(t *testing.T, counter string) int {
+	data, _ := os.ReadFile(counter)
+	return strings.Count(string(data), "x")
+}
+
+func TestSubtitleExtractionOutlivesTimedOutRequest(t *testing.T) {
+	counter := fakeSubtitleFFmpeg(t, "1")
+	previous := subtitleWaitTimeout
+	subtitleWaitTimeout = 200 * time.Millisecond
+	defer func() { subtitleWaitTimeout = previous }()
+	s := &Server{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	get := func() *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=0&duration=25", nil))
+		return w
+	}
+	first := get()
+	if first.Code != http.StatusGatewayTimeout || first.Header().Get("Retry-After") == "" {
+		t.Fatalf("first request: status %d, want a retryable 504", first.Code)
+	}
+	subtitleWaitTimeout = 5 * time.Second
+	retry := get()
+	if retry.Code != 200 || !strings.Contains(retry.Body.String(), "hello") {
+		t.Fatalf("retry: status %d body %q", retry.Code, retry.Body.String())
+	}
+	if n := launches(t, counter); n != 1 {
+		t.Fatalf("the retry restarted the extraction: %d ffmpeg launches", n)
+	}
+	// A finished window is served from memory.
+	again := get()
+	if again.Code != 200 || launches(t, counter) != 1 {
+		t.Fatalf("repeat request re-ran ffmpeg (%d launches)", launches(t, counter))
+	}
+}
+
+func TestSubtitleExtractionIsSharedByIdenticalRequests(t *testing.T) {
+	counter := fakeSubtitleFFmpeg(t, "0.5")
+	s := &Server{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	codes := make(chan int, 3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			w := httptest.NewRecorder()
+			s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=0&duration=25", nil))
+			codes <- w.Code
+		}()
+	}
+	for i := 0; i < 3; i++ {
+		if code := <-codes; code != 200 {
+			t.Fatalf("status %d", code)
+		}
+	}
+	if n := launches(t, counter); n != 1 {
+		t.Fatalf("%d ffmpeg launches for identical requests, want 1", n)
+	}
+}
+
+func TestSubtitleExtractionFailureIsNotCached(t *testing.T) {
+	dir := t.TempDir()
+	counter := filepath.Join(dir, "launches")
+	t.Setenv("GAZES_SUBTITLE_TEST_COUNTER", counter)
+	executable := filepath.Join(dir, "ffmpeg")
+	if err := os.WriteFile(executable, []byte("#!/bin/sh\necho x >> \"$GAZES_SUBTITLE_TEST_COUNTER\"\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FFMPEG_PATH", executable)
+	s := &Server{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	for i := 0; i < 2; i++ {
+		w := httptest.NewRecorder()
+		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=0&duration=25", nil))
+		if w.Code != http.StatusBadGateway {
+			t.Fatalf("status %d, want 502", w.Code)
+		}
+	}
+	if n := launches(t, counter); n != 2 {
+		t.Fatalf("a failed extraction must be retried, got %d launches", n)
+	}
+}

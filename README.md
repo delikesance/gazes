@@ -293,6 +293,15 @@ infohash; VF/VOSTFR ranking remains in the episode resolver. Prowlarr outages
 return partial results from Nyaa rather than stopping Gazes. Real torrent and VF
 availability still depend on upstream sites and swarms.
 
+### Optional Sonarr episode resolution
+
+Gazes can delegate series, season, episode, and release matching to a separately operated
+Sonarr instance while retaining direct torrent streaming. Set `SONARR_URL` and `SONARR_API_KEY`
+only in the backend's private environment. When Sonarr returns a magnet release for the selected
+episode, Gazes uses it directly; an unavailable Sonarr instance or an unusable release falls back
+to the existing resolver. Sonarr is not exposed by Gazes and its API key is never sent to the
+frontend.
+
 ### Updating and backing up
 
 ```sh

@@ -107,6 +107,7 @@ func main() {
 	defer accounts.Close()
 
 	server := api.NewServer(cfg, logger, catalogIndexers, torrentEngine, streamPipeline, api.WithAuth(accounts), api.WithRedis(redisClient))
+	defer server.ClosePlayback()
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	httpServer := &http.Server{

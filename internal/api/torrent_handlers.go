@@ -135,6 +135,7 @@ func (s *Server) HandleMetadata(w http.ResponseWriter, r *http.Request) {
 
 	meta, err := s.analyzer.ProbeReader(probeCtx, reader, fileInfo.Length)
 	if err != nil || meta == nil {
+		diagnostics.Logger(r.Context(), s.logger).Warn("media.probe_failed", "infohash", ih, "file_index", fileIdx, "err", err)
 		meta = &metadata.VideoMetadata{
 			TotalBytes:     fileInfo.Length,
 			ProbeStatus:    "failed",

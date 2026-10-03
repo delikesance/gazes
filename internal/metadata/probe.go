@@ -128,6 +128,7 @@ var probeLimits = []int64{64 * 1024, 1_000_000, 10_000_000}
 func (a *FFprobeAnalyzer) probeReader(ctx context.Context, r io.Reader, totalBytes, maxBytes int64) (*VideoMetadata, error) {
 	diagnostics.Logger(ctx, a.logger).Debug("media.probe_started", "bytes", totalBytes)
 	ffprobeBin := findFFprobePath()
+	r = skipMatroskaAttachments(ctx, r, totalBytes)
 
 	args := []string{
 		"-v", "error",

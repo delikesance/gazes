@@ -229,6 +229,8 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 	isMovie := item.Format == "MOVIE"
 	isOVA := item.Format == "OVA" || item.Format == "SPECIAL"
 	identity := indexer.EpisodeIdentity{
+		MediaID:          item.ID,
+		Format:           item.Format,
 		Titles:           item.Aliases,
 		SeasonNumber:     max(1, season.ReleaseSeasonNumber),
 		EpisodeNumber:    ep,
@@ -237,7 +239,8 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 		IsOVA:            isOVA,
 		AllowUnqualified: season.SeasonNumber <= 1,
 	}
-	if season.SeasonNumber > 1 {
+	authoritative := s.cfg != nil && s.cfg.ArrAuthoritative
+	if !authoritative && season.SeasonNumber > 1 {
 		canonical, err := s.catalogService.GetAnimeDetailsWithEpisodes(r.Context(), f.ID)
 		if err == nil {
 			identity.UnqualifiedTitles = indexer.UniqueSeasonAliases(item.Aliases, canonical.Aliases)
@@ -248,52 +251,55 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Exclude all sibling seasons, OVAs, spin-offs, and movies
-	for _, other := range f.Seasons {
-		if other.ID == item.ID {
-			continue
-		}
-		for _, alias := range append(other.Aliases, other.Title) {
-			cleanAlias := strings.TrimSpace(alias)
-			if cleanAlias == "" {
+	// Legacy-only title heuristics. In authoritative mode, *Arr has already made
+	// these semantic decisions and Gazes never rewrites or reinterprets titles.
+	if !authoritative {
+		for _, other := range f.Seasons {
+			if other.ID == item.ID {
 				continue
 			}
-			normAlias := indexer.CleanTitleForSearch(cleanAlias)
-			if normAlias == "" {
-				continue
-			}
-			isItemAlias := false
-			isBaseOfItem := false
-			for _, itemAlias := range item.Aliases {
-				normItem := indexer.CleanTitleForSearch(itemAlias)
-				if normItem == normAlias {
-					isItemAlias = true
-					break
+			for _, alias := range append(other.Aliases, other.Title) {
+				cleanAlias := strings.TrimSpace(alias)
+				if cleanAlias == "" {
+					continue
 				}
-				if strings.Contains(" "+strings.ToLower(normItem)+" ", " "+strings.ToLower(normAlias)+" ") {
-					isBaseOfItem = true
+				normAlias := indexer.CleanTitleForSearch(cleanAlias)
+				if normAlias == "" {
+					continue
 				}
-			}
-			if !isItemAlias && !isBaseOfItem {
-				identity.ExcludedTitles = append(identity.ExcludedTitles, cleanAlias)
-			}
-			subParts := regexp.MustCompile(`[:：–—\-]`).Split(cleanAlias, -1)
-			if len(subParts) > 1 {
-				for _, part := range subParts[1:] {
-					cleanPart := strings.TrimSpace(part)
-					cleanPart = regexp.MustCompile(`(?i)\b(?:season|saison|part|cour)\s*\d+\b`).ReplaceAllString(cleanPart, "")
-					cleanPart = strings.TrimSpace(cleanPart)
-					if len(cleanPart) >= 3 {
-						normPart := strings.ToLower(cleanPart)
-						partMatchesItem := false
-						for _, itemAlias := range item.Aliases {
-							if strings.Contains(strings.ToLower(itemAlias), normPart) {
-								partMatchesItem = true
-								break
+				isItemAlias := false
+				isBaseOfItem := false
+				for _, itemAlias := range item.Aliases {
+					normItem := indexer.CleanTitleForSearch(itemAlias)
+					if normItem == normAlias {
+						isItemAlias = true
+						break
+					}
+					if strings.Contains(" "+strings.ToLower(normItem)+" ", " "+strings.ToLower(normAlias)+" ") {
+						isBaseOfItem = true
+					}
+				}
+				if !isItemAlias && !isBaseOfItem {
+					identity.ExcludedTitles = append(identity.ExcludedTitles, cleanAlias)
+				}
+				subParts := regexp.MustCompile(`[:：–—\-]`).Split(cleanAlias, -1)
+				if len(subParts) > 1 {
+					for _, part := range subParts[1:] {
+						cleanPart := strings.TrimSpace(part)
+						cleanPart = regexp.MustCompile(`(?i)\b(?:season|saison|part|cour)\s*\d+\b`).ReplaceAllString(cleanPart, "")
+						cleanPart = strings.TrimSpace(cleanPart)
+						if len(cleanPart) >= 3 {
+							normPart := strings.ToLower(cleanPart)
+							partMatchesItem := false
+							for _, itemAlias := range item.Aliases {
+								if strings.Contains(strings.ToLower(itemAlias), normPart) {
+									partMatchesItem = true
+									break
+								}
 							}
-						}
-						if !partMatchesItem {
-							identity.ExcludedTitles = append(identity.ExcludedTitles, cleanPart)
+							if !partMatchesItem {
+								identity.ExcludedTitles = append(identity.ExcludedTitles, cleanPart)
+							}
 						}
 					}
 				}
@@ -301,7 +307,7 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if override, ok := indexer.NumberingOverrides[item.ID]; ok {
+	if override, ok := indexer.NumberingOverrides[item.ID]; ok && !authoritative {
 		if len(override.Titles) > 0 {
 			identity.Titles = override.Titles
 			identity.AllowUnqualified = true
@@ -325,7 +331,11 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Do not reuse findings produced by the old RSS discovery/title rejection rules.
-	key := fmt.Sprintf("discovery-v3|%d|%d", item.ID, ep)
+	cacheVersion := "discovery-v3"
+	if authoritative {
+		cacheVersion = "arr-v1"
+	}
+	key := fmt.Sprintf("%s|%d|%d", cacheVersion, item.ID, ep)
 	if discovery == "full" {
 		key += "|full"
 	}

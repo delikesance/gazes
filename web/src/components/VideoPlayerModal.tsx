@@ -12,6 +12,8 @@ import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } from "./PlayerOptionsModal";
 import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
 import { episodeFile, episodeCandidates } from "@/lib/episode-file";
+import { HlsPlaybackController } from "@/lib/hls-playback";
+import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
@@ -43,6 +45,8 @@ import {
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
+  initialPaused?: boolean;
+  onPlaybackIntent?: (playing: boolean) => void;
   item: TorrentItem | null;
   diagnostic?: PlaybackDiagnostic;
   pageMode?: boolean;
@@ -59,6 +63,8 @@ interface VideoPlayerModalProps {
   onChangeSource?: () => void;
   sourcePicker?: React.ReactNode;
   episodes?: EpisodeInfo[];
+  /** Shown for episodes the metadata provider has no still for. */
+  fallbackThumbnail?: string;
   onSelectEpisode?: (episode: number) => void;
   failover?: FailoverInfo;
   debugAttempt?: DebugAttempt;
@@ -115,6 +121,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   onChangeSource,
   sourcePicker,
   episodes,
+  fallbackThumbnail,
   onSelectEpisode,
   failover,
   debugAttempt,
@@ -124,9 +131,15 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   onVideoMetadata,
   onProgress,
   diagnostic,
+  initialPaused = false,
+  onPlaybackIntent,
 }) => {
   const { t, locale } = useI18n();
   const debugMode = useDebugMode();
+  const engine = usePlaybackEngine();
+  const hlsMode = engine === "hls";
+  const hlsController = useRef<HlsPlaybackController | null>(null);
+  const [subtitleOrigin, setSubtitleOrigin] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(null);
@@ -152,6 +165,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [needsPlaybackGesture,setNeedsPlaybackGesture]=useState(false);
   const [timeOffset, setTimeOffset] = useState(initialTime);
+  const playbackOffset = hlsMode ? 0 : timeOffset;
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -169,7 +183,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setSubtitleError(message ? { message, code } : null);
     if (message) diagnosticEvent(diagnostic, "playback.subtitle_failed", { error_code: code || "unknown" });
   }, [diagnostic]);
-  const resumePlaybackRef = useRef(true);
+  const resumePlaybackRef = useRef(!initialPaused);
   const failureReportedRef = useRef(false);
   const hasStartedRef = useRef(false);
   const lastProgressRef = useRef({ time: 0, at: 0 });
@@ -193,7 +207,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setError(null);
     setStats(null);
     setVideoMeta(null);
-    setTimeOffset(0);
+    setTimeOffset(initialTime);
     setForceRemux(false);
     setSelectedAudioTrack(0);
     setSelectedSubTrack(null);
@@ -211,7 +225,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // Direct DOM updates for smooth timeline
   const updateProgressDisplay = useCallback(
     (timeSec: number) => {
-      const cur = timeOffset + timeSec;
+      const cur = playbackOffset + timeSec;
       if (timeDisplayRef.current) {
         timeDisplayRef.current.textContent = formatTime(cur);
       }
@@ -225,7 +239,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         }
       }
     },
-    [timeOffset, totalDuration]
+    [playbackOffset, totalDuration]
   );
 
   // The white bar: how far ahead of the playhead the browser already holds data.
@@ -238,11 +252,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     for (let i = 0; i < video.buffered.length; i++) {
       if (video.buffered.start(i) <= now + 0.5 && video.buffered.end(i) >= now) end = Math.max(end, video.buffered.end(i));
     }
-    const start = Math.min(100, Math.max(0, (timeOffset / totalDuration) * 100));
-    const stop = Math.min(100, Math.max(start, ((timeOffset + end) / totalDuration) * 100));
+    const start = Math.min(100, Math.max(0, (playbackOffset / totalDuration) * 100));
+    const stop = Math.min(100, Math.max(start, ((playbackOffset + end) / totalDuration) * 100));
     bar.style.left = `${start}%`;
     bar.style.width = `${stop - start}%`;
-  }, [timeOffset, totalDuration]);
+  }, [playbackOffset, totalDuration]);
 
   useEffect(() => () => {
     if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
@@ -255,9 +269,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const reportFailure = useCallback((reason: string, error_code="playback_failed") => {
     if (!onPlaybackFailure || failureReportedRef.current) return;
     failureReportedRef.current = true;
-    diagnosticEvent(diagnostic,"playback.failed",{reason,error_code,position:timeOffset+(videoRef.current?.currentTime||currentTimeRef.current)});
-    onPlaybackFailure({ reason, position: timeOffset + (videoRef.current?.currentTime || currentTimeRef.current) });
-  }, [onPlaybackFailure, timeOffset]);
+    const position = hlsController.current?.position ?? (playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current));
+    diagnosticEvent(diagnostic,"playback.failed",{reason,error_code,position});
+    onPlaybackFailure({ reason, position });
+  }, [onPlaybackFailure, playbackOffset]);
 
   useEffect(() => {
     if (error) reportFailure(error,"torrent_metadata_failed");
@@ -288,7 +303,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // Actual time advancement proves playback. Buffering can occur without an
   // error event, so a dead swarm must not hold this source indefinitely.
   useEffect(() => {
-    if (!onPlaybackFailure || loading || needsFileSelection) return;
+    if (hlsMode || !onPlaybackFailure || loading || needsFileSelection) return;
     const startedAt = Date.now();
     let lastActivity = startedAt;
     let lastBytes = -1;
@@ -315,7 +330,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       }
     }, 1000);
     return () => clearInterval(poll);
-  }, [loading, needsFileSelection, onPlaybackFailure, reportFailure, timeOffset, selectedAudioTrack, item, diagnostic]);
+  }, [hlsMode, loading, needsFileSelection, onPlaybackFailure, reportFailure, timeOffset, selectedAudioTrack, item, diagnostic]);
 
   // Auto-hide controls timer
   const triggerShowControls = useCallback(() => {
@@ -330,6 +345,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
+    if (hlsMode && hlsController.current) {
+      if (resumePlaybackRef.current) hlsController.current.pause(); else hlsController.current.play();
+      triggerShowControls();
+      return;
+    }
     if (!resumePlaybackRef.current || (videoRef.current.paused && !isBuffering)) {
       resumePlaybackRef.current = true;
       lastProgressRef.current.at = Date.now();
@@ -345,13 +365,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       setIsPlaying(false);
     }
     triggerShowControls();
-  }, [triggerShowControls, isBuffering]);
+  }, [triggerShowControls, isBuffering, hlsMode]);
 
   const handleSeek = useCallback((targetSec: number) => {
     diagnosticEvent(diagnostic,"playback.seek",{position:targetSec});
     let finalSec = targetSec;
     if (finalSec < 0) finalSec = 0;
     if (totalDuration > 0 && finalSec > totalDuration) finalSec = totalDuration;
+    if (hlsMode) { hlsController.current?.seek(finalSec); updateProgressDisplay(finalSec); triggerShowControls(); return; }
 
     hasStartedRef.current = false;
     lastProgressRef.current = { time: 0, at: 0 };
@@ -363,7 +384,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     updateProgressDisplay(0);
 
     triggerShowControls();
-  }, [totalDuration, updateProgressDisplay, triggerShowControls]);
+  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls]);
 
   const toggleMute = useCallback(() => {
     if (!videoRef.current) return;
@@ -387,7 +408,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   useEffect(() => {
     if (!item) return;
 
-    resumePlaybackRef.current = true;
+    resumePlaybackRef.current = !initialPaused;
+    failureReportedRef.current = false;
+    hasStartedRef.current = false;
+    setPlaybackError(null);
     subtitleSelectionRef.current = false;
     audioSelectionRef.current = false;
     let isMounted = true;
@@ -427,7 +451,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     return () => {
       isMounted = false;
-      diagnosticEvent(diagnostic,"playback.abandoned",{position:timeOffset+currentTimeRef.current});
+      diagnosticEvent(diagnostic,"playback.abandoned",{position:playbackOffset+currentTimeRef.current});
       controller.abort();
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
@@ -454,7 +478,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // Probe only the selected episode, one request at a time. Cancel an old
   // request when its source/file changes instead of accumulating blocked reads.
   useEffect(() => {
-    if (!loadData || selectedFileIdx < 0) return;
+    if (hlsMode || !loadData || selectedFileIdx < 0) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const probe = async () => {
@@ -475,7 +499,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     };
     void probe();
     return () => { controller.abort(); if (timer) clearTimeout(timer); };
-  }, [loadData, selectedFileIdx]);
+  }, [hlsMode, loadData, selectedFileIdx]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -493,7 +517,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         return;
       }
 
-      const cur = timeOffset + currentTimeRef.current;
+      const cur = playbackOffset + currentTimeRef.current;
 
       switch (e.code) {
         case "Space":
@@ -524,33 +548,60 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [timeOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute]);
+  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute]);
 
 
   const matchingFiles = loadData && item && "episode_number" in item ? episodeCandidates(loadData.files,item as EpisodeSource) : [];
   const selectionFiles = (matchingFiles.length ? matchingFiles : loadData?.files.filter(file=>file.is_video) || []).filter(file=>file.path.toLowerCase().includes(fileSearch.toLowerCase()));
   const currentFile: FileInfo | undefined = loadData?.files[selectedFileIdx];
   const streamUrl = loadData && selectedFileIdx >= 0
-    ? getStreamUrl(loadData.info_hash, selectedFileIdx, forceRemux, timeOffset, selectedAudioTrack,diagnostic)
+    ? hlsMode ? `hls:${loadData.info_hash}:${selectedFileIdx}:${selectedAudioTrack}` : getStreamUrl(loadData.info_hash, selectedFileIdx, forceRemux, timeOffset, selectedAudioTrack,diagnostic)
     : "";
 
   useEffect(() => {
     setPlaybackError(null);
     // An unsupported HEVC track may still play its AAC audio without a media error.
     // Check both common HEVC profiles rather than waiting for onError alone.
-    const codec = videoMeta?.video_codec?.toLowerCase();
+    const codec = hlsMode ? undefined : videoMeta?.video_codec?.toLowerCase();
     if ((codec === "hevc" || codec === "h265") && videoRef.current &&
         videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA &&
         !videoRef.current.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"') &&
         !videoRef.current.canPlayType('video/mp4; codecs="hvc1.2.4.L123.B0"')) {
       setPlaybackError("Ce navigateur ne prend pas en charge la vidéo H.265/HEVC. Choisissez une source H.264/AVC ou un navigateur compatible HEVC.");
     }
-  }, [streamUrl, videoMeta?.video_codec, loading, needsFileSelection]);
+  }, [hlsMode, streamUrl, videoMeta?.video_codec, loading, needsFileSelection]);
+
+  const hlsResumePosition = useRef(initialTime);
+  useEffect(() => {
+    if (!hlsMode || loading || needsFileSelection || !loadData || selectedFileIdx < 0 || !videoRef.current) return;
+    const video = videoRef.current;
+    const controller = new HlsPlaybackController(video, {
+      state: state => {
+        currentTimeRef.current = state.position;
+        resumePlaybackRef.current = state.playing;
+        onPlaybackIntent?.(state.playing);
+        setIsPlaying(state.playing);
+        setIsBuffering(["preparing", "seeking", "buffering"].includes(state.phase));
+        video.dataset.playbackPhase = state.phase;
+        video.dataset.seekGeneration = String(state.generation);
+        if (state.phase === "ready") setStarted(true);
+      },
+      metadata: (metadata, origin) => { setVideoMeta(metadata); setSubtitleOrigin(origin); },
+      gesture: () => setNeedsPlaybackGesture(true),
+      error: message => { setPlaybackError(message); },
+    }, diagnostic, !resumePlaybackRef.current);
+    hlsController.current = controller;
+    const position = hlsResumePosition.current;
+    void controller.open(loadData.info_hash, selectedFileIdx, selectedAudioTrack, position);
+    return () => { hlsResumePosition.current = video.currentTime || position; controller.dispose(); if (hlsController.current === controller) hlsController.current = null; };
+  }, [hlsMode, loadData, selectedFileIdx, selectedAudioTrack, loading, needsFileSelection]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { hlsResumePosition.current = initialTime; }, [itemHash, initialTime]);
 
   const subtitleBitmap = isBitmapSubtitle(videoMeta?.subtitle_tracks?.find((track) => track.index === selectedSubTrack));
   const subtitleUrl =
     loadData && selectedSubTrack !== null
-      ? getSubtitleUrl(loadData.info_hash, selectedFileIdx, selectedSubTrack, subtitleBitmap ? "sup" : "ass",diagnostic)
+      ? getSubtitleUrl(loadData.info_hash, selectedFileIdx, selectedSubTrack, subtitleBitmap ? "sup" : "ass",diagnostic) + (hlsMode ? `&timeline_origin=${subtitleOrigin}` : "")
       : "";
 
   // Mount a fresh decoder for each source and restore the user's audio settings.
@@ -563,7 +614,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     if (manual) audioSelectionRef.current = true;
     setOptionsTab(null);
     if (trackIdx === selectedAudioTrack) return;
-    const currentAbsoluteTime = timeOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
+    if (hlsMode) { hlsResumePosition.current = videoRef.current?.currentTime ?? currentTimeRef.current; setSelectedAudioTrack(trackIdx); return; }
+    const currentAbsoluteTime = playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
     hasStartedRef.current = false;
     lastProgressRef.current = { time: 0, at: 0 };
     setForceRemux(true);
@@ -580,6 +632,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     const preferred = preferredAudioTrack(videoMeta.audio_tracks || [], selectedAudioTrack, audioSelectionRef.current);
     if (preferred !== selectedAudioTrack) handleAudioTrackSelect(preferred, false);
   }, [videoMeta, selectedFileIdx, selectedAudioTrack]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!videoMeta || subtitleSelectionRef.current) return;
+    const tracks = textSubtitleTracks(videoMeta.subtitle_tracks);
+    if (tracks.length) { subtitleSelectionRef.current = true; setSelectedSubTrack(pickDefaultSubtitle(tracks).index); }
+  }, [videoMeta]);
 
   useEffect(() => {
     if (selectedFileIdx >= 0 && videoMeta?.probe_status === 'complete') onVideoMetadata?.(videoMeta);
@@ -737,7 +795,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
         {/* Player & Content Area */}
         <div className="player-content flex-1 overflow-y-auto">
-          {loading ? (
+          {loading && !hlsMode ? (
             <div className="player-connecting" role="status" aria-live="polite">
               <svg className="watch-loading-ring" viewBox="0 0 72 72" aria-hidden="true">
                 <circle className="watch-loading-track" cx="36" cy="36" r="32" />
@@ -746,7 +804,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               <h2 className="serif">{t("Connexion au swarm…")}</h2>
               <p>{t("Récupération des métadonnées et des premières pièces")}</p>
             </div>
-          ) : needsFileSelection ? (
+          ) : needsFileSelection && !hlsMode ? (
             <div className="p-6 pt-24 space-y-4">
               <p>{onPlaybackFailure ? t("Cet épisode ne peut pas être identifié dans ce pack. Essai de la source suivante…") : t("Choisissez le fichier correspondant à l’épisode {episode}. Aucun fichier n’a été lancé automatiquement.", {episode:episodeNumber ?? "—"})}</p>
               {!onPlaybackFailure && <>
@@ -756,7 +814,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               {selectionFiles.length>50 && <p>{t("Affichage des 50 premiers fichiers. Affinez la recherche.")}</p>}
               </>}
             </div>
-          ) : error ? (
+          ) : error && !hlsMode ? (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center space-y-3">
               <AlertCircle className="h-8 w-8 text-zinc-500" />
               <p className="text-xs text-zinc-200">{t(error)}</p>
@@ -778,14 +836,15 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   <canvas ref={ambientRef} aria-hidden="true" className="player-ambient" data-level={ambilight.level} data-dim={ambilight.dim && !isPlaying ? "true" : "false"} />
                 )}
                 <video
-                  key={streamUrl}
+                  key={hlsMode ? "hls-video" : streamUrl}
                   muted={isMuted}
                   ref={videoRef}
-                  src={streamUrl}
+                  src={engine && !hlsMode ? streamUrl : undefined}
                   playsInline
                   crossOrigin="anonymous"
                   onTimeUpdate={(event) => {
-                  if(!hasStartedRef.current&&event.currentTarget===videoRef.current&&event.currentTarget.currentTime>lastProgressRef.current.time&&event.currentTarget.videoWidth>0)diagnosticEvent(diagnostic,"playback.started",{position:timeOffset+event.currentTarget.currentTime,width:event.currentTarget.videoWidth,height:event.currentTarget.videoHeight});
+                  if (hlsMode && event.currentTarget.dataset.playbackPhase === "preparing") return;
+                  if(!hasStartedRef.current&&event.currentTarget===videoRef.current&&event.currentTarget.currentTime>lastProgressRef.current.time&&event.currentTarget.videoWidth>0)diagnosticEvent(diagnostic,"playback.started",{position:playbackOffset+event.currentTarget.currentTime,width:event.currentTarget.videoWidth,height:event.currentTarget.videoHeight});
                     if (event.currentTarget === videoRef.current) {
                       const time = videoRef.current.currentTime;
                       if (time > lastProgressRef.current.time && videoRef.current.videoWidth > 0) {
@@ -793,17 +852,18 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         lastProgressRef.current = { time, at: Date.now() };
                       }
                       currentTimeRef.current = time;
-                      onProgress?.(timeOffset + time, totalDuration);
+                      onProgress?.(playbackOffset + time, totalDuration);
                       updateProgressDisplay(videoRef.current.currentTime);
                       updateBuffered();
                     }
                   }}
                   onPlay={(event) => { if (event.currentTarget === videoRef.current) {resumePlaybackRef.current=true;setNeedsPlaybackGesture(false);setIsPlaying(true);} }}
                   onPause={(event) => { if (event.currentTarget === videoRef.current) setIsPlaying(false); }}
-                  onWaiting={(event) => { if (event.currentTarget === videoRef.current) {setIsBuffering(true);diagnosticEvent(diagnostic,"playback.buffering",{position:timeOffset+event.currentTarget.currentTime,ready_state:event.currentTarget.readyState});} }}
+                  onWaiting={(event) => { if (event.currentTarget === videoRef.current) {setIsBuffering(true);diagnosticEvent(diagnostic,"playback.buffering",{position:playbackOffset+event.currentTarget.currentTime,ready_state:event.currentTarget.readyState});} }}
                   onProgress={() => updateBuffered()}
                   onPlaying={(event) => { if (event.currentTarget === videoRef.current) { setIsBuffering(false); setStarted(true); } }}
                   onCanPlay={(event) => {
+                    if (hlsMode) return;
                     const video = event.currentTarget;
                     if (video !== videoRef.current) return;
                     video.volume = volume;
@@ -818,9 +878,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     }
                   }}
                   onError={(event) => {
+                    if (hlsMode) return;
                     if (event.currentTarget !== videoRef.current) return;
                     const mediaError = event.currentTarget.error;
-                    diagnosticEvent(diagnostic,"playback.media_error",{error_code:String(mediaError?.code||0),ready_state:event.currentTarget.readyState,network_state:event.currentTarget.networkState,video_codec:videoMeta?.video_codec||"",position:timeOffset+event.currentTarget.currentTime});
+                    diagnosticEvent(diagnostic,"playback.media_error",{error_code:String(mediaError?.code||0),ready_state:event.currentTarget.readyState,network_state:event.currentTarget.networkState,video_codec:videoMeta?.video_codec||"",position:playbackOffset+event.currentTarget.currentTime});
                     setIsBuffering(false);
                     setIsPlaying(false);
                     if (mediaError?.code === 3 || mediaError?.code === 4) {
@@ -834,7 +895,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   }}
                   onEnded={(event) => {
                     if (event.currentTarget !== videoRef.current) return;
-                    if (onPlaybackFailure && totalDuration > 0 && timeOffset + event.currentTarget.currentTime < totalDuration - 2) {
+                    if (onPlaybackFailure && totalDuration > 0 && playbackOffset + event.currentTarget.currentTime < totalDuration - 2) {
                       reportFailure("La lecture de cette source s’est interrompue avant la fin de l’épisode.","premature_end");
                       return;
                     }
@@ -851,14 +912,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   streamKey={streamUrl}
                   url={subtitleUrl}
                   bitmap={subtitleBitmap}
-                  timeOffset={timeOffset}
+                  timeOffset={playbackOffset}
                   onError={handleSubtitleError}
                 />
                 {debugMode && (
                   <PlayerDebugPanel
                     diagnostic={diagnostic} item={item} file={currentFile} fileIndex={selectedFileIdx} fileCount={loadData?.files.length}
                     meta={videoMeta} audioTrack={selectedAudioTrack} subtitleTrack={selectedSubTrack} remux={forceRemux}
-                    timeOffset={timeOffset} streamUrl={streamUrl} subtitleUrl={subtitleUrl} attempt={debugAttempt}
+                    timeOffset={playbackOffset} streamUrl={streamUrl} subtitleUrl={subtitleUrl} attempt={debugAttempt}
                   />
                 )}
                 {subtitleError && (
@@ -893,6 +954,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   {showEpisodes && episodes && episodes.length > 0 && onSelectEpisode && (
                     <PlayerEpisodePicker
                       episodes={episodes}
+                      fallbackThumbnail={fallbackThumbnail}
                       currentEpisode={episodeNumber}
                       onClose={() => setShowEpisodes(false)}
                       onSelect={(number) => { setShowEpisodes(false); if (number !== episodeNumber) onSelectEpisode(number); }}
@@ -901,7 +963,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   <div className="player-frost flex flex-col gap-3 px-4 py-3.5 text-zinc-200 sm:gap-3.5 sm:px-[18px] sm:py-4" style={{ borderRadius: "var(--radius-dock, 32px)" }}>
                     {/* Scrubber */}
                     <div className="flex items-center gap-3.5 px-1.5">
-                      <span ref={timeDisplayRef} className="min-w-11 font-mono text-xs text-zinc-50">{formatTime(timeOffset)}</span>
+                      <span ref={timeDisplayRef} className="min-w-11 font-mono text-xs text-zinc-50">{formatTime(playbackOffset)}</span>
                       <div
                         ref={progressBarRef}
                         onClick={handleProgressBarClick}
@@ -948,10 +1010,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                             <SkipForward className="h-[18px] w-[18px]" />
                           </button>
                         )}
-                        <button onClick={() => handleSeek(timeOffset + currentTimeRef.current - 10)} className="player-pill player-pill--icon" aria-label={t("Rewind 10s (←)")} title={t("Rewind 10s (←)")}>
+                        <button onClick={() => handleSeek(playbackOffset + currentTimeRef.current - 10)} className="player-pill player-pill--icon" aria-label={t("Rewind 10s (←)")} title={t("Rewind 10s (←)")}>
                           <RotateCcw className="h-[18px] w-[18px]" />
                         </button>
-                        <button onClick={() => handleSeek(timeOffset + currentTimeRef.current + 10)} className="player-pill player-pill--icon" aria-label={t("Forward 10s (→)")} title={t("Forward 10s (→)")}>
+                        <button onClick={() => handleSeek(playbackOffset + currentTimeRef.current + 10)} className="player-pill player-pill--icon" aria-label={t("Forward 10s (→)")} title={t("Forward 10s (→)")}>
                           <RotateCw className="h-[18px] w-[18px]" />
                         </button>
                         {/* Volume */}

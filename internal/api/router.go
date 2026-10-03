@@ -12,6 +12,7 @@ import (
 	"github.com/gazes/gazes/internal/config"
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/metadata"
+	"github.com/gazes/gazes/internal/playback"
 	"github.com/gazes/gazes/internal/stream"
 	"github.com/gazes/gazes/internal/torrent"
 	"github.com/go-chi/chi/v5"
@@ -29,17 +30,29 @@ type Server struct {
 	analyzer        metadata.Analyzer
 	animeService    *metadata.AnimeService
 	catalogService  *metadata.AnimeCatalogService
-	episodeResolver *indexer.EpisodeResolver
+	episodeResolver indexer.EpisodeSourceResolver
 	router          chi.Router
 	diagnosticRate  diagnosticLimiter
 	auth            *auth.Service
 	kv              *kv.Client
 	sourceCache     *sourceCache
 	sourceCacheOnce sync.Once
+	playback        *playback.Manager
+	playbackOnce    sync.Once
+	subtitles       subtitleJobs
 }
 
 // Option customises a Server.
 type Option func(*Server)
+
+type unavailableEpisodeResolver struct{ err error }
+
+func (r unavailableEpisodeResolver) ResolveSeasonSources(context.Context, indexer.EpisodeIdentity) (*indexer.EpisodeSourcesResponse, error) {
+	return nil, r.err
+}
+func (r unavailableEpisodeResolver) ResolvePlaybackSources(context.Context, indexer.EpisodeIdentity) (*indexer.EpisodeSourcesResponse, error) {
+	return nil, r.err
+}
 
 // WithAuth enables the account routes.
 func WithAuth(svc *auth.Service) Option { return func(s *Server) { s.auth = svc } }
@@ -64,6 +77,16 @@ func NewServer(
 	pipeline stream.Pipeline,
 	opts ...Option,
 ) *Server {
+	fallbackResolver := indexer.NewEpisodeResolver(idx)
+	var episodeResolver indexer.EpisodeSourceResolver = fallbackResolver
+	if cfg.ArrAuthoritative {
+		resolver, err := indexer.NewArrEpisodeResolver(cfg.SonarrURL, cfg.SonarrAPIKey, cfg.SonarrSeriesMap, cfg.RadarrURL, cfg.RadarrAPIKey, cfg.RadarrMovieMap, nil)
+		if err != nil {
+			episodeResolver = unavailableEpisodeResolver{err: err}
+		} else {
+			episodeResolver = resolver
+		}
+	}
 	s := &Server{
 		cfg:             cfg,
 		logger:          logger,
@@ -73,7 +96,7 @@ func NewServer(
 		analyzer:        metadata.NewFFprobeAnalyzer(logger),
 		animeService:    metadata.NewAnimeService(nil),
 		catalogService:  metadata.NewAnimeCatalogService(nil),
-		episodeResolver: indexer.NewEpisodeResolver(idx),
+		episodeResolver: episodeResolver,
 	}
 
 	for _, opt := range opts {
@@ -153,6 +176,12 @@ func (s *Server) setupRoutes() {
 		api.Get("/stream", s.HandleStream)
 		api.Get("/stream/raw", s.HandleStreamRaw)
 		api.Get("/subtitles", s.HandleSubtitles)
+		api.Get("/playback/config", s.HandlePlaybackConfig)
+		api.Post("/playback/sessions", s.HandlePlaybackCreate)
+		api.Put("/playback/sessions/{session}", s.HandlePlaybackUpdate)
+		api.Delete("/playback/sessions/{session}", s.HandlePlaybackDelete)
+		api.Get("/playback/sessions/{session}/index.m3u8", s.HandlePlaybackPlaylist)
+		api.Get("/playback/sessions/{session}/{segment}/{asset}", s.HandlePlaybackMedia)
 	})
 
 	s.router = r

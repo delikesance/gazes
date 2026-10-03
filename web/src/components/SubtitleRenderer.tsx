@@ -3,6 +3,11 @@
 import { useEffect, useRef, type RefObject } from "react";
 import type JASSUB from "jassub";
 import type { PgsRenderer } from "libpgs";
+import { carryAss, carryPgs } from "@/lib/subtitle-carry";
+
+/** Seconds of captions per regular download, and for the short first one that appears quickly. */
+const FULL_WINDOW = 120;
+const QUICK_WINDOW = 25;
 
 class SubtitleError extends Error {
   constructor(public code: string) { super(code); }
@@ -42,20 +47,26 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
     let requestController: AbortController | undefined;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let loadedStart: number | undefined;
+    let loadedSpan = FULL_WINDOW;
     let pendingStart: number | undefined;
+    let pendingSpan = FULL_WINDOW;
     let failedStart: number | undefined;
+    let failedSpan = FULL_WINDOW;
     let applyQueue = Promise.resolve();
     let frameId: number | undefined;
     let width = video.videoWidth;
     let height = video.videoHeight;
     // Keep a bounded set of recent windows for backward and repeated seeks.
     const windows = new Map<number, string | ArrayBuffer>();
+    // Seconds covered by each cached window: the first one is short so captions show up fast.
+    const spans = new Map<number, number>();
     onErrorRef.current(null);
 
     const position = () => Math.max(0, video!.currentTime + offset);
-    const contains = (start: number | undefined, time: number) => start !== undefined && time >= start && time < start + 120;
+    const contains = (start: number | undefined, time: number, span = start === undefined ? FULL_WINDOW : spans.get(start) ?? FULL_WINDOW) =>
+      start !== undefined && time >= start && time < start + span;
     function updateVisibility() {
-      if (canvas) canvas.style.visibility = contains(loadedStart, position()) ? "visible" : "hidden";
+      if (canvas) canvas.style.visibility = contains(loadedStart, position(), loadedSpan) ? "visible" : "hidden";
     }
     function layout() {
       if (!canvas) return;
@@ -122,13 +133,13 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
       });
     }
 
-    async function load(start: number, controller: AbortController, attempt = 0) {
+    async function load(start: number, controller: AbortController, attempt = 0, span = FULL_WINDOW) {
       try {
-        let content = windows.get(start);
+        let content = (spans.get(start) ?? 0) >= span ? windows.get(start) : undefined;
         if (content === undefined) {
           const chunkURL = new URL(url, window.location.href);
           chunkURL.searchParams.set("start", String(start));
-          chunkURL.searchParams.set("duration", "120");
+          chunkURL.searchParams.set("duration", String(span));
           const response = await fetch(chunkURL, { signal: controller.signal });
           if (!response.ok) throw new SubtitleError(`SUB_HTTP_${response.status}`);
           content = bitmap ? await response.arrayBuffer() : await response.text();
@@ -136,7 +147,12 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
         if (disposed || controller.signal.aborted) return;
         windows.delete(start);
         windows.set(start, content);
-        if (windows.size > 4) windows.delete(windows.keys().next().value!);
+        spans.set(start, Math.max(span, spans.get(start) ?? 0));
+        if (windows.size > 4) {
+          const oldest = windows.keys().next().value!;
+          windows.delete(oldest);
+          spans.delete(oldest);
+        }
 
         // Keep the existing canvas and captions while the next window downloads.
         // Decoder updates are serialized, including when a seek supersedes a load.
@@ -155,7 +171,7 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
               // not discard its decoder, canvas, or recently downloaded cues.
               pgsRenderer = new PgsRenderer({ canvas: createCanvas(), workerUrl: "/subtitles/libpgs.worker.js" });
             }
-            await pgsRenderer.loadFromBuffer(content as ArrayBuffer);
+            await pgsRenderer.loadFromBuffer(carryPgs(content as ArrayBuffer, windows.values(), start));
             if (disposed || controller.signal.aborted) return;
             // Reloading can leave the same timestamp index selected: force a repaint.
             pgsRenderer.renderAtTimestamp(-1);
@@ -164,7 +180,7 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
               const { default: JASSUB } = await import("jassub");
               if (disposed || controller.signal.aborted) return;
               renderer = new JASSUB({
-                canvas: createCanvas(), subContent: content as string, timeOffset: offset,
+                canvas: createCanvas(), subContent: carryAss(content as string, windows.values(), start), timeOffset: offset,
                 workerUrl: "/subtitles/jassub-worker.js",
                 wasmUrl: "/subtitles/jassub-worker.wasm",
                 modernWasmUrl: "/subtitles/jassub-worker-modern.wasm",
@@ -173,11 +189,12 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
               });
               await renderer.ready;
             } else {
-              await renderer.renderer.setTrack(content as string);
+              await renderer.renderer.setTrack(carryAss(content as string, windows.values(), start));
             }
           }
           if (disposed || controller.signal.aborted) return;
           loadedStart = start;
+          loadedSpan = span;
           await repaint();
         });
         await applyQueue;
@@ -185,14 +202,17 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
         pendingStart = undefined;
         failedStart = undefined;
         onErrorRef.current(null);
+        // The short first window is on screen: fetch the regular one behind it.
+        if (span < FULL_WINDOW) updateWindow();
       } catch (error) {
         if (disposed || controller.signal.aborted) return;
         const transient = error instanceof TypeError || (error instanceof SubtitleError && /^SUB_HTTP_5\d\d$/.test(error.code));
         if (transient && attempt < 2) {
-          retryTimer = setTimeout(() => { void load(start, controller, attempt + 1); }, 1000 * (attempt + 1));
+          retryTimer = setTimeout(() => { void load(start, controller, attempt + 1, span); }, 1000 * (attempt + 1));
           return;
         }
         failedStart = start;
+        failedSpan = span;
         pendingStart = undefined;
         onErrorRef.current("Impossible de charger les sous-titres. Désactivez puis resélectionnez la piste pour réessayer.", subtitleErrorCode(error));
       }
@@ -203,24 +223,34 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
       // a minute, leaving ample captions ahead while the next chunk is fetched.
       const time = position();
       let start = Math.max(0, Math.floor(time / 60) * 60 - 30);
-      if (seeking) {
-        if (contains(loadedStart, time)) start = loadedStart!;
-        else if (!windows.has(start)) {
+      let span = FULL_WINDOW;
+      if (windows.size === 0 && loadedStart === undefined && failedStart === undefined && (pendingStart === undefined || seeking)) {
+        // Nothing downloaded yet: the swarm must supply every video byte of a window, so
+        // ask for a few seconds around the playhead first to show captions quickly.
+        start = Math.max(0, Math.floor(time) - 5);
+        span = QUICK_WINDOW;
+      } else if (seeking) {
+        if (contains(loadedStart, time, loadedSpan)) { start = loadedStart!; span = loadedSpan; }
+        else if (!windows.has(start) || (spans.get(start) ?? 0) < span) {
           const cached = [...windows.keys()].reverse().find(candidate => contains(candidate, time));
-          if (cached !== undefined) start = cached;
+          if (cached !== undefined) { start = cached; span = spans.get(cached) ?? FULL_WINDOW; }
         }
       }
       updateVisibility();
-      if (disposed || start === pendingStart) return;
+      if (disposed || (start === pendingStart && span === pendingSpan)) return;
+      // Let the short first window finish instead of replacing it with the regular one.
+      if (!seeking && pendingStart !== undefined && pendingSpan < FULL_WINDOW && contains(pendingStart, time, pendingSpan)) return;
       if (pendingStart !== undefined) {
         requestController?.abort();
         clearTimeout(retryTimer);
         pendingStart = undefined;
       }
-      if (start === loadedStart || start === failedStart) return;
+      if (start === loadedStart && span <= loadedSpan) return;
+      if (start === failedStart && span === failedSpan) return;
       requestController = new AbortController();
       pendingStart = start;
-      void load(start, requestController);
+      pendingSpan = span;
+      void load(start, requestController, 0, span);
     }
 
     function onTimeUpdate() { updateWindow(); renderCurrent(undefined, false); }
@@ -265,6 +295,7 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
       void renderer?.destroy();
       canvas?.remove();
       windows.clear();
+      spans.clear();
     };
   }, [videoRef, url, bitmap]);
   useEffect(() => {
