@@ -3,11 +3,15 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 // Config holds runtime configuration options for Gazes.
 type Config struct {
+	PlaybackEngine       string        `json:"playback_engine"`
+	PlaybackMemoryBytes  int64         `json:"playback_memory_bytes"`
+	PlaybackDiskBytes    int64         `json:"playback_disk_bytes"`
 	AppEnv               string        `json:"app_env"`
 	Host                 string        `json:"host"`
 	Port                 int           `json:"port"`
@@ -21,6 +25,15 @@ type Config struct {
 	TorrentCacheMaxBytes int64         `json:"torrent_cache_max_bytes"`
 	AccountsDir          string        `json:"accounts_dir"`
 	TrustProxy           bool          `json:"trust_proxy"`
+	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
+	// title matching. API keys and bindings are intentionally never serialized.
+	ArrAuthoritative bool   `json:"arr_authoritative"`
+	SonarrURL        string `json:"sonarr_url"`
+	SonarrAPIKey     string `json:"-"`
+	SonarrSeriesMap  string `json:"-"`
+	RadarrURL        string `json:"radarr_url"`
+	RadarrAPIKey     string `json:"-"`
+	RadarrMovieMap   string `json:"-"`
 	// RedisURL is required: it holds the caches, upstream rate limits and auth state shared by every instance.
 	RedisURL       string `json:"-"`
 	RedisNamespace string `json:"redis_namespace"`
@@ -29,6 +42,9 @@ type Config struct {
 // Load loads configuration from environment variables with fallback defaults.
 func Load() *Config {
 	return &Config{
+		PlaybackEngine:       getEnv("PLAYBACK_ENGINE", "legacy"),
+		PlaybackMemoryBytes:  getEnvInt64("PLAYBACK_MEMORY_BYTES", 64<<20),
+		PlaybackDiskBytes:    getEnvInt64("PLAYBACK_DISK_BYTES", 1<<30),
 		AppEnv:               getEnv("APP_ENV", "development"),
 		Host:                 getEnv("HOST", "0.0.0.0"),
 		Port:                 getEnvInt("PORT", 8090),
@@ -42,9 +58,31 @@ func Load() *Config {
 		TorrentCacheMaxBytes: getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
 		AccountsDir:          getEnv("ACCOUNTS_DIR", "./accounts"),
 		TrustProxy:           getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
+		ArrAuthoritative:     getEnvBool("ARR_AUTHORITATIVE", false),
+		SonarrURL:            getEnv("SONARR_URL", ""),
+		SonarrAPIKey:         getEnvOrFile("SONARR_API_KEY", "SONARR_API_KEY_FILE"),
+		SonarrSeriesMap:      getEnv("SONARR_SERIES_MAP", ""),
+		RadarrURL:            getEnv("RADARR_URL", ""),
+		RadarrAPIKey:         getEnvOrFile("RADARR_API_KEY", "RADARR_API_KEY_FILE"),
+		RadarrMovieMap:       getEnv("RADARR_MOVIE_MAP", ""),
 		RedisURL:             getEnv("REDIS_URL", ""),
 		RedisNamespace:       getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
 	}
+}
+
+func getEnvOrFile(key, fileKey string) string {
+	if value := getEnv(key, ""); value != "" {
+		return value
+	}
+	path := getEnv(fileKey, "")
+	if path == "" {
+		return ""
+	}
+	value, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(value))
 }
 
 func getEnv(key, defaultVal string) string {

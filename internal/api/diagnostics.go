@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/indexer"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -247,6 +249,20 @@ func (s *Server) HandleDiagnosticEvents(w http.ResponseWriter, r *http.Request) 
 // Keep errors useful to the caller without exposing provider URLs or secrets.
 func sourceFailure(w http.ResponseWriter, r *http.Request, err error) {
 	c := diagnostics.Get(r.Context())
+	if errors.Is(err, indexer.ErrAuthorityMappingMissing) {
+		diagnostics.Log(r.Context(), slog.LevelWarn, "resolver.failed", "error_code", "authority_mapping_missing", "err", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "authority_mapping_missing", "message": "Cet anime n'est pas encore lié à Sonarr ou Radarr.", "request_id": c.RequestID, "playback_session_id": c.SessionID})
+		return
+	}
+	if errors.Is(err, indexer.ErrNoApprovedRelease) {
+		diagnostics.Log(r.Context(), slog.LevelInfo, "resolver.empty", "error_code", "no_approved_release")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "no_approved_release", "message": "Sonarr ou Radarr n'a approuvé aucune release exploitable pour cet épisode.", "request_id": c.RequestID, "playback_session_id": c.SessionID})
+		return
+	}
 	diagnostics.Log(r.Context(), slog.LevelError, "resolver.failed", "error_code", "providers_unavailable", "err", err)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadGateway)

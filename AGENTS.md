@@ -2,6 +2,18 @@
 
 > Operational guidelines, architectural invariants, and codebase conventions for AI agents working on the **Gazes** project.
 
+## TypeSafe Skill
+
+Use the installed TypeSafe skill at [.agents/skills/typesafe-ai/SKILL.md](.agents/skills/typesafe-ai/SKILL.md) when working on this project. Read its instructions and the relevant live TypeSafe documentation before implementing TypeSafe features. Keep API credentials server-side in environment variables and out of tracked files.
+
+### Mandatory Jev Workflow for Codex
+
+Jev is a required decision-support tool for agents working in this repository. Use an actual successful Jev MCP request before acting on any non-mechanical, bounded development decision, including diagnostic next steps, command selection when several viable commands exist, implementation options, UI choices, search-result triage, and pre-completion patch or claim review.
+
+For each use, frame one bounded question from the evidence already gathered, provide two to six explicit candidates (including investigate or ask the user when appropriate), execute the selected option, and verify the result locally. Batch independent questions where their evidence is unchanged. Record the relevant outcome succinctly in the final handoff when it materially influenced the work.
+
+Do not use Jev for deterministic work: reading a named file, performing exact calculations, applying an already-selected patch, running tests, enforcing authorization or safety checks, or executing an unambiguous command. Code remains responsible for those operations and for all safety and authorization enforcement. Never claim Jev was consulted without a successful response. If Jev is unavailable or its result is uncertain, state that limitation and proceed only with deterministic evidence or request direction.
+
 ---
 
 ## 🎯 Project Vision & Context

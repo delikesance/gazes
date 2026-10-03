@@ -115,6 +115,13 @@ type EpisodeResolver struct {
 	indexer Provider
 }
 
+// EpisodeSourceResolver allows a maintained external resolver to be used while
+// retaining the local resolver as a fallback.
+type EpisodeSourceResolver interface {
+	ResolveSeasonSources(context.Context, EpisodeIdentity) (*EpisodeSourcesResponse, error)
+	ResolvePlaybackSources(context.Context, EpisodeIdentity) (*EpisodeSourcesResponse, error)
+}
+
 // NewEpisodeResolver creates a new episode resolver.
 func NewEpisodeResolver(idx Provider) *EpisodeResolver {
 	return &EpisodeResolver{
@@ -162,6 +169,11 @@ type ScoreBreakdown struct {
 
 // EpisodeIdentity keeps catalog identity separate from release numbering.
 type EpisodeIdentity struct {
+	// MediaID is the immutable catalog identifier (AniList today). Authoritative
+	// resolvers use it to look up an explicit *Arr binding; they never infer the
+	// work from a release title.
+	MediaID           int
+	Format            string
 	ExcludedTitles    []string
 	UnqualifiedTitles []string
 	Titles            []string
@@ -535,7 +547,14 @@ func RankSource(item TorrentItem, identity EpisodeIdentity, batch bool) EpisodeS
 		evidence = "release_title"
 	}
 	if multi {
+		// A MULTI release is not proof of a French track, but it is a materially
+		// better French-audience fallback than an English-only release. Keep it
+		// below confirmed VOSTFR/VF while making that policy independent of a
+		// much larger foreign swarm.
 		breakdown.Multi = 2
+		if breakdown.French == 0 {
+			breakdown.French = 75
+		}
 	}
 	animeTitle := ""
 	if len(identity.Titles) > 0 {

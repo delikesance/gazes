@@ -9,6 +9,7 @@ import { playbackSources, extendPlaybackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
 import { EpisodeSourceSelectorModal } from './EpisodeSourceSelectorModal';
 import type { FailoverInfo } from './PlayerFailover';
+import { usePlaybackEngine } from '@/lib/use-playback-engine';
 
 interface Props {
  sources: EpisodeSource[];
@@ -27,11 +28,14 @@ interface Props {
  onNextEpisode?: () => void;
  onPrevEpisode?: () => void;
  episodes?: EpisodeInfo[];
+ fallbackThumbnail?: string;
  onSelectEpisode?: (episode: number) => void;
 }
 
 export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
   const { t } = useI18n();
+ const engine = usePlaybackEngine();
+ const pausedRef = useRef(false);
  const [fallbackSession]=useState(()=>randomId());
  const session=diagnosticSession||fallbackSession;
  const [candidates, setCandidates] = useState(() => playbackSources(sources));
@@ -107,7 +111,8 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    setTried([]);
    setAttempt({index,position:positionRef.current,reason:'',id:randomId()});
   }} />;
- return <VideoPlayerModal key={attempt.id} {...props}
+ return <VideoPlayerModal key={engine === 'hls' ? 'hls-player' : attempt.id} {...props}
+  initialPaused={pausedRef.current} onPlaybackIntent={playing=>{pausedRef.current=!playing;}}
   onChangeSource={()=>setChoosingSource(true)} sourcePicker={picker}
   onProgress={(position,duration)=>{positionRef.current=position;props.onProgress?.(position,duration);}}
   failover={tried.length?({tried,current:sourceLabel(source)} satisfies FailoverInfo):undefined}

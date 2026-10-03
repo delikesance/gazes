@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -52,6 +53,16 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	// Read only the requested playback window. Input-side -t also stops at the
 	// boundary when subtitle packets are sparse; output-side -t alone may not.
 	start, duration := 0.0, 120.0
+	origin := 0.0
+	absoluteTimeline := r.URL.Query().Has("timeline_origin")
+	if absoluteTimeline {
+		value, err := strconv.ParseFloat(r.URL.Query().Get("timeline_origin"), 64)
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || math.Abs(value) > 604800 {
+			http.Error(w, "invalid timeline origin", 400)
+			return
+		}
+		origin = value
+	}
 	windowed := r.URL.Query().Has("start") || r.URL.Query().Has("duration")
 	if windowed {
 		for _, field := range []struct {
@@ -80,27 +91,14 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 		// Bitmap tracks (PGS) are copied as-is, never converted: the browser renders them.
 		contentType = "application/octet-stream"
 	}
-	output, err := os.CreateTemp("", "gazes-subtitles-*")
-	if err != nil {
-		http.Error(w, "subtitle storage unavailable", http.StatusInternalServerError)
-		return
-	}
-	defer os.Remove(output.Name())
-	defer output.Close()
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-
-	// Timeout context for subtitle extraction
-	// Return a useful timeout before the frontend proxy's 30-second deadline.
-	ctx, cancel := contextWithTimeout(r.Context(), 25*time.Second)
-	defer cancel()
 
 	codec := format
 	if format == "sup" {
 		codec = "copy"
 	}
 
-	ffmpegBin := findFFmpegBin()
 	args := []string{
 		"-hide_banner",
 		"-loglevel", "error",
@@ -109,7 +107,11 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	}
 	if windowed {
 		// Retain episode timestamps for both ASS and PGS, including after seeks.
-		args = append(args, "-copyts", "-start_at_zero", "-ss", strconv.FormatFloat(start, 'f', -1, 64), "-t", strconv.FormatFloat(duration, 'f', -1, 64))
+		args = append(args, "-copyts")
+		if !absoluteTimeline {
+			args = append(args, "-start_at_zero")
+		}
+		args = append(args, "-ss", strconv.FormatFloat(start+origin, 'f', -1, 64), "-t", strconv.FormatFloat(duration, 'f', -1, 64))
 	}
 	args = append(args,
 		"-i", inputURL,
@@ -118,23 +120,38 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	)
 	if windowed {
 		// Some text decoders return buffered cues beyond the input limit.
-		args = append(args, "-to", strconv.FormatFloat(start+duration, 'f', -1, 64))
+		args = append(args, "-to", strconv.FormatFloat(start+duration+origin, 'f', -1, 64))
+	}
+	if absoluteTimeline {
+		args = append(args, "-output_ts_offset", strconv.FormatFloat(-origin, 'f', -1, 64))
 	}
 	args = append(args, "-f", format, "pipe:1")
 
-	cmd := exec.CommandContext(ctx, ffmpegBin, args...)
-	cmd.Stdout = output
-
-	var stderrBuf diagnostics.LimitedBuffer
-	cmd.Stderr = &stderrBuf
-
-	if err := cmd.Run(); err != nil {
+	// Identical requests share one extraction. It outlives a request that times out, so the
+	// client's retry collects the result instead of reading the swarm again from scratch.
+	key := fmt.Sprintf("%s|%d|%d|%s|%v|%g|%g|%v|%g", ih, fileIdx, trackIdx, format, windowed, start, duration, absoluteTimeline, origin)
+	job := s.subtitles.join(key, diagnostics.Logger(r.Context(), s.logger), args, findFFmpegBin())
+	timer := time.NewTimer(subtitleWaitTimeout)
+	defer timer.Stop()
+	select {
+	case <-job.done:
+		s.subtitles.leave(job, false)
+	case <-r.Context().Done():
+		s.subtitles.leave(job, true)
+		return
+	case <-timer.C:
+		s.subtitles.leave(job, false)
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "Les sous-titres ne sont pas encore disponibles. Réessayez.", http.StatusGatewayTimeout)
+		return
+	}
+	if job.err != nil {
 		if r.Context().Err() != nil {
 			return
 		}
-		diagnostics.Logger(r.Context(), s.logger).Error("failed to extract subtitles", "err", err, "stderr", stderrBuf.String())
 		w.Header().Set("Cache-Control", "no-store")
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if errors.Is(job.err, context.DeadlineExceeded) || errors.Is(job.err, context.Canceled) {
 			w.Header().Set("Retry-After", "1")
 			http.Error(w, "Les sous-titres ne sont pas encore disponibles. Réessayez.", http.StatusGatewayTimeout)
 			return
@@ -143,7 +160,7 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", contentType)
-	http.ServeContent(w, r, "subtitles", time.Time{}, output)
+	http.ServeContent(w, r, "subtitles", time.Time{}, bytes.NewReader(job.data))
 }
 
 func findFFmpegBin() string {
