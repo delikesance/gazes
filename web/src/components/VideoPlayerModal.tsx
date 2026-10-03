@@ -1,7 +1,7 @@
 "use client";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
-import { mediaTrackLabel, trackLanguageCode, preferredAudioTrack } from "@/lib/media-tracks";
+import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
 import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
@@ -1074,7 +1074,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     onClose={() => setOptionsTab(null)}
                     audioOptions={(videoMeta?.audio_tracks || []).map((track) => ({ index: track.index, title: track.title, label: mediaTrackLabel(track, videoMeta?.audio_tracks || [], locale) }))}
                     selectedAudio={selectedAudioTrack}
-                    audioHint={videoMeta?.audio_tracks?.length && !videoMeta.audio_tracks.some(track => trackLanguageCode(track.language) === "fr") ? t(videoMeta.audio_tracks.some(track => !track.language || track.language === "und") ? "VF non confirmée pour ce fichier." : "VF indisponible dans ce fichier.") : null}
                     onSelectAudio={handleAudioTrackSelect}
                     subtitleOptions={textSubtitleTracks(videoMeta?.subtitle_tracks).map((track) => ({ index: track.index, title: track.title, label: mediaTrackLabel(track, textSubtitleTracks(videoMeta?.subtitle_tracks), locale) }))}
                     selectedSubtitle={selectedSubTrack}
