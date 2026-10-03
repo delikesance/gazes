@@ -33,9 +33,7 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
         {description && <p className="series-description">{description}</p>}
         {warning}
         <div className="hero-actions">
-          {first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}
-          <a className="design-button secondary-button" href="#seasons">{t("Voir les saisons")}</a>
-        </div>
+          {first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        </div>
       </div>
     </section>
     <div id="seasons">{groups.map(({ group, title, entries }) => group === "main"
