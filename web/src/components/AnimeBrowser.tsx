@@ -4,7 +4,6 @@ import { errorCode } from "@/lib/error-code";
 import { randomId } from "@/lib/random-id";
 import { useWatchProgress, saveProgress } from "@/lib/watch-progress";
 import { HeaderBreadcrumb } from "./HeaderBreadcrumb";
-import { EpisodeCard } from "./EpisodeCard";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -12,8 +11,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AnimeCatalogItem, EpisodeSourcesResponse, Franchise } from "@/types/api";
 import { getFranchise, getSeason, getSeasonSources } from "@/lib/api";
-import { LazyImage } from "./ui/LazyImage";
-import { AnimeHero } from "./AnimeHero";
+import { SeriesPage } from "./SeriesPage";
+import { SeasonPage } from "./SeasonPage";
 import { WatchLoading } from "./WatchLoading";
 const Player = dynamic(() => import("./AutoEpisodePlayer").then(m => m.AutoEpisodePlayer), {ssr:false});
 interface Loaded {
@@ -79,7 +78,6 @@ export function AnimeBrowser({
  const selected=current?.franchise.seasons.find((s: any)=>s.id===seasonId);
  const base=`/anime/${current?.franchise.id||id}`, seasonURL=`${base}/seasons/${seasonId}`;
 
- const heroTitle=ep?`${t(selected?.season_name || "Saison")} — ${t("Épisode")} ${ep}`:seasonId?t(selected?.season_name || current?.season?.display_title || "Saison"):current?.franchise.title || "Anime";
  const resume=progress&&current?.season?.episode_list?.some((episode: any)=>episode.episode_number===progress.episode&&!episode.upcoming)?progress:null;
  if(ep>0) return <main className="watch-page">
   {error?<div className="watch-message"><ErrorAlert message={error} code={code} reference={reference} onRetry={()=>setRetry(retry+1)} /><Link href={seasonURL}>{t("Voir les saisons")}</Link></div>:!current?<WatchLoading episode={ep} backHref={seasonURL} />:current.season&&current.sources?<Player pageMode key={`${key}:${retry}`} initialTime={resume?.episode===ep?resume.position:0} onProgress={(position:number,duration:number)=>saveProgress(seasonId,ep,position,duration,{animeId:id,title:current.season?.display_title})} sources={current.sources.sources} diagnosticSession={current.sources.playback_session_id||session} animeId={id} seasonId={seasonId} partial={current.sources.partial} onRetrySources={()=>setRetry(retry+1)} animeTitle={current.season.display_title} episodeNumber={ep} totalEpisodes={current.season.episodes} episodes={current.season.episode_list} fallbackThumbnail={current.season.banner_image||current.season.poster_image} onSelectEpisode={(n:number)=>router.push(`${seasonURL}/episodes/${n}`)} onClose={()=>router.push(seasonURL)} onPrevEpisode={ep>1?()=>router.push(`${seasonURL}/episodes/${ep-1}`):undefined} onNextEpisode={current.season.episode_list?.some((e: any)=>e.episode_number===ep+1&&!e.upcoming)?()=>router.push(`${seasonURL}/episodes/${ep+1}`):undefined}/>:null}
@@ -87,23 +85,9 @@ export function AnimeBrowser({
  return <main className="detail-page">
   <HeaderBreadcrumb><nav aria-label={t("Fil d’Ariane")} className="detail-breadcrumb"><Link href="/">{t("Catalogue")}</Link>{seasonId>0?<><span aria-hidden="true">›</span><Link href={base} title={current?.franchise.title}>{current?.franchise.title||t("Anime")}</Link><span aria-hidden="true">›</span>{ep>0?<Link href={seasonURL}>{selected?.season_number?t(`Saison ${selected.season_number}`):t("Saison")}</Link>:<span className="breadcrumb-current" aria-current="page">{selected?.season_number?t(`Saison ${selected.season_number}`):t("Saison")}</span>}</>:<><span aria-hidden="true">›</span><span className="breadcrumb-current" aria-current="page">{current?.franchise.title||t("Anime")}</span></>}{ep>0&&<><span aria-hidden="true">›</span><span className="breadcrumb-current" aria-current="page">{t("Épisode")} {ep}</span></>}</nav></HeaderBreadcrumb>
   {error?<div className="page-inset pt-24"><ErrorAlert message={error} code={code} reference={reference} onRetry={()=>setRetry(retry+1)} /></div>:!current?<div className="hero-skeleton" role="status"><p>{t("Chargement…")}</p><div /><div /></div>:<>
-   <AnimeHero title={heroTitle} banner={current.season?.banner_image} poster={current.season?.poster_image || current.franchise.poster_image} episodes={current.season?.episodes} year={current.season?.season_year}>
-    {!seasonId && <a className="design-button" href="#seasons">{t("Voir les saisons")}</a>}
-    {seasonId>0&&!ep&&resume&&<Link className="design-button" href={`${seasonURL}/episodes/${resume.episode}`}>{t("Reprendre")} · {t("Épisode")} {resume.episode}</Link>}
-
-    {seasonId>0&&!ep&&<Link className="design-button secondary-button" href={`${base}#seasons`}>{t("Voir les saisons")}</Link>}
-   </AnimeHero>
    <div className="detail-content">
-    {current.franchise.warning&&<p role="status" className="catalog-warning">{t(current.franchise.warning)} <button className="text-action" onClick={()=>setRetry(retry+1)}>{t("Réessayer")}</button></p>}
-    {!seasonId && <>
-     {current.franchise.description&&<p className="detail-description">{current.franchise.description}</p>}
-     <div id="seasons">{([['main',t('Saisons')],['movies',t('Films')],['extras',t('Spéciaux et histoires annexes')]] as const).map(([group,title])=>{
-      const entries=current.franchise.seasons.filter((s: any)=>s.group===group);
-      return entries.length>0&&<section key={group} className="detail-section"><div className="section-heading"><h2>{t(title)}</h2><span className="heading-line" /></div><div className="season-grid">{entries.map((s: any)=><Link key={s.id} href={`${base}/seasons/${s.id}`} className="season-card"><LazyImage src={s.poster_image} alt={s.title} aspectRatio="" className="season-poster"/><h3>{t(s.season_name)}</h3><p>{s.season_year||t("Date inconnue")} · {s.episodes?t(s.episodes === 1 ? "{count} épisode" : "{count} épisodes", {count:s.episodes}):t("Nombre d’épisodes inconnu")}{s.status==="NOT_YET_RELEASED"?` ${t("· À venir")}`:""}</p></Link>)}</div></section>;
-     })}</div>
-    </>}
-    {seasonId>0&&!ep&&<section id="episodes" className="detail-section"><div className="section-heading"><h2>{t("Épisodes")}</h2><span className="heading-line" /></div><div className="episode-grid">{current.season?.episode_list?.map((episode: any)=><EpisodeCard key={episode.episode_number} episode={episode} href={`${seasonURL}/episodes/${episode.episode_number}`} />)}</div>{!current.season?.episode_list?.length&&<p className="detail-notice">{t("La liste des épisodes n’est pas encore disponible.")}</p>}</section>}
-
+    {!seasonId&&<SeriesPage franchise={current.franchise} base={base} warning={current.franchise.warning&&<p role="status" className="catalog-warning">{t(current.franchise.warning)} <button className="text-action" onClick={()=>setRetry(retry+1)}>{t("Réessayer")}</button></p>} />}
+    {seasonId>0&&<SeasonPage franchise={current.franchise} season={current.season} seasonId={seasonId} base={base} resume={resume} />}
    </div>
   </>}
 
