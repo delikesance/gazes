@@ -130,7 +130,7 @@ Le moteur torrent expose deux opérations nouvelles : `DownloadFile(infoHash, fi
   1. choisit la copie de la langue préférée de l'utilisateur ;
   2. si `video_codec = av1`, vérifie `MediaSource.isTypeSupported('video/mp4; codecs="av01.0.08M.10"')` ;
   3. si une copie convient, lit via `stream_id` ; sinon, flux torrent habituel (recherche de sources inchangée).
-- Côté serveur, les routes de lecture existantes (`/stream`, `/stream/raw`, `/subtitles`, `/metadata`, sessions HLS) acceptent un `library=<stream_id>` à la place de `ih` + `file_idx`. Elles obtiennent un `Source` : fichier local (`os.File`, `io.ReadSeeker`, Range natif) ou lecteur torrent. Le reste du pipeline (remux fMP4, HLS, piste audio, sous-titres) est inchangé.
+- Côté serveur, `stream_id` a le format d'un infohash (40 caractères hexadécimaux). Un `torrent.Engine` composite reconnaît ces identifiants et ouvre le fichier local (`os.File`, Range natif) ; tout autre hash est délégué au moteur torrent. Les routes de lecture existantes (`/stream`, `/stream/raw`, `/subtitles`, `/metadata`, sessions HLS) fonctionnent donc sans modification avec `ih=<stream_id>&file_idx=0`, et le reste du pipeline (remux fMP4, HLS, piste audio, sous-titres) est inchangé.
 - Le tag fMP4 de la vidéo AV1 est `av01` ; ffmpeg l'écrit nativement en `-c:v copy`.
 - Chaque ouverture met à jour `last_access_at` et incrémente un compteur de lectures actives (utilisé par l'encodeur et le janitor).
 
