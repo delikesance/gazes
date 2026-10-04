@@ -22,6 +22,7 @@ type Store struct {
 	db       *sql.DB
 	mu       sync.RWMutex
 	onChange func(old, cur *Entry)
+	secret   []byte // HMAC secret, loaded once by OpenStore
 }
 
 // SetOnChange registers a callback run after every committed Create, Update or Delete. old is nil on
@@ -107,7 +108,12 @@ func OpenStore(dir string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	return &Store{db: db}, nil
+	s := &Store{db: db}
+	if s.secret, err = s.loadSecret(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return s, nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }
@@ -323,8 +329,11 @@ func (s *Store) Recover() (RecoverReport, error) {
 	return r, tx.Commit()
 }
 
-// Secret returns the HMAC secret, generating and persisting 32 random bytes on first use.
-func (s *Store) Secret() ([]byte, error) {
+// Secret returns the HMAC secret, loaded (or generated and persisted) when the store was opened.
+func (s *Store) Secret() ([]byte, error) { return s.secret, nil }
+
+// loadSecret reads the HMAC secret, generating and persisting 32 random bytes on first use.
+func (s *Store) loadSecret() ([]byte, error) {
 	fresh := make([]byte, 32)
 	if _, err := rand.Read(fresh); err != nil {
 		return nil, err

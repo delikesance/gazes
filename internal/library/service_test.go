@@ -3,6 +3,7 @@ package library
 import (
 	"bytes"
 	"log/slog"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -154,6 +155,12 @@ func TestStateChangesAreLoggedFromTheStoreHook(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in log:\n%s", want, out)
 		}
+	}
+	if regexp.MustCompile(`state=\d`).MatchString(out) {
+		t.Errorf("state logged as a number:\n%s", out)
+	}
+	if !strings.Contains(out, "state=AV1") || !strings.Contains(out, "state=REMOVED") {
+		t.Errorf("state names missing:\n%s", out)
 	}
 	if n := strings.Count(out, "msg=library.encode"); n != 1 {
 		t.Errorf("library.encode logged %d times", n)
