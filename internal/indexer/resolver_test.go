@@ -337,3 +337,31 @@ func TestCompleteSeriesPack(t *testing.T) {
 		t.Error("a numberless series pack must not satisfy a season 2 target")
 	}
 }
+
+func TestRezeroS04ExclusionsDoNotRejectOwnReleases(t *testing.T) {
+	identity := indexer.EpisodeIdentity{
+		Titles:         []string{"Re:Zero kara Hajimeru Isekai Seikatsu 4th Season", "Re:ZERO -Starting Life in Another World- Season 4"},
+		ExcludedTitles: []string{"Re:Zero kara Hajimeru Break Time", "Re:Zero kara Hajimeru Isekai Seikatsu: Memory Snow", "Memory Snow", "Hyouketsu no Kizuna"},
+		SeasonNumber:   4, EpisodeNumber: 19,
+	}
+	for _, title := range []string{
+		"[ToonsHub] ReZero kara Hajimeru Isekai Seikatsu S04E19 1080p CR WEB-DL AAC2.0 H 264 (Re:ZERO -Starting Life in Another World- Season 4)",
+		"[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 19 [1080p CR WEB-DL AVC AAC][MultiSub]",
+		"[Judas] Re Zero kara Hajimeru Isekai Seikatsu (Season 4) - S04E19 [1080p][HEVC x265 10bit]",
+	} {
+		if ok, _, why := indexer.MatchEpisodeDebug(title, identity); !ok {
+			t.Errorf("%q should match: %s", title, why)
+		}
+	}
+	for _, title := range []string{
+		"[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 2nd Season - 19 [1080p]",
+		"[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu S3 - 19",
+		"[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 3rd Season - 19 [1080p]",
+		"[X] Re:Zero kara Hajimeru Break Time - 19 [1080p]",
+		"[X] Re:Zero kara Hajimeru Isekai Seikatsu: Memory Snow - 19 [1080p]",
+	} {
+		if ok, _, why := indexer.MatchEpisodeDebug(title, identity); ok {
+			t.Errorf("%q should be rejected (%s)", title, why)
+		}
+	}
+}

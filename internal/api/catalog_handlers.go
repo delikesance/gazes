@@ -355,57 +355,7 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 	// Legacy-only title heuristics. In authoritative mode, *Arr has already made
 	// these semantic decisions and Gazes never rewrites or reinterprets titles.
 	if !authoritative {
-		for _, other := range f.Seasons {
-			if other.ID == item.ID {
-				continue
-			}
-			for _, alias := range append(other.Aliases, other.Title) {
-				cleanAlias := strings.TrimSpace(alias)
-				if cleanAlias == "" {
-					continue
-				}
-				normAlias := indexer.CleanTitleForSearch(cleanAlias)
-				if normAlias == "" {
-					continue
-				}
-				isItemAlias := false
-				isBaseOfItem := false
-				for _, itemAlias := range item.Aliases {
-					normItem := indexer.CleanTitleForSearch(itemAlias)
-					if normItem == normAlias {
-						isItemAlias = true
-						break
-					}
-					if strings.Contains(" "+strings.ToLower(normItem)+" ", " "+strings.ToLower(normAlias)+" ") {
-						isBaseOfItem = true
-					}
-				}
-				if !isItemAlias && !isBaseOfItem {
-					identity.ExcludedTitles = append(identity.ExcludedTitles, cleanAlias)
-				}
-				subParts := regexp.MustCompile(`[:：–—\-]`).Split(cleanAlias, -1)
-				if len(subParts) > 1 {
-					for _, part := range subParts[1:] {
-						cleanPart := strings.TrimSpace(part)
-						cleanPart = regexp.MustCompile(`(?i)\b(?:season|saison|part|cour)\s*\d+\b`).ReplaceAllString(cleanPart, "")
-						cleanPart = strings.TrimSpace(cleanPart)
-						if len(cleanPart) >= 3 {
-							normPart := strings.ToLower(cleanPart)
-							partMatchesItem := false
-							for _, itemAlias := range item.Aliases {
-								if strings.Contains(strings.ToLower(itemAlias), normPart) {
-									partMatchesItem = true
-									break
-								}
-							}
-							if !partMatchesItem {
-								identity.ExcludedTitles = append(identity.ExcludedTitles, cleanPart)
-							}
-						}
-					}
-				}
-			}
-		}
+		identity.ExcludedTitles = buildExcludedTitles(item, f.Seasons)
 	}
 
 	if override, ok := indexer.NumberingOverrides[item.ID]; ok && !authoritative {
@@ -523,4 +473,83 @@ func (s *Server) catalogFailure(w http.ResponseWriter, r *http.Request, event, m
 	}
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message, "request_id": requestID})
+}
+
+var (
+	exclusionSplitRegex  = regexp.MustCompile(`[:：–—\-]`)
+	seasonMarkerKeyRegex = regexp.MustCompile(`(?i)\b(?:\d+(?:st|nd|rd|th)\s*(?:season|saison|part|partie|cour)|(?:season|saison|part|partie|cour)\s*\d+(?:st|nd|rd|th)?|s\d+)\b`)
+	nonAlnumKeyRegex     = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+)
+
+// compactTitleKey reduces a title to lowercase letters and digits with every
+// season marker removed, so "ReZero", "Re:Zero" and "Re:Zero 2nd Season" agree.
+func compactTitleKey(title string) string {
+	t := seasonMarkerKeyRegex.ReplaceAllString(title, " ")
+	t = indexer.CleanTitleForSearch(t)
+	return nonAlnumKeyRegex.ReplaceAllString(strings.ToLower(t), "")
+}
+
+// buildExcludedTitles lists titles of the franchise's other entries that must
+// reject a release. A candidate that reduces to something contained in one of
+// the item's own titles is the shared franchise base: excluding it would reject
+// the item's own releases, and telling seasons apart is the season check's job.
+func buildExcludedTitles(item *metadata.AnimeCatalogItem, seasons []metadata.AnimeSeason) []string {
+	own := append([]string{item.DisplayTitle, item.TitleEnglish, item.TitleRomaji}, item.Aliases...)
+	var ownKeys []string
+	for _, t := range own {
+		if k := compactTitleKey(t); k != "" {
+			ownKeys = append(ownKeys, k)
+		}
+	}
+	collides := func(candidate string) bool {
+		key := compactTitleKey(candidate)
+		if len(key) < 3 {
+			return true
+		}
+		for _, k := range ownKeys {
+			if strings.Contains(k, key) {
+				return true
+			}
+		}
+		return false
+	}
+	var excluded []string
+	seen := map[string]bool{}
+	add := func(t string) {
+		if !seen[t] {
+			seen[t] = true
+			excluded = append(excluded, t)
+		}
+	}
+	for _, other := range seasons {
+		if other.ID == item.ID {
+			continue
+		}
+		for _, alias := range append(append([]string{}, other.Aliases...), other.Title) {
+			cleanAlias := strings.TrimSpace(alias)
+			normAlias := indexer.CleanTitleForSearch(cleanAlias)
+			if normAlias == "" {
+				continue
+			}
+			isItemAlias := false
+			for _, itemAlias := range item.Aliases {
+				if indexer.CleanTitleForSearch(itemAlias) == normAlias {
+					isItemAlias = true
+					break
+				}
+			}
+			if !isItemAlias && !collides(cleanAlias) {
+				add(cleanAlias)
+			}
+			if parts := exclusionSplitRegex.Split(cleanAlias, -1); len(parts) > 1 {
+				for _, part := range parts[1:] {
+					cleanPart := strings.TrimSpace(seasonMarkerKeyRegex.ReplaceAllString(part, ""))
+					if len(cleanPart) >= 3 && !collides(cleanPart) {
+						add(cleanPart)
+					}
+				}
+			}
+		}
+	}
+	return excluded
 }

@@ -328,9 +328,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   useEffect(() => {
     if (error) reportFailure(error,"torrent_metadata_failed");
-    else if (needsFileSelection) reportFailure("L’épisode demandé n’est pas identifié sans ambiguïté dans ce pack.","episode_missing_or_ambiguous");
+    else if (needsFileSelection) {
+      const none = !!loadData && !!item && episodeCandidates(loadData.files, item as EpisodeSource).length === 0;
+      reportFailure(none ? "L’épisode demandé est introuvable dans ce pack." : "L’épisode demandé n’est pas identifié sans ambiguïté dans ce pack.","episode_missing_or_ambiguous");
+    }
     else if (playbackError) reportFailure(playbackError,"media_error");
-  }, [error, needsFileSelection, playbackError, reportFailure]);
+  }, [error, needsFileSelection, playbackError, reportFailure, loadData, item]);
 
   // Metadata phase: wait as long as the swarm is alive (a connected peer or incoming bytes).
   useEffect(() => {

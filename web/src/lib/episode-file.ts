@@ -88,6 +88,13 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
     return n === epNum || n === absNum;
   }
 
+  // 3b. Explicit CJK markers: 第19话 / 第19話 / 第19集 / 第19回 (full-width digits allowed)
+  const cjk = name.replace(/[０-９]/g, digit => String(digit.charCodeAt(0) - 0xff10)).match(/第\s*0*(\d+)\s*[话話集回]/);
+  if (cjk) {
+    const n = Number(cjk[1]);
+    return n === epNum || n === absNum;
+  }
+
   // 4. Pre-clean CRC, resolution, codec, and bit-depth tokens before bare number matching
   const cleanedName = name
     .replace(/^\s*\[[^\]]*\]/, " ") // leading release-group tag: a numeric group such as "[224]" is not an episode
