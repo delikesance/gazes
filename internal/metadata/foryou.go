@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/gazes/gazes/internal/kv"
 )
 
 const maxForYouSeeds = 5
@@ -66,7 +64,7 @@ func (s *AnimeCatalogService) GetForYou(ctx context.Context, seeds []int, taste 
 		key[i] = fmt.Sprint(id)
 	}
 	cacheKey := fmt.Sprintf("foryou-%s-%s-%d-%d", strings.Join(key, ","), taste.Fingerprint(), page, perPage)
-	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: 30 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
+	return s.catalogC.Get(ctx, cacheKey, catalogPolicy(30*time.Minute), func(ctx context.Context) (*CatalogResponse, error) {
 		return s.buildForYou(ctx, seeds, taste, page, perPage)
 	})
 }

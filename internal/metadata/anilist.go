@@ -21,15 +21,16 @@ const (
 	anilistMaxWait        = 8 * time.Second
 )
 
-// anilistRate is the fleet-wide budget in requests per minute (ANILIST_PER_MINUTE, default 60).
-// AniList allows 90/min nominally and 30/min while degraded; a 429 starts a shared cooldown anyway,
-// so this only has to be low enough to avoid triggering it in normal use.
+// anilistRate is the fleet-wide budget in requests per minute (ANILIST_PER_MINUTE, default 24).
+// AniList allows 90/min nominally but has announced X-RateLimit-Limit: 30 for a long time. A 429
+// freezes every AniList call for up to a minute (searches included), so the budget stays under
+// that limit even when a full burst is spent on top of a minute of sustained calls.
 func anilistRate() (perMinute, burst int) {
-	perMinute = 60
+	perMinute = 24
 	if v, err := strconv.Atoi(os.Getenv("ANILIST_PER_MINUTE")); err == nil && v > 0 {
 		perMinute = v
 	}
-	return perMinute, max(10, perMinute/2)
+	return perMinute, max(4, perMinute/4)
 }
 
 // RateLimitError means AniList is throttling us; RetryAfter says when calls may resume.

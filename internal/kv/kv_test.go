@@ -163,6 +163,25 @@ func TestGovernorTokenBucket(t *testing.T) {
 	}
 }
 
+func TestGovernorKeepsAReserveFromBackgroundWork(t *testing.T) {
+	c, _ := newClient(t)
+	g := c.NewGovernor("anilist", 60, 6, 10*time.Millisecond)
+	ctx := context.Background()
+	bg := Background(ctx)
+	taken := 0
+	for g.Acquire(bg) == nil {
+		taken++
+	}
+	if taken != 3 {
+		t.Fatalf("background work must leave half the burst: took %d of 6", taken)
+	}
+	for i := 0; i < 3; i++ {
+		if err := g.Acquire(ctx); err != nil {
+			t.Fatalf("visitor request %d starved by background work: %v", i, err)
+		}
+	}
+}
+
 func TestElectGivesExactlyOneWinnerPerPeriod(t *testing.T) {
 	mr := miniredis.RunT(t)
 	var clients []*Client
@@ -235,4 +254,47 @@ func TestBreakerFailsFastDuringOutageAndRecovers(t *testing.T) {
 	if err := c.Raw().Ping(context.Background()).Err(); err == nil {
 		t.Fatal("operations must fail at once while the circuit is open")
 	}
+}
+
+func TestPeekReadsWithoutFetching(t *testing.T) {
+	c, mr := newClient(t)
+	writer := NewCache[doc](c, "d", CacheOptions{})
+	reader := NewCache[doc](c, "d", CacheOptions{})
+	if _, ok := reader.Peek(context.Background(), "k"); ok {
+		t.Fatal("missing key reported as present")
+	}
+	writer.Put(context.Background(), "k", &doc{N: 3}, time.Minute)
+	mr.FastForward(2 * time.Minute) // stale, still a usable stand-in
+	if got, ok := reader.Peek(context.Background(), "k"); !ok || got.N != 3 {
+		t.Fatalf("peek from Redis: %v %v", got, ok)
+	}
+}
+
+func TestVisitorDoesNotJoinABackgroundLoad(t *testing.T) {
+	c, _ := newClient(t)
+	ca := NewCache[doc](c, "d", CacheOptions{})
+	release := make(chan struct{})
+	started := make(chan struct{})
+	go func() {
+		_, _ = ca.Get(Background(context.Background()), "k", Policy[doc]{TTL: time.Minute}, func(context.Context) (*doc, error) {
+			close(started)
+			<-release // a background load stuck waiting for its reserve
+			return &doc{N: 1}, nil
+		})
+	}()
+	<-started
+	done := make(chan *doc, 1)
+	go func() {
+		v, _ := ca.Get(context.Background(), "k", Policy[doc]{TTL: time.Minute}, func(context.Context) (*doc, error) { return &doc{N: 2}, nil })
+		done <- v
+	}()
+	select {
+	case v := <-done:
+		if v == nil || v.N != 2 {
+			t.Fatalf("visitor got %+v", v)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("visitor blocked behind a background load")
+	}
+	close(release)
 }
