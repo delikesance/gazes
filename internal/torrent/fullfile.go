@@ -34,7 +34,7 @@ func (e *ClientEngine) unpinFile(infoHash string, fileIndex int) {
 func (e *ClientEngine) isPinned(infoHash string) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return len(e.pinned[infoHash]) > 0
+	return e.isPinnedLocked(infoHash)
 }
 
 // readyFile resolves a file of a torrent whose metadata is already available.
@@ -87,6 +87,7 @@ func (e *ClientEngine) DownloadFile(infoHash string, fileIndex int) error {
 func (e *ClientEngine) ReleaseFile(infoHash string, fileIndex int) {
 	infoHash = strings.ToLower(infoHash)
 	e.unpinFile(infoHash, fileIndex)
+	e.touch(infoHash)
 	_, f, err := e.readyFile(infoHash, fileIndex)
 	if err != nil {
 		return

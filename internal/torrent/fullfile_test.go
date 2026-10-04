@@ -64,3 +64,17 @@ func TestTorrentStaysPinnedWhileAnyFileIsPinned(t *testing.T) {
 		t.Fatal("torrent must be unpinned once no file is pinned")
 	}
 }
+
+func TestDropTorrentSkipsPinned(t *testing.T) {
+	e := &ClientEngine{torrents: map[string]*anacrolix.Torrent{"aa": nil}}
+	e.pinFile("aa", 0)
+	e.dropTorrent("aa")
+	if _, ok := e.torrents["aa"]; !ok || !e.isPinned("aa") {
+		t.Fatal("dropTorrent must be a no-op for a pinned torrent")
+	}
+	e.unpinFile("aa", 0)
+	e.dropTorrent("aa")
+	if _, ok := e.torrents["aa"]; ok {
+		t.Fatal("unpinned torrent should be dropped")
+	}
+}
