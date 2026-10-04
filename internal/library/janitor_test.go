@@ -202,3 +202,73 @@ func TestReconcileIgnoresAbsentDisks(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestReconcileAndFreeSkipDiskWithoutMarker(t *testing.T) {
+	e := newJanitorEnv(t, nil)
+	e.add(t, 1, StateOriginal, 3000, 10*24*time.Hour)
+	orphan := filepath.Join(e.root, "9", "9-vf.mkv")
+	os.MkdirAll(filepath.Dir(orphan), 0o755)
+	os.WriteFile(orphan, []byte("x"), 0o644)
+	d := e.pool.disks[e.disk]
+	d.Reserve = 9000
+	e.pool.disks[e.disk] = d
+	os.Remove(filepath.Join(e.root, markerName)) // disk unmounted: empty/foreign directory
+	os.Remove(filepath.Join(e.root, keyRel(Key{1, 1, "vf"})))
+	rep, err := e.j.Reconcile()
+	if err != nil || rep != (ReconcileReport{}) {
+		t.Fatalf("rep=%+v err=%v", rep, err)
+	}
+	if freed, err := e.j.Free(e.disk); err != nil || freed != 0 {
+		t.Fatalf("freed=%d err=%v", freed, err)
+	}
+	if !exists(orphan) {
+		t.Fatal("file deleted on unverified disk")
+	}
+	if _, err := e.store.Get(Key{1, 1, "vf"}); err != nil {
+		t.Fatalf("entry deleted on unverified disk: %v", err)
+	}
+}
+
+func TestReconcileLeavesForeignFilesAlone(t *testing.T) {
+	e := newJanitorEnv(t, nil)
+	foreign := []string{"lost+found/x", ".DS_Store", "notes.tmp", "1/readme.txt", "1/2-fr.mkv", "1/2-vf.mkv.bak", "1/other.tmp", "a/1-vf.mkv", "1/2-vf.av1.tmp.mkv.old"}
+	for _, f := range foreign {
+		p := filepath.Join(e.root, f)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte("x"), 0o644)
+	}
+	rep, err := e.j.Reconcile()
+	if err != nil || rep != (ReconcileReport{}) {
+		t.Fatalf("rep=%+v err=%v", rep, err)
+	}
+	for _, f := range foreign {
+		if !exists(filepath.Join(e.root, f)) {
+			t.Fatalf("foreign file %s deleted", f)
+		}
+	}
+}
+
+func TestFreeRechecksCandidateBeforeDeleting(t *testing.T) {
+	for name, mutate := range map[string]func(*Janitor, Key){
+		"encoding": func(j *Janitor, k Key) {
+			j.store.Update(k, func(en *Entry) error { en.State = StateEncoding; return nil })
+		},
+		"touched": func(j *Janitor, k Key) { j.store.Touch(k, janitorNow) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newJanitorEnv(t, nil)
+			f1 := e.add(t, 1, StateOriginal, 3000, 10*24*time.Hour)
+			d := e.pool.disks[e.disk]
+			d.Reserve = 5000
+			e.pool.disks[e.disk] = d
+			e.j.beforeEvict = func(k Key) { mutate(e.j, k) }
+			freed, err := e.j.Free(e.disk)
+			if err != nil || freed != 0 || !exists(f1) {
+				t.Fatalf("freed=%d err=%v exists=%v", freed, err, exists(f1))
+			}
+			if _, err := e.store.Get(Key{1, 1, "vf"}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
