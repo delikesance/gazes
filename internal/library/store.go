@@ -11,13 +11,35 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 // Store is the SQLite index of cached episode copies.
-type Store struct{ db *sql.DB }
+type Store struct {
+	db       *sql.DB
+	mu       sync.RWMutex
+	onChange func(old, cur *Entry)
+}
+
+// SetOnChange registers a callback run after every committed Create, Update or Delete. old is nil on
+// create, cur is nil on delete. The callback runs on the writer's goroutine and must not block.
+func (s *Store) SetOnChange(fn func(old, cur *Entry)) {
+	s.mu.Lock()
+	s.onChange = fn
+	s.mu.Unlock()
+}
+
+func (s *Store) changed(old, cur *Entry) {
+	s.mu.RLock()
+	fn := s.onChange
+	s.mu.RUnlock()
+	if fn != nil {
+		fn(old, cur)
+	}
+}
 
 const schema = `
 CREATE TABLE IF NOT EXISTS episodes (
@@ -147,6 +169,9 @@ func (s *Store) Create(e Entry) error {
 	if errors.As(err, &se) && se.Code == sqlite3.ErrConstraint {
 		return ErrExists
 	}
+	if err == nil {
+		s.changed(nil, &e)
+	}
 	return err
 }
 
@@ -155,8 +180,26 @@ func (s *Store) Get(k Key) (Entry, error) {
 }
 
 func (s *Store) Delete(k Key) error {
-	_, err := s.db.Exec(`DELETE FROM episodes WHERE season_id = ? AND episode = ? AND lang = ?`, k.SeasonID, k.Episode, k.Lang)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	old, err := scanEntry(tx.QueryRow(`SELECT `+columns+` FROM episodes WHERE season_id = ? AND episode = ? AND lang = ?`, k.SeasonID, k.Episode, k.Lang))
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM episodes WHERE season_id = ? AND episode = ? AND lang = ?`, k.SeasonID, k.Episode, k.Lang); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	s.changed(&old, nil)
+	return nil
 }
 
 // Update applies fn to the entry in one transaction and stamps UpdatedAt. If fn fails nothing is
@@ -171,6 +214,7 @@ func (s *Store) Update(k Key, fn func(*Entry) error) (Entry, error) {
 	if err != nil {
 		return Entry{}, err
 	}
+	old := e
 	if err := fn(&e); err != nil {
 		return Entry{}, err
 	}
@@ -185,6 +229,7 @@ func (s *Store) Update(k Key, fn func(*Entry) error) (Entry, error) {
 	if err := tx.Commit(); err != nil {
 		return Entry{}, err
 	}
+	s.changed(&old, &e)
 	return e, nil
 }
 

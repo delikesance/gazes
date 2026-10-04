@@ -91,9 +91,6 @@ func (j *Janitor) Free(diskID string) (int64, error) {
 			continue
 		}
 		freed += e.SizeBytes
-		diagnostics.Log(context.Background(), slog.LevelInfo, "library.evict",
-			"key", e.Key.String(), "disk", diskID, "state", string(e.State), "size_bytes", e.SizeBytes,
-			"last_access_at", e.LastAccessAt)
 	}
 	return freed, firstErr
 }

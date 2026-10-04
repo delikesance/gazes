@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gazes/gazes/internal/config"
+	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/library"
 	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/torrent"
@@ -44,15 +46,15 @@ func (libEngine) Files(h string) ([]torrent.FileInfo, bool) {
 	return []torrent.FileInfo{{Index: 0, Path: "a.mkv", Length: 10, IsVideo: true}, {Index: 1, Path: "a.srt", Length: 1}}, true
 }
 
-type libFetcher struct{}
+type libFetcher struct{ size int64 }
 
 func (libFetcher) GetFileStream(context.Context, string, int) (io.ReadSeekCloser, *torrent.FileInfo, error) {
 	return nil, nil, io.EOF
 }
-func (libFetcher) DownloadFile(string, int) error                 { return nil }
-func (libFetcher) ReleaseFile(string, int)                        {}
-func (libFetcher) FileProgress(string, int) (int64, int64, error) { return 0, 10, nil }
-func (libFetcher) VerifyFile(context.Context, string, int) error  { return nil }
+func (libFetcher) DownloadFile(string, int) error                   { return nil }
+func (libFetcher) ReleaseFile(string, int)                          {}
+func (f libFetcher) FileProgress(string, int) (int64, int64, error) { return 0, f.size, nil }
+func (libFetcher) VerifyFile(context.Context, string, int) error    { return nil }
 
 // episodesTransport answers every AniList detail query with a 12-episode finished series.
 type episodesTransport struct{}
@@ -80,6 +82,26 @@ type libEnv struct {
 // newLibEnv opens a real library on temp dirs, optionally pre-filled by seed through the index.
 func newLibEnv(t *testing.T, loggedIn bool, seed func(st *library.Store, diskID, diskDir string)) *libEnv {
 	t.Helper()
+	return newSizedLibEnv(t, loggedIn, 10, seed)
+}
+
+const (
+	vostfrHash   = "fedcba9876543210fedcba9876543210fedcba98"
+	unloadedHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+
+// cacheSources plants the findings HandleSeasonSources would have cached for (season, ep).
+func (e *libEnv) cacheSources(season, ep int, srcs ...indexer.EpisodeSource) {
+	e.s.sources().cache.Put(context.Background(), fmt.Sprintf("discovery-v3|%d|%d", season, ep),
+		&indexer.EpisodeSourcesResponse{Sources: srcs}, time.Hour)
+}
+
+func libSource(hash string, tag indexer.LanguageTag) indexer.EpisodeSource {
+	return indexer.EpisodeSource{TorrentItem: indexer.TorrentItem{InfoHash: hash}, LanguageTag: tag}
+}
+
+func newSizedLibEnv(t *testing.T, loggedIn bool, size int64, seed func(st *library.Store, diskID, diskDir string)) *libEnv {
+	t.Helper()
 	pool, index := t.TempDir(), t.TempDir()
 	diskDir := filepath.Join(pool, "d1")
 	if err := os.Mkdir(diskDir, 0o755); err != nil {
@@ -97,15 +119,19 @@ func newLibEnv(t *testing.T, loggedIn bool, seed func(st *library.Store, diskID,
 		seed(st, diskID, diskDir)
 		st.Close()
 	}
-	svc, err := library.Open(library.Options{PoolDir: pool, IndexDir: index, ReservePercent: 0, ReserveBytes: 0, Stall: time.Hour}, libEngine{}, libFetcher{}, nil)
+	svc, err := library.Open(library.Options{PoolDir: pool, IndexDir: index, ReservePercent: 0, ReserveBytes: 0, Stall: time.Hour}, libEngine{}, libFetcher{size: size}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { svc.Close() })
-	s := NewServer(&config.Config{}, nil, nil, svc.Engine(), nil, WithLibrary(svc))
+	s := NewServer(&config.Config{}, nil, nil, svc.Engine(), nil, WithLibrary(svc),
+		WithLibraryUser(func(*http.Request) (int64, bool) { return 1, loggedIn }))
 	s.catalogService = metadata.NewAnimeCatalogService(&http.Client{Transport: episodesTransport{}})
-	s.libraryUser = func(*http.Request) (int64, bool) { return 1, loggedIn }
-	return &libEnv{s: s, pool: pool, disk: diskID, handler: s.Router()}
+	env := &libEnv{s: s, pool: pool, disk: diskID, handler: s.Router()}
+	for ep := 1; ep <= 12; ep++ {
+		env.cacheSources(5, ep, libSource(libHash, indexer.LangVF), libSource(strings.ToUpper(unloadedHash), indexer.LangMULTI), libSource(vostfrHash, indexer.LangVOSTFR))
+	}
+	return env
 }
 
 func (e *libEnv) do(method, url, body string, hdr ...string) *httptest.ResponseRecorder {
@@ -135,7 +161,11 @@ func TestLibraryPostValidatesLangEpisodeAndFile(t *testing.T) {
 	cases := []struct{ name, url, body string }{
 		{"bad lang", "/api/v1/library/episodes/5/1/en", libBody(libHash, 0)},
 		{"episode not in season", "/api/v1/library/episodes/5/99/vf", libBody(libHash, 0)},
-		{"unknown torrent", "/api/v1/library/episodes/5/1/vf", libBody(strings.Repeat("a", 40), 0)},
+		{"unknown torrent", "/api/v1/library/episodes/5/1/vf", libBody(unloadedHash, 0)},
+		{"hash not in resolved sources", "/api/v1/library/episodes/5/1/vf", libBody(strings.Repeat("c", 40), 0)},
+		{"vostfr source registered as vf", "/api/v1/library/episodes/5/1/vf", libBody(vostfrHash, 0)},
+		{"vf source registered as vostfr", "/api/v1/library/episodes/5/1/vostfr", libBody(libHash, 0)},
+		{"anime id missing", "/api/v1/library/episodes/5/1/vf", `{"info_hash":"` + libHash + `","file_index":0}`},
 		{"not a video", "/api/v1/library/episodes/5/1/vf", libBody(libHash, 1)},
 		{"file out of range", "/api/v1/library/episodes/5/1/vf", libBody(libHash, 7)},
 		{"bad hash", "/api/v1/library/episodes/5/1/vf", libBody("zz", 0)},
@@ -222,5 +252,62 @@ func TestStreamRawServesLibraryCopy(t *testing.T) {
 	rr = env.do("GET", "/api/v1/stream/raw?ih="+libHash+"&file_idx=0", "", "Range", "bytes=0-2")
 	if rr.Code != http.StatusPartialContent || rr.Body.String() != "tor" {
 		t.Fatalf("torrent: %d %q", rr.Code, rr.Body.String())
+	}
+}
+
+func TestLibraryPostRequiresResolvedSource(t *testing.T) {
+	env := newLibEnv(t, true, nil)
+	rr := env.do("POST", "/api/v1/library/episodes/5/1/vf", libBody(strings.Repeat("c", 40), 0))
+	if rr.Code != http.StatusUnprocessableEntity || !strings.Contains(rr.Body.String(), "source_not_resolved") {
+		t.Fatalf("hash not in sources: %d %s", rr.Code, rr.Body)
+	}
+	// No cached findings at all: the handler never triggers a new resolve.
+	env.s.sources().cache.Invalidate(context.Background(), "discovery-v3|5|3")
+	rr = env.do("POST", "/api/v1/library/episodes/5/3/vf", libBody(libHash, 0))
+	if rr.Code != http.StatusUnprocessableEntity || !strings.Contains(rr.Body.String(), "source_not_resolved") {
+		t.Fatalf("cache miss: %d %s", rr.Code, rr.Body)
+	}
+	// MULTI maps to vf, and a hash matches regardless of case.
+	env.cacheSources(5, 4, libSource(strings.ToUpper(libHash), indexer.LangMULTI))
+	if rr = env.do("POST", "/api/v1/library/episodes/5/4/vf", libBody(libHash, 0)); rr.Code != http.StatusCreated {
+		t.Fatalf("multi source: %d %s", rr.Code, rr.Body)
+	}
+	// VOSTFR sources register as vostfr.
+	env.cacheSources(5, 5, libSource(libHash, indexer.LangVOSTFR))
+	if rr = env.do("POST", "/api/v1/library/episodes/5/5/vostfr", libBody(libHash, 0)); rr.Code != http.StatusCreated {
+		t.Fatalf("vostfr source: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestLibraryPostTooManyDownloadsIs429(t *testing.T) {
+	env := newLibEnv(t, true, nil)
+	for ep := 1; ep <= 4; ep++ {
+		if rr := env.do("POST", fmt.Sprintf("/api/v1/library/episodes/5/%d/vf", ep), libBody(libHash, 0)); rr.Code != http.StatusCreated {
+			t.Fatalf("episode %d: %d %s", ep, rr.Code, rr.Body)
+		}
+	}
+	if rr := env.do("POST", "/api/v1/library/episodes/5/5/vf", libBody(libHash, 0)); rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("fifth download: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestLibraryPostNoSpaceIs507(t *testing.T) {
+	env := newSizedLibEnv(t, true, 1<<60, nil)
+	if rr := env.do("POST", "/api/v1/library/episodes/5/1/vf", libBody(libHash, 0)); rr.Code != http.StatusInsufficientStorage {
+		t.Fatalf("status = %d %s", rr.Code, rr.Body)
+	}
+}
+
+type failingTransport struct{}
+
+func (failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, io.ErrUnexpectedEOF
+}
+
+func TestLibraryPostCatalogErrorIs503(t *testing.T) {
+	env := newLibEnv(t, true, nil)
+	env.s.catalogService = metadata.NewAnimeCatalogService(&http.Client{Transport: failingTransport{}})
+	if rr := env.do("POST", "/api/v1/library/episodes/5/1/vf", libBody(libHash, 0)); rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d %s", rr.Code, rr.Body)
 	}
 }

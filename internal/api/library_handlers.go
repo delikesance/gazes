@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/library"
 	"github.com/gazes/gazes/internal/torrent"
 	"github.com/go-chi/chi/v5"
@@ -56,6 +58,40 @@ func (s *Server) libraryUserID(r *http.Request) (int64, bool) {
 	return u.ID, true
 }
 
+// sourceMatches reports whether infoHash is one of the sources this server itself resolved for
+// (season, ep), with a language that maps to lang (VF and MULTI to "vf", VOSTFR to "vostfr").
+// It only reads the findings cached by HandleSeasonSources, stale ones included, and never
+// triggers a resolve: a client cannot make the library cache a torrent the server did not offer.
+//
+// Residual risk: for a batch (season pack) source the client still chooses file_index, so it can
+// cache another video file of an offered pack under this episode. Only offered torrents are reachable.
+func (s *Server) sourceMatches(ctx context.Context, season, ep int, lang, infoHash string) bool {
+	authoritative := s.cfg != nil && s.cfg.ArrAuthoritative
+	cache := s.sources().cache
+	for _, full := range []bool{false, true} {
+		res, ok := cache.Peek(ctx, sourceCacheKey(authoritative, season, ep, full))
+		if !ok || res == nil {
+			continue
+		}
+		for _, src := range res.Sources {
+			if !strings.EqualFold(src.InfoHash, infoHash) {
+				continue
+			}
+			switch src.LanguageTag {
+			case indexer.LangVF, indexer.LangMULTI:
+				if lang == "vf" {
+					return true
+				}
+			case indexer.LangVOSTFR:
+				if lang == "vostfr" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func routeInt(r *http.Request, name string) (int, bool) {
 	n, err := strconv.Atoi(chi.URLParam(r, name))
 	return n, err == nil && n > 0
@@ -83,7 +119,7 @@ func (s *Server) HandleLibraryRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	body.InfoHash = strings.ToLower(body.InfoHash)
 	if _, err := hex.DecodeString(body.InfoHash); err != nil || len(body.InfoHash) != 40 || body.FileIndex < 0 ||
-		len(body.ReleaseName) > libraryTextLimit || len(body.Title) > libraryTextLimit {
+		body.AnimeID <= 0 || len(body.ReleaseName) > libraryTextLimit || len(body.Title) > libraryTextLimit {
 		libraryError(w, http.StatusUnprocessableEntity, "invalid torrent reference")
 		return
 	}
@@ -107,6 +143,11 @@ func (s *Server) HandleLibraryRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found {
 		libraryError(w, http.StatusUnprocessableEntity, "episode not in season")
+		return
+	}
+
+	if !s.sourceMatches(r.Context(), season, ep, lang, body.InfoHash) {
+		libraryError(w, http.StatusUnprocessableEntity, "source_not_resolved")
 		return
 	}
 

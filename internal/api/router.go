@@ -44,7 +44,7 @@ type Server struct {
 	playbackOnce    sync.Once
 	subtitles       subtitleJobs
 	library         *library.Service
-	libraryUser     func(*http.Request) (int64, bool) // overrides the session lookup (tests)
+	libraryUser     func(*http.Request) (int64, bool)
 }
 
 // Option customises a Server.
@@ -64,6 +64,11 @@ func WithAuth(svc *auth.Service) Option { return func(s *Server) { s.auth = svc 
 
 // WithLibrary enables the AV1 episode library routes.
 func WithLibrary(svc *library.Service) Option { return func(s *Server) { s.library = svc } }
+
+// WithLibraryUser overrides how the library routes identify the caller (default: the auth session). Tests only.
+func WithLibraryUser(fn func(*http.Request) (int64, bool)) Option {
+	return func(s *Server) { s.libraryUser = fn }
+}
 
 // WithRedis moves every shared cache, upstream rate limit and single-flight to Redis, so all
 // instances behave like one polite client of AniList and the indexers.

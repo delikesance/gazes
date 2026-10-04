@@ -382,14 +382,7 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Do not reuse findings produced by the old RSS discovery/title rejection rules.
-	cacheVersion := "discovery-v3"
-	if authoritative {
-		cacheVersion = "arr-v1"
-	}
-	key := fmt.Sprintf("%s|%d|%d", cacheVersion, item.ID, ep)
-	if discovery == "full" {
-		key += "|full"
-	}
+	key := sourceCacheKey(authoritative, item.ID, ep, discovery == "full")
 	res, hit, err := s.sources().resolve(r.Context(), key, func(ctx context.Context) (*indexer.EpisodeSourcesResponse, error) {
 		if discovery == "full" {
 			return s.episodeResolver.ResolveSeasonSources(ctx, identity)
@@ -562,4 +555,18 @@ func buildExcludedTitles(item *metadata.AnimeCatalogItem, seasons []metadata.Ani
 		}
 	}
 	return excluded
+}
+
+// sourceCacheKey names the cached findings of one episode. Findings produced by the old RSS
+// discovery/title rejection rules are never reused: the version prefix changes with the rules.
+func sourceCacheKey(authoritative bool, seasonID, ep int, full bool) string {
+	version := "discovery-v3"
+	if authoritative {
+		version = "arr-v1"
+	}
+	key := fmt.Sprintf("%s|%d|%d", version, seasonID, ep)
+	if full {
+		key += "|full"
+	}
+	return key
 }

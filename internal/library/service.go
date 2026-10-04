@@ -14,7 +14,6 @@ import (
 
 const (
 	scanEvery         = 60 * time.Second
-	watchEvery        = 10 * time.Second
 	maxActiveDownload = 4
 	newCopiesPerHour  = 20
 	rateWindow        = time.Hour
@@ -93,13 +92,15 @@ func Open(opts Options, inner torrent.Engine, fetcher Fetcher, logger *slog.Logg
 	clock := time.Now
 	eng := NewEngine(inner, store, pool, clock)
 	prober := FFprobe(opts.FFprobe)
-	return &Service{
+	svc := &Service{
 		store: store, pool: pool, engine: eng, logger: logger, clock: clock,
 		acq:     NewAcquirer(store, pool, fetcher, prober, clock, opts.Stall, maxActiveDownload),
 		enc:     NewEncoder(store, pool, prober, eng.ActiveStreams, opts.Encode, clock),
 		janitor: NewJanitor(store, pool, eng.InUse, clock),
 		rate:    map[int64][]time.Time{},
-	}, nil
+	}
+	svc.watch()
+	return svc, nil
 }
 
 // Engine returns the torrent engine that also serves library copies.
@@ -126,7 +127,6 @@ func (s *Service) Start(ctx context.Context) {
 	})
 	run(s.enc.Run)
 	run(s.janitor.Run)
-	run(s.watchLoop)
 }
 
 func (s *Service) scanLoop(ctx context.Context) {
@@ -151,36 +151,40 @@ func (s *Service) scanLoop(ctx context.Context) {
 	}
 }
 
-// watchLoop logs every state transition of the index (downloads finishing, encodes, abandons).
-func (s *Service) watchLoop(ctx context.Context) {
-	seen := map[Key]State{}
-	first := true
-	t := time.NewTicker(watchEvery)
-	defer t.Stop()
-	for {
-		list, err := s.store.List(Filter{})
-		if err == nil {
-			cur := make(map[Key]State, len(list))
-			for _, e := range list {
-				cur[e.Key] = e.State
-				prev, known := seen[e.Key]
-				if first || (known && prev == e.State) {
-					continue
-				}
-				event := "library.state"
-				if e.State == StateAV1 {
-					event = "library.encode"
-				}
-				diagnostics.Log(ctx, slog.LevelInfo, event, "season_id", e.SeasonID, "episode", e.Episode, "lang", e.Lang,
-					"disk_id", e.DiskID, "state", string(e.State), "duration_ms", e.DurationMS)
-			}
-			seen, first = cur, false
+// watch logs every state transition of the index from the store's change hook.
+func (s *Service) watch() { s.store.SetOnChange(logChange) }
+
+// logChange turns one committed index change into a diagnostics event.
+func logChange(old, cur *Entry) {
+	ctx := context.Background()
+	ref := cur
+	if ref == nil {
+		ref = old
+	}
+	attrs := func(state State) []any {
+		a := []any{"season_id", ref.SeasonID, "episode", ref.Episode, "lang", ref.Lang, "disk_id", ref.DiskID,
+			"state", string(state), "duration_ms", int64(0)}
+		if old != nil && cur != nil {
+			a[9] = cur.UpdatedAt.Sub(old.UpdatedAt).Milliseconds()
 		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
+		return a
+	}
+	switch {
+	case cur == nil:
+		if old.State == StateOriginal || old.State == StateAV1 {
+			diagnostics.Log(ctx, slog.LevelInfo, "library.evict", attrs(old.State)...)
+		} else {
+			diagnostics.Log(ctx, slog.LevelInfo, "library.state", attrs("REMOVED")...)
 		}
+	case old == nil:
+		diagnostics.Log(ctx, slog.LevelInfo, "library.state", attrs(cur.State)...)
+	case old.State == cur.State:
+	case old.State == StateEncoding && (cur.State == StateAV1 || cur.State == StateOriginal):
+		diagnostics.Log(ctx, slog.LevelInfo, "library.encode", attrs(cur.State)...)
+	case old.State == StateUnavailable || cur.State == StateUnavailable:
+		diagnostics.Log(ctx, slog.LevelWarn, "library.disk", attrs(cur.State)...)
+	default:
+		diagnostics.Log(ctx, slog.LevelInfo, "library.state", attrs(cur.State)...)
 	}
 }
 
@@ -192,13 +196,17 @@ func (s *Service) Register(userID int64, req Request) (Entry, bool, error) {
 	recent := s.recent(userID, now)
 	if len(recent) >= newCopiesPerHour {
 		// Over the limit: touching an existing copy is still fine, creating one is not.
-		if e, err := s.store.Get(req.Key); err == nil {
-			if err := s.store.Touch(req.Key, now); err != nil && !errors.Is(err, ErrNotFound) {
-				return Entry{}, false, err
-			}
-			return e, false, nil
+		e, err := s.store.Get(req.Key)
+		if errors.Is(err, ErrNotFound) {
+			return Entry{}, false, ErrRateLimited
 		}
-		return Entry{}, false, ErrRateLimited
+		if err != nil {
+			return Entry{}, false, err
+		}
+		if err := s.store.Touch(req.Key, now); err != nil && !errors.Is(err, ErrNotFound) {
+			return Entry{}, false, err
+		}
+		return e, false, nil
 	}
 	e, created, err := s.acq.Start(req)
 	if errors.Is(err, ErrNoSpace) {
@@ -214,8 +222,6 @@ func (s *Service) Register(userID int64, req Request) (Entry, bool, error) {
 	}
 	if created {
 		s.rate[userID] = append(recent, now)
-		diagnostics.Log(context.Background(), slog.LevelInfo, "library.state", "season_id", e.SeasonID, "episode", e.Episode,
-			"lang", e.Lang, "disk_id", e.DiskID, "state", string(e.State), "duration_ms", e.DurationMS)
 	}
 	return e, created, nil
 }
