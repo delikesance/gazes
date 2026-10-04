@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -39,8 +40,7 @@ func (s *Server) HandleCatalogTrending(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.catalogService.GetTrending(r.Context(), page, perPage)
 	if err != nil {
-		diagnostics.Logger(r.Context(), s.logger).Error("failed to get trending anime", "err", err)
-		http.Error(w, `{"error": "failed to get trending anime"}`, http.StatusInternalServerError)
+		s.catalogFailure(w, r, "failed to get trending anime", "failed to get trending anime", err)
 		return
 	}
 
@@ -70,8 +70,7 @@ func (s *Server) HandleCatalogPopular(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.catalogService.GetPopular(r.Context(), page, perPage)
 	if err != nil {
-		diagnostics.Logger(r.Context(), s.logger).Error("failed to get popular anime", "err", err)
-		http.Error(w, `{"error": "failed to get popular anime"}`, http.StatusInternalServerError)
+		s.catalogFailure(w, r, "failed to get popular anime", "failed to get popular anime", err)
 		return
 	}
 
@@ -154,8 +153,7 @@ func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.catalogService.GetForYou(r.Context(), seeds, taste, page, perPage)
 	if err != nil {
-		diagnostics.Logger(r.Context(), s.logger).Error("failed to get suggestions", "err", err)
-		http.Error(w, `{"error": "failed to get suggestions"}`, http.StatusInternalServerError)
+		s.catalogFailure(w, r, "failed to get suggestions", "failed to get suggestions", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -204,8 +202,7 @@ func (s *Server) HandleCatalogSearch(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.catalogService.SearchCatalogFiltered(r.Context(), q, include, exclude, page, perPage)
 	if err != nil {
-		diagnostics.Logger(r.Context(), s.logger).Error("failed to search anime catalog", "err", err, "query", q)
-		http.Error(w, `{"error": "failed to search catalog"}`, http.StatusInternalServerError)
+		s.catalogFailure(w, r, "failed to search anime catalog", "failed to search catalog", err, "query", q)
 		return
 	}
 
@@ -501,4 +498,28 @@ func (s *Server) HandleCatalogSchedule(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	_ = json.NewEncoder(w).Encode(res)
+}
+
+// catalogFailure answers a failed catalog call. An upstream throttle is a 503 with Retry-After,
+// not a 500; every failure is logged with its error chain and goroutine stack, and the response
+// carries the request id so the on-screen error can be matched with that log line.
+func (s *Server) catalogFailure(w http.ResponseWriter, r *http.Request, event, message string, err error, attrs ...any) {
+	status := http.StatusInternalServerError
+	var limited *metadata.RateLimitError
+	if errors.As(err, &limited) {
+		status = http.StatusServiceUnavailable
+		w.Header().Set("Retry-After", strconv.Itoa(int(limited.RetryAfter.Seconds())+1))
+	}
+	requestID := diagnostics.Get(r.Context()).RequestID
+	fields := append([]any{"err", err, "error_type", fmt.Sprintf("%T", err), "status", status, "path", r.URL.Path, "query_string", r.URL.RawQuery}, attrs...)
+	if status == http.StatusInternalServerError {
+		fields = append(fields, "stack", string(debug.Stack()))
+	}
+	diagnostics.Logger(r.Context(), s.logger).Error(event, fields...)
+	w.Header().Set("Content-Type", "application/json")
+	if requestID != "" {
+		w.Header().Set("X-Request-ID", requestID)
+	}
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message, "request_id": requestID})
 }

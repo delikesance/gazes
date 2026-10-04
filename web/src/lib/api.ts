@@ -18,6 +18,20 @@ export function getApiBase(): string {
   return process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/api/v1` : "http://127.0.0.1:8090/api/v1";
 }
 
+/** The backend answers an upstream throttle with 503 + Retry-After: wait that long (at most 10 s) and retry once. */
+async function fetchRetryingThrottle(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, init);
+  if (res.status !== 503) return res;
+  const wait = Number(res.headers.get("Retry-After"));
+  if (!Number.isFinite(wait) || wait <= 0 || wait > 10) return res;
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, wait * 1000);
+    init?.signal?.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
+  });
+  if (init?.signal?.aborted) return res;
+  return fetch(url, init);
+}
+
 export async function getCatalogTrending(page: number = 1, perPage: number = 20): Promise<CatalogResponse> {
   const url = `${getApiBase()}/catalog/trending?page=${page}&per_page=${perPage}`;
   console.log("[API CLIENT] Fetching:", url);
@@ -32,7 +46,7 @@ export async function getCatalogTrending(page: number = 1, perPage: number = 20)
 }
 
 export async function getCatalogPopular(page: number = 1, perPage: number = 20, signal?: AbortSignal): Promise<CatalogResponse> {
-  const res = await fetch(`${getApiBase()}/catalog/popular?page=${page}&per_page=${perPage}`, { signal });
+  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/popular?page=${page}&per_page=${perPage}`, { signal });
   if (!res.ok) {
     throw httpError("Impossible de charger les animes populaires.", "CAT", res);
   }
@@ -45,7 +59,7 @@ export async function getCatalogPopular(page: number = 1, perPage: number = 20, 
  */
 export async function getCatalogForYou(seedIds: number[], sessions: unknown[] = [], hidden: number[] = [], page: number = 1, perPage: number = 24, signal?: AbortSignal): Promise<CatalogResponse> {
   const ids = seedIds.length ? `&ids=${seedIds.join(",")}` : "";
-  const res = await fetch(`${getApiBase()}/catalog/foryou?page=${page}&per_page=${perPage}${ids}`, {
+  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/foryou?page=${page}&per_page=${perPage}${ids}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
@@ -73,7 +87,7 @@ export async function searchCatalog(
   if (page > 1) params.set("page", page.toString());
   if (perPage !== 24) params.set("per_page", perPage.toString());
 
-  const res = await fetch(`${getApiBase()}/catalog/search?${params.toString()}`);
+  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/search?${params.toString()}`);
   if (!res.ok) {
     throw httpError("Impossible de charger le catalogue.", "CAT", res);
   }

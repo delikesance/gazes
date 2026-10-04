@@ -7,7 +7,7 @@ export class CodedError extends Error {
 
 /** `AREA_HTTP_<status>` for a failed response. */
 export function httpError(message: string, area: string, response: Response, reference?: string | null): CodedError {
-  return new CodedError(message, `${area}_HTTP_${response.status}`, reference ?? response.headers.get("X-Playback-Session-ID"));
+  return new CodedError(message, `${area}_HTTP_${response.status}`, reference ?? response.headers.get("X-Playback-Session-ID") ?? response.headers.get("X-Request-ID"));
 }
 
 /** Code for any thrown value: its own code, `AREA_NETWORK` for fetch failures, else `AREA_UNKNOWN`. */

@@ -27,6 +27,7 @@ type ClientEngine struct {
 	prevStats  map[string]statSnapshot
 	schedulers map[string]*pieceScheduler
 	lastUsed   map[string]time.Time
+	verified   sync.Map // "infohash/file" -> struct{}: payload sampled once per process
 	metainfo   *cache.MetainfoStore
 	stop       chan struct{}
 }
@@ -226,6 +227,7 @@ func (e *ClientEngine) GetFileStream(ctx context.Context, infoHash string, fileI
 	}
 
 	targetFile := files[fileIndex]
+	e.verifyPayloadOnce(ctx, infoHash, fileIndex, t, targetFile)
 	path := targetFile.DisplayPath()
 	info := FileInfo{
 		Index:    fileIndex,
@@ -428,4 +430,26 @@ func (e *ClientEngine) dropTorrent(infoHash string) {
 		return
 	}
 	e.logger.Info("cache.evicted", "infohash", infoHash, "name", name)
+}
+
+// verifyPayloadOnce guards against payloads deleted or zeroed while the completion database still
+// calls their pieces complete (they would otherwise stream as zeros and break every probe).
+func (e *ClientEngine) verifyPayloadOnce(ctx context.Context, infoHash string, fileIndex int, t *anacrolixTorrent.Torrent, f *anacrolixTorrent.File) {
+	key := fmt.Sprintf("%s/%d", infoHash, fileIndex)
+	if _, loaded := e.verified.LoadOrStore(key, struct{}{}); loaded {
+		return
+	}
+	vctx, cancel := context.WithTimeout(ctx, fileVerifyTimeout)
+	defer cancel()
+	rejected, err := verifyFilePieces(vctx, t, f)
+	if err != nil {
+		e.verified.Delete(key) // retry next open
+		diagnostics.Logger(ctx, e.logger).Warn("torrent.payload_verify_failed", "infohash", infoHash, "file_index", fileIndex, "err", err)
+		return
+	}
+	if rejected > 0 {
+		diagnostics.Logger(ctx, e.logger).Warn("torrent.payload_invalid", "infohash", infoHash, "file_index", fileIndex, "pieces_redownloading", rejected)
+		return
+	}
+	diagnostics.Logger(ctx, e.logger).Debug("torrent.payload_verified", "infohash", infoHash, "file_index", fileIndex)
 }
