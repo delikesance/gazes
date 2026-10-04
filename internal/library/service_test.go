@@ -112,6 +112,16 @@ func TestCopiesListsReadyOnly(t *testing.T) {
 	}
 }
 
+func TestCopiesListsEncodingAsOriginal(t *testing.T) {
+	env := newJanitorEnv(t, nil)
+	env.add(t, 3, StateEncoding, 1, 0)
+	s := newServiceTest(t, env, &fakeFetcher{}, func() time.Time { return janitorNow })
+	got, err := s.Copies(1, 3)
+	if err != nil || len(got) != 1 || got[0].State != "ORIGINAL" || len(got[0].StreamID) != 40 {
+		t.Fatalf("copies: %+v %v", got, err)
+	}
+}
+
 type filesInner struct{ fakeInner }
 
 func (*filesInner) Files(h string) ([]torrent.FileInfo, bool) {

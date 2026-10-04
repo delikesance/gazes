@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -55,7 +56,7 @@ func (f *fakeFetcher) VerifyFile(ctx context.Context, ih string, idx int) error 
 type fakeProber struct{}
 
 func (fakeProber) Probe(ctx context.Context, path string) (MediaInfo, error) {
-	return MediaInfo{DurationMS: 1420000, VideoCodec: "h264", VideoStreams: 1, AudioCodecs: []string{"aac", "opus"}, AudioChannels: []int{2, 2}, SubtitleTracks: 3}, nil
+	return MediaInfo{DurationMS: 1420000, VideoCodec: "h264", VideoStreams: 1, FrameRate: 25, AudioCodecs: []string{"aac", "opus"}, AudioChannels: []int{2, 2}, SubtitleTracks: 3}, nil
 }
 
 type testClock struct{ now time.Time }
@@ -299,12 +300,12 @@ func TestStartDownloadFailureReleasesEverything(t *testing.T) {
 }
 
 func TestParseProbe(t *testing.T) {
-	const doc = `{"streams":[{"codec_type":"video","codec_name":"hevc"},{"codec_type":"audio","codec_name":"aac","channels":6},{"codec_type":"audio","codec_name":"flac","channels":2},{"codec_type":"subtitle","codec_name":"ass"},{"codec_type":"attachment","codec_name":"ttf"}],"format":{"duration":"1421.504000"}}`
+	const doc = `{"streams":[{"codec_type":"video","codec_name":"hevc","avg_frame_rate":"24000/1001"},{"codec_type":"audio","codec_name":"aac","channels":6},{"codec_type":"audio","codec_name":"flac","channels":2},{"codec_type":"subtitle","codec_name":"ass"},{"codec_type":"attachment","codec_name":"ttf"}],"format":{"duration":"1421.504000"}}`
 	mi, err := parseProbe([]byte(doc))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mi.DurationMS != 1421504 || mi.VideoCodec != "hevc" || len(mi.AudioCodecs) != 2 || mi.AudioChannels[0] != 6 || mi.SubtitleTracks != 1 || mi.AttachmentTracks != 1 {
+	if mi.DurationMS != 1421504 || mi.VideoCodec != "hevc" || len(mi.AudioCodecs) != 2 || mi.AudioChannels[0] != 6 || mi.SubtitleTracks != 1 || mi.AttachmentTracks != 1 || math.Abs(mi.FrameRate-23.976) > 0.001 {
 		t.Fatalf("%+v", mi)
 	}
 }

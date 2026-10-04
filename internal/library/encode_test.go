@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -68,6 +69,7 @@ func newEncEnv(t *testing.T, ffmpegBody string, s EncodeSettings) *encEnv {
 	s.FFmpeg = fakeFFmpeg(t, ffmpegBody)
 	enc := NewEncoder(store, pool, fakeProber{}, nil, s, nil)
 	enc.useNice = false
+	enc.retryDelay = time.Millisecond
 	enc.poll, enc.tick, enc.statusEvery = 10*time.Millisecond, 10*time.Millisecond, 10*time.Millisecond
 	return &encEnv{enc, store, pool, k, disk.Path, src, data}
 }
@@ -422,5 +424,173 @@ func TestNewEncoderDropsInvalidWindow(t *testing.T) {
 	enc := NewEncoder(env.store, env.pool, fakeProber{}, nil, EncodeSettings{Window: "bogus"}, nil)
 	if enc.s.Window != "" || enc.shouldPause() {
 		t.Fatalf("invalid window kept: %q", enc.s.Window)
+	}
+}
+
+func TestProgressParser(t *testing.T) {
+	cases := []struct {
+		name  string
+		fps   float64
+		lines []string
+		want  float64 // -1: no progress reported
+	}{
+		{"out_time_us", 25, []string{"frame=10", "out_time_us=710000000"}, 0.5},
+		{"out_time_ms is microseconds too", 25, []string{"out_time_us=N/A", "out_time_ms=355000000"}, 0.25},
+		{"out_time clock", 25, []string{"out_time_us=N/A", "out_time_ms=N/A", "out_time=00:11:50.000000"}, 0.5},
+		{"clamped above 1", 25, []string{"out_time_us=9000000000"}, 1},
+		{"negative start", 25, []string{"out_time=-00:00:00.040000"}, 0},
+		{"all time fields N/A falls back to frames", 25, []string{"frame=17750", "out_time_us=N/A", "out_time_ms=N/A", "out_time=N/A"}, 0.5},
+		{"frames need a frame rate", 0, []string{"frame=17750", "out_time_us=N/A", "out_time=N/A"}, -1},
+		{"nothing usable", 25, []string{"frame=N/A", "out_time_us=N/A", "progress=continue"}, -1},
+		{"time wins over frames afterwards", 25, []string{"out_time_us=355000000", "frame=35500"}, 0.25},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := newProgressParser(1420000, c.fps) // 1420 s
+			got := -1.0
+			for _, l := range c.lines {
+				if v, ok := p.Line(l); ok {
+					got = v
+				}
+			}
+			if math.Abs(got-c.want) > 1e-9 {
+				t.Fatalf("got %v want %v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestEncoderReportsProgressFromFrames(t *testing.T) {
+	gate := filepath.Join(t.TempDir(), "go")
+	// fakeProber: 1420000 ms at 25 fps = 35500 frames.
+	env := newEncEnv(t, fmt.Sprintf("echo frame=17750\necho out_time_us=N/A\necho out_time=N/A\nwhile [ ! -f %q ]; do sleep 0.02; done\n%s", gate, writeOutput(400)), EncodeSettings{})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { env.enc.Run(ctx); close(done) }()
+	defer func() { cancel(); <-done }()
+	waitFor(t, func() bool {
+		st, _ := env.store.EncoderStatus()
+		return st.Key != nil && st.Progress > 0.45 && st.Progress < 0.55
+	})
+	os.WriteFile(gate, nil, 0o644)
+	waitFor(t, func() bool { return env.entry(t).State == StateAV1 })
+}
+
+func TestEncoderDefersRenameWhileCopyIsInUse(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	busy.Store(true)
+	env.enc.inUse = func(Key) bool { return busy.Load() }
+	env.enc.idlePoll, env.enc.idleCap = 10*time.Millisecond, time.Minute
+	done := make(chan bool, 1)
+	go func() { done <- env.enc.encodeNext(context.Background()) }()
+	tmp := filepath.Join(env.diskDir, "7/1-vostfr.av1.tmp.mkv")
+	waitFor(t, func() bool { st, err := os.Stat(tmp); return err == nil && st.Size() == 400 })
+	time.Sleep(150 * time.Millisecond)
+	if st, err := os.Stat(env.src); err != nil || st.Size() != origSize {
+		t.Fatalf("original replaced while a reader is open: %v %v", st, err)
+	}
+	if en := env.entry(t); en.State != StateEncoding {
+		t.Fatalf("state %s, want ENCODING", en.State)
+	}
+	busy.Store(false)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("encoder did not finish once the copy was free")
+	}
+	if en := env.entry(t); en.State != StateAV1 || en.SizeBytes != 400 {
+		t.Fatalf("entry %+v", en)
+	}
+	if st, _ := os.Stat(env.src); st == nil || st.Size() != 400 {
+		t.Fatalf("final file %v", st)
+	}
+}
+
+func TestEncoderWaitsForRecentAccessToAge(t *testing.T) {
+	now := time.Now()
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	env.enc.idlePoll, env.enc.idleCap = 10*time.Millisecond, time.Minute
+	var offset atomic.Int64 // seconds added to the clock
+	env.enc.clock = func() time.Time { return now.Add(time.Duration(offset.Load()) * time.Second) }
+	if err := env.store.Touch(env.key, now.Add(time.Second)); err != nil { // accessed just now
+		t.Fatal(err)
+	}
+	done := make(chan bool, 1)
+	go func() { done <- env.enc.encodeNext(context.Background()) }()
+	time.Sleep(300 * time.Millisecond)
+	if en := env.entry(t); en.State != StateEncoding {
+		t.Fatalf("renamed although accessed under 10 min ago: %s", en.State)
+	}
+	offset.Store(11 * 60)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("encoder did not finish after the access aged")
+	}
+	if en := env.entry(t); en.State != StateAV1 {
+		t.Fatalf("state %s", en.State)
+	}
+}
+
+func TestEncoderGivesUpWaitingWithoutCountingAnAttempt(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	env.enc.inUse = func(Key) bool { return true }
+	env.enc.idlePoll, env.enc.idleCap = 5*time.Millisecond, 50*time.Millisecond
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("no work done")
+	}
+	en := env.entry(t)
+	if en.State != StateOriginal || en.Attempts != 0 || en.EncodeSkipped != "" || en.ReservedBytes != 0 {
+		t.Fatalf("entry %+v", en)
+	}
+	if st, _ := os.Stat(env.src); st == nil || st.Size() != origSize {
+		t.Fatalf("original touched: %v", st)
+	}
+	env.noTmp(t)
+	if env.reserved() != 0 {
+		t.Fatalf("reservation leaked: %d", env.reserved())
+	}
+}
+
+func TestEncoderFinishRetriesTheIndexUpdate(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var fails atomic.Int32
+	real := env.enc.update
+	env.enc.update = func(k Key, fn func(*Entry) error) (Entry, error) {
+		if en, _ := env.store.Get(k); en.State == StateEncoding && fails.Add(1) <= 2 {
+			return Entry{}, fmt.Errorf("database is locked")
+		}
+		return real(k, fn)
+	}
+	env.enc.retryDelay = time.Millisecond
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("encode reported failure")
+	}
+	if en := env.entry(t); en.State != StateAV1 {
+		t.Fatalf("index left at %s after a transient update failure", en.State)
+	}
+}
+
+func TestEncoderFreesSpaceWhenReservationFails(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	disk := env.entry(t).DiskID
+	hold, err := env.pool.ReserveOn(disk, 1<<39) // leaves less than origSize/2 available
+	if err != nil {
+		t.Fatal(err)
+	}
+	var asked int64
+	env.enc.free = func(d string, need int64) {
+		asked = need
+		env.pool.Release(hold)
+	}
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("no work done")
+	}
+	if asked != origSize/2 {
+		t.Fatalf("free asked for %d, want %d", asked, origSize/2)
+	}
+	if en := env.entry(t); en.State != StateAV1 {
+		t.Fatalf("state %s", en.State)
 	}
 }

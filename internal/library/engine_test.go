@@ -193,3 +193,15 @@ func TestDownloadingEntryIsNotServed(t *testing.T) {
 		t.Fatalf("expected delegation, inner=%d", in.streams)
 	}
 }
+
+func TestEncodingCopyStaysServable(t *testing.T) {
+	eng, in, _, _, id, _ := newEngineEnv(t, StateEncoding, "0123456789")
+	r, fi, err := eng.GetFileStream(context.Background(), id, 0)
+	if err != nil {
+		t.Fatalf("ENCODING copy must be readable: %v", err)
+	}
+	defer r.Close()
+	if in.streams != 0 || fi.Length != 10 {
+		t.Fatalf("info %+v inner=%d", fi, in.streams)
+	}
+}
