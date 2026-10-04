@@ -27,7 +27,8 @@ type ClientEngine struct {
 	prevStats  map[string]statSnapshot
 	schedulers map[string]*pieceScheduler
 	lastUsed   map[string]time.Time
-	verified   sync.Map // "infohash/file" -> struct{}: payload sampled once per process
+	pinned     map[string]map[int]bool // infohash -> pinned file indexes
+	verified   sync.Map                // "infohash/file" -> struct{}: payload sampled once per process
 	metainfo   *cache.MetainfoStore
 	stop       chan struct{}
 }
@@ -277,7 +278,7 @@ func (e *ClientEngine) GetFileStream(ctx context.Context, infoHash string, fileI
 	}
 	scheduler := e.schedulers[infoHash]
 	if scheduler == nil {
-		scheduler = &pieceScheduler{torrent: t, windows: make(map[*SequentialFileReader]map[int]anacrolixTorrent.PiecePriority), applied: make(map[int]anacrolixTorrent.PiecePriority)}
+		scheduler = newPieceScheduler(t)
 		e.schedulers[infoHash] = scheduler
 	}
 	e.mu.Unlock()
@@ -432,7 +433,7 @@ func (e *ClientEngine) evictIdle() {
 			active = len(scheduler.windows) > 0
 			scheduler.mu.Unlock()
 		}
-		entries = append(entries, cacheEntry{infoHash: infoHash, bytes: t.BytesCompleted(), lastUsed: e.lastUsed[infoHash], active: active})
+		entries = append(entries, cacheEntry{infoHash: infoHash, bytes: t.BytesCompleted(), lastUsed: e.lastUsed[infoHash], active: active, pinned: len(e.pinned[infoHash]) > 0})
 	}
 	e.mu.RUnlock()
 	for _, infoHash := range pickEvictions(entries, e.cfg.CacheMaxBytes, e.cfg.CacheIdleTTL, time.Now()) {
@@ -447,6 +448,7 @@ func (e *ClientEngine) dropTorrent(infoHash string) {
 	delete(e.prevStats, infoHash)
 	delete(e.schedulers, infoHash)
 	delete(e.lastUsed, infoHash)
+	delete(e.pinned, infoHash)
 	e.mu.Unlock()
 	if t == nil || t.Info() == nil {
 		return
