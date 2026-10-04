@@ -805,6 +805,11 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 			if n, err := fmt.Sscanf(sep.Title, "Episode %d", &parsedNum); err == nil && n == 1 && parsedNum > 0 {
 				epNum = parsedNum
 			}
+			// AniList sometimes attaches another season's provider episodes (absolute numbering,
+			// e.g. 48.5-72 on a 12-episode entry): they are not episodes of this season.
+			if m.Episodes > 0 && epNum > m.Episodes {
+				continue
+			}
 
 			episodes = append(episodes, EpisodeInfo{
 				EpisodeNumber: epNum,
