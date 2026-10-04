@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
@@ -63,9 +64,9 @@ func (s *Server) libraryUserID(r *http.Request) (int64, bool) {
 // It only reads the findings cached by HandleSeasonSources, stale ones included, and never
 // triggers a resolve: a client cannot make the library cache a torrent the server did not offer.
 //
-// Residual risk: for a batch (season pack) source the client still chooses file_index, so it can
-// cache another video file of an offered pack under this episode. Only offered torrents are reachable.
-func (s *Server) sourceMatches(ctx context.Context, season, ep int, lang, infoHash string) bool {
+// It returns the offered source so that, for a batch (season pack) source, the caller can check that
+// the file the client picked really is this episode.
+func (s *Server) offeredSource(ctx context.Context, season, ep int, lang, infoHash string) (indexer.EpisodeSource, bool) {
 	authoritative := s.cfg != nil && s.cfg.ArrAuthoritative
 	cache := s.sources().cache
 	for _, full := range []bool{false, true} {
@@ -80,16 +81,36 @@ func (s *Server) sourceMatches(ctx context.Context, season, ep int, lang, infoHa
 			switch src.LanguageTag {
 			case indexer.LangVF, indexer.LangMULTI:
 				if lang == "vf" {
-					return true
+					return src, true
 				}
 			case indexer.LangVOSTFR:
 				if lang == "vostfr" {
-					return true
+					return src, true
 				}
 			}
 		}
 	}
-	return false
+	return indexer.EpisodeSource{}, false
+}
+
+// batchFileMatches reports whether file is the episode the offered pack source was resolved for, using the
+// same episode matcher as the resolver on the file's base name. Anything but a definite match (an
+// unnumbered file, another episode, an extra) is refused.
+func batchFileMatches(src indexer.EpisodeSource, file string) bool {
+	identity := indexer.EpisodeIdentity{
+		Titles:          src.AnimeAliases,
+		ExcludedTitles:  src.ExcludedTitles,
+		SeasonNumber:    max(1, src.SeasonNumber),
+		EpisodeNumber:   src.EpisodeNumber,
+		TaggedEpisode:   src.TaggedEpisode,
+		AbsoluteEpisode: src.AbsoluteEpisode,
+	}
+	identity.AllowUnqualified = identity.SeasonNumber <= 1 // as HandleSeasonSources: later seasons need a qualified name
+	if len(identity.Titles) == 0 && src.AnimeTitle != "" {
+		identity.Titles = []string{src.AnimeTitle}
+	}
+	match, batch, _ := indexer.NewEpisodeMatcher(identity).Match(path.Base(strings.ReplaceAll(file, "\\", "/")))
+	return match && !batch
 }
 
 func routeInt(r *http.Request, name string) (int, bool) {
@@ -146,7 +167,8 @@ func (s *Server) HandleLibraryRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !s.sourceMatches(r.Context(), season, ep, lang, body.InfoHash) {
+	src, offered := s.offeredSource(r.Context(), season, ep, lang, body.InfoHash)
+	if !offered {
 		libraryError(w, http.StatusUnprocessableEntity, "source_not_resolved")
 		return
 	}
@@ -163,6 +185,11 @@ func (s *Server) HandleLibraryRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.FileIndex >= len(files) || !files[body.FileIndex].IsVideo {
 		libraryError(w, http.StatusUnprocessableEntity, "file is not a video")
+		return
+	}
+	// In a season pack the client chooses the file: it must be this episode, not another one of the pack.
+	if src.IsBatch && !batchFileMatches(src, files[body.FileIndex].Path) {
+		libraryError(w, http.StatusUnprocessableEntity, "file_not_episode")
 		return
 	}
 

@@ -22,7 +22,10 @@ import (
 	"github.com/gazes/gazes/internal/torrent"
 )
 
-const libHash = "0123456789abcdef0123456789abcdef01234567"
+const (
+	libHash   = "0123456789abcdef0123456789abcdef01234567"
+	batchHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
 
 // libEngine is a torrent engine with one loaded torrent: file 0 is a video, file 1 a subtitle.
 type libEngine struct{}
@@ -40,6 +43,13 @@ func (libEngine) GetFileStream(context.Context, string, int) (io.ReadSeekCloser,
 func (libEngine) GetStats(string) (*torrent.SwarmStats, error) { return &torrent.SwarmStats{}, nil }
 func (libEngine) Close() error                                 { return nil }
 func (libEngine) Files(h string) ([]torrent.FileInfo, bool) {
+	if h == batchHash {
+		return []torrent.FileInfo{
+			{Index: 0, Path: "Example S01/[Grp] Example - 01 [1080p].mkv", Length: 10, IsVideo: true},
+			{Index: 1, Path: "Example S01/[Grp] Example - 02 [1080p].mkv", Length: 10, IsVideo: true},
+			{Index: 2, Path: "Example S01/Extras/NCOP.mkv", Length: 10, IsVideo: true},
+		}, true
+	}
 	if h != libHash {
 		return nil, false
 	}
@@ -309,5 +319,21 @@ func TestLibraryPostCatalogErrorIs503(t *testing.T) {
 	env.s.catalogService = metadata.NewAnimeCatalogService(&http.Client{Transport: failingTransport{}})
 	if rr := env.do("POST", "/api/v1/library/episodes/5/1/vf", libBody(libHash, 0)); rr.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestLibraryPostBatchFileMustMatchTheEpisode(t *testing.T) {
+	env := newLibEnv(t, true, nil)
+	batch := libSource(batchHash, indexer.LangVF)
+	batch.IsBatch, batch.AnimeAliases, batch.SeasonNumber, batch.EpisodeNumber = true, []string{"Example"}, 1, 2
+	env.cacheSources(5, 2, batch)
+	for name, idx := range map[string]int{"other episode of the pack": 0, "extra": 2} {
+		rr := env.do("POST", "/api/v1/library/episodes/5/2/vf", libBody(batchHash, idx))
+		if rr.Code != http.StatusUnprocessableEntity || !strings.Contains(rr.Body.String(), "file_not_episode") {
+			t.Errorf("%s: %d %s", name, rr.Code, rr.Body)
+		}
+	}
+	if rr := env.do("POST", "/api/v1/library/episodes/5/2/vf", libBody(batchHash, 1)); rr.Code != http.StatusCreated {
+		t.Fatalf("matching file: %d %s", rr.Code, rr.Body)
 	}
 }
