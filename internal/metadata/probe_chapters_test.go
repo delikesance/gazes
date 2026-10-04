@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -49,10 +50,12 @@ func TestAttachChaptersNonSeekable(t *testing.T) {
 type stallReader struct {
 	*bytes.Reader
 	stallFrom int64
+	stalled   *atomic.Bool
 }
 
 func (s stallReader) ReadContext(ctx context.Context, p []byte) (int, error) {
 	if pos, _ := s.Reader.Seek(0, io.SeekCurrent); pos >= s.stallFrom {
+		s.stalled.Store(true)
 		<-ctx.Done()
 		return 0, ctx.Err()
 	}
@@ -77,16 +80,20 @@ func TestAttachChaptersGivesUpOnStall(t *testing.T) {
 	file := cat(ebmlElement(idEBML, []byte("webm")), ebmlElement(idSegment, cat(seekHead(position), info, cluster, chapters)))
 	stallFrom := int64(len(file) - len(chapters))
 
+	var stalled atomic.Bool
 	meta := &VideoMetadata{DurationSec: 1420, TotalBytes: int64(len(file))}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		attachChapters(context.Background(), quietLogger, stallReader{bytes.NewReader(file), stallFrom}, meta)
+		attachChapters(context.Background(), quietLogger, stallReader{bytes.NewReader(file), stallFrom, &stalled}, meta)
 	}()
 	select {
 	case <-done:
 	case <-time.After(3 * time.Second):
 		t.Fatal("attachChapters did not give up on a stalled read")
+	}
+	if !stalled.Load() {
+		t.Fatal("the stalling read was never reached")
 	}
 	if meta.Chapters != nil || meta.SkipSegments != nil {
 		t.Fatalf("meta has chapters: %+v", meta)
