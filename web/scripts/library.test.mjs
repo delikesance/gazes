@@ -55,3 +55,13 @@ test('librarySource uses stream_id as info_hash and has no magnet', () => {
   assert.deepEqual(s.library, { stream_id: 'lib-vostfr-av1', lang: 'vostfr', video_codec: 'av1', duration_ms: 1400000 });
   assert.ok(s.seeders > 1000);
 });
+
+import { lookupWithin } from '../src/lib/library.ts';
+
+test('lookupWithin resolves empty on timeout, on rejection and on a throwing lookup, and returns copies otherwise', async () => {
+  const c = copy('vf');
+  assert.deepEqual((await lookupWithin(50, async () => [c])).copies, [c]);
+  assert.deepEqual(await lookupWithin(20, () => new Promise(() => {})), { copies: [], timedOut: true });
+  assert.deepEqual(await lookupWithin(50, async () => { throw new Error('x'); }), { copies: [], timedOut: false });
+  assert.deepEqual(await lookupWithin(50, () => { throw new Error('x'); }), { copies: [], timedOut: false });
+});

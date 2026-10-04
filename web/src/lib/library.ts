@@ -69,3 +69,17 @@ export function withLibraryCandidates(
   }
   return out;
 }
+
+/** Resolves with the lookup's copies, or with [] once `ms` elapsed or the lookup failed; never rejects, never hangs. */
+export function lookupWithin(ms: number, lookup: (signal: AbortSignal) => Promise<LibraryCopy[]>): Promise<{ copies: LibraryCopy[]; timedOut: boolean }> {
+  const controller = new AbortController();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { controller.abort(); resolve({ copies: [], timedOut: true }); }, ms);
+    let pending: Promise<LibraryCopy[]>;
+    try { pending = lookup(controller.signal); } catch { pending = Promise.resolve([]); }
+    pending.then(
+      (copies) => { clearTimeout(timer); resolve({ copies: Array.isArray(copies) ? copies : [], timedOut: false }); },
+      () => { clearTimeout(timer); resolve({ copies: [], timedOut: false }); },
+    );
+  });
+}

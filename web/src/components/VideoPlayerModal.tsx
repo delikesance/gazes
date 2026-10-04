@@ -343,7 +343,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   // Metadata phase: wait as long as the swarm is alive (a connected peer or incoming bytes).
   useEffect(() => {
-    if (!onPlaybackFailure || !item || !loading) return;
+    if (!onPlaybackFailure || !item || !loading || (item as EpisodeSource).library) return;
     const startedAt = Date.now();
     let lastActivity = startedAt;
     let lastBytes = 0;
@@ -378,7 +378,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       const buffered = video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0;
       if (buffered > lastBuffered) lastActivity = now;
       lastBuffered = buffered;
-      if (item && ++tick % 2 === 0) {
+      if (item && !(item as EpisodeSource).library && ++tick % 2 === 0) {
         getTorrentStats(item.info_hash, diagnostic).then((s) => {
           if (lastBytes >= 0 && s.completed_bytes > lastBytes) lastActivity = Date.now();
           lastBytes = s.completed_bytes;
