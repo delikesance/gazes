@@ -21,13 +21,14 @@ type nopSeekCloser struct{ *bytes.Reader }
 func (nopSeekCloser) Close() error { return nil }
 
 type fakeFetcher struct {
-	mu        sync.Mutex
-	data      []byte
-	completed int64
-	verifyErr error
-	progErr   error
-	downloads int
-	released  int
+	mu          sync.Mutex
+	data        []byte
+	completed   int64
+	verifyErr   error
+	progErr     error
+	downloadErr error
+	downloads   int
+	released    int
 }
 
 func (f *fakeFetcher) GetFileStream(ctx context.Context, ih string, idx int) (io.ReadSeekCloser, *torrent.FileInfo, error) {
@@ -37,7 +38,7 @@ func (f *fakeFetcher) DownloadFile(ih string, idx int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.downloads++
-	return nil
+	return f.downloadErr
 }
 func (f *fakeFetcher) ReleaseFile(ih string, idx int) {
 	f.mu.Lock()
@@ -116,7 +117,9 @@ func TestStartCreatesDownloadingAndPins(t *testing.T) {
 
 func TestStartExistingCopyOnlyTouches(t *testing.T) {
 	env := newAcqEnv(t, 4, 1<<30)
-	env.a.Start(req(1))
+	if _, _, err := env.a.Start(req(1)); err != nil {
+		t.Fatal(err)
+	}
 	env.clk.now = env.clk.now.Add(time.Hour)
 	_, created, err := env.a.Start(req(1))
 	if err != nil || created {
@@ -180,6 +183,9 @@ func TestVerifyFailureKeepsDownloading(t *testing.T) {
 	e, _ := env.store.Get(req(1).Key)
 	if e.State != StateDownloading || e.RelPath != "" {
 		t.Fatalf("entry %+v", e)
+	}
+	if e.LastError == "" || env.reserved() != int64(len(env.f.data)) || env.f.released != 0 {
+		t.Fatalf("LastError %q reserved %d released %d", e.LastError, env.reserved(), env.f.released)
 	}
 	if _, err := os.Stat(filepath.Join(env.root, "d1", "7", "1-vostfr.mkv")); !os.IsNotExist(err) {
 		t.Fatalf("final file exists: %v", err)
@@ -256,6 +262,39 @@ func TestResumeRepinsDownloading(t *testing.T) {
 	}
 	if env.f.downloads != 2 {
 		t.Fatalf("downloads %d", env.f.downloads)
+	}
+	if env.reserved() != 2*int64(len(env.f.data)) {
+		t.Fatalf("reserved %d", env.reserved())
+	}
+}
+
+func TestResumeDeletesEntryWhenDownloadFails(t *testing.T) {
+	env := newAcqEnv(t, 4, 1<<30)
+	env.a.Start(req(1))
+	env.f.downloadErr = errors.New("unknown torrent")
+	b := NewAcquirer(env.store, env.pool, env.f, fakeProber{}, env.clk.Now, time.Hour, 4)
+	if err := b.Resume(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.store.Get(req(1).Key); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("entry still there: %v", err)
+	}
+	if env.f.released != 1 {
+		t.Fatalf("released %d", env.f.released)
+	}
+}
+
+func TestStartDownloadFailureReleasesEverything(t *testing.T) {
+	env := newAcqEnv(t, 4, 1<<30)
+	env.f.downloadErr = errors.New("no metadata")
+	if _, _, err := env.a.Start(req(1)); err == nil {
+		t.Fatal("expected error")
+	}
+	if env.f.released != 1 || env.reserved() != 0 {
+		t.Fatalf("released %d reserved %d", env.f.released, env.reserved())
+	}
+	if _, err := env.store.Get(req(1).Key); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("entry created: %v", err)
 	}
 }
 
