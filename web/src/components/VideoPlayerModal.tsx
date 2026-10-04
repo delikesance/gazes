@@ -19,7 +19,7 @@ import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata, SubtitleTrack } from "@/types/api";
-import { loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
+import { requestEpisodePreview, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
 import {
   ArrowLeft,
   X,
@@ -587,7 +587,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         video.dataset.seekGeneration = String(state.generation);
         if (state.phase === "ready") setStarted(true);
       },
-      metadata: (metadata, origin) => { setVideoMeta(metadata); setSubtitleOrigin(origin); },
+      metadata: (metadata, origin) => {
+        setVideoMeta(metadata); setSubtitleOrigin(origin);
+        const seasonId = Number(diagnostic?.season_id);
+        if (seasonId > 0 && episodeNumber && !episodes?.find(e => e.episode_number === episodeNumber)?.thumbnail) requestEpisodePreview(seasonId, episodeNumber, loadData.info_hash, selectedFileIdx, metadata.duration_sec);
+      },
       gesture: () => setNeedsPlaybackGesture(true),
       error: message => { setPlaybackError(message); },
     }, diagnostic, !resumePlaybackRef.current);
