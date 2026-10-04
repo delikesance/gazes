@@ -489,8 +489,18 @@ func compactTitleKey(title string) string {
 	return nonAlnumKeyRegex.ReplaceAllString(strings.ToLower(t), "")
 }
 
+// isMainSeries reports whether a franchise entry is a numbered main-series
+// season. It reuses the franchise grouping ("main") but only for Format TV:
+// the grouping also files TV_SHORT/ONA spin-offs (Break Time, Re:PETIT) under
+// "main", and those have their own releases that must stay excluded.
+func isMainSeries(season metadata.AnimeSeason) bool {
+	return season.Group == "main" && season.Format == "TV"
+}
+
 // buildExcludedTitles lists titles of the franchise's other entries that must
-// reject a release. A candidate that reduces to something contained in one of
+// reject a release. Other main-series seasons differ from the requested one
+// only by season number, which the resolver's season check enforces, so their
+// titles (in any language) are never exclusions. A candidate that reduces to something contained in one of
 // the item's own titles is the shared franchise base: excluding it would reject
 // the item's own releases, and telling seasons apart is the season check's job.
 func buildExcludedTitles(item *metadata.AnimeCatalogItem, seasons []metadata.AnimeSeason) []string {
@@ -522,7 +532,7 @@ func buildExcludedTitles(item *metadata.AnimeCatalogItem, seasons []metadata.Ani
 		}
 	}
 	for _, other := range seasons {
-		if other.ID == item.ID {
+		if other.ID == item.ID || isMainSeries(other) {
 			continue
 		}
 		for _, alias := range append(append([]string{}, other.Aliases...), other.Title) {
