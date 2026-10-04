@@ -587,11 +587,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         video.dataset.seekGeneration = String(state.generation);
         if (state.phase === "ready") setStarted(true);
       },
-      metadata: (metadata, origin) => {
-        setVideoMeta(metadata); setSubtitleOrigin(origin);
-        const seasonId = Number(diagnostic?.season_id);
-        if (seasonId > 0 && episodeNumber && !episodes?.find(e => e.episode_number === episodeNumber)?.thumbnail) requestEpisodePreview(seasonId, episodeNumber, loadData.info_hash, selectedFileIdx, metadata.duration_sec);
-      },
+      metadata: (metadata, origin) => { setVideoMeta(metadata); setSubtitleOrigin(origin); },
       gesture: () => setNeedsPlaybackGesture(true),
       error: message => { setPlaybackError(message); },
     }, diagnostic, !resumePlaybackRef.current);
@@ -647,6 +643,18 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   useEffect(() => {
     if (selectedFileIdx >= 0 && videoMeta?.probe_status === 'complete') onVideoMetadata?.(videoMeta);
   }, [videoMeta, selectedFileIdx, onVideoMetadata]);
+
+  // Both engines end up here: once the file's duration is known, have the backend cut the episode's preview frame.
+  const previewRequested = useRef("");
+  useEffect(() => {
+    const seasonId = Number(diagnostic?.season_id);
+    if (!(seasonId > 0) || !episodeNumber || !loadData || selectedFileIdx < 0 || !videoMeta?.duration_sec) return;
+    if (episodes?.find(e => e.episode_number === episodeNumber)?.thumbnail) return;
+    const key = `${seasonId}:${episodeNumber}:${loadData.info_hash}:${selectedFileIdx}`;
+    if (previewRequested.current === key) return;
+    previewRequested.current = key;
+    requestEpisodePreview(seasonId, episodeNumber, loadData.info_hash, selectedFileIdx, videoMeta.duration_sec);
+  }, [videoMeta, diagnostic?.season_id, episodeNumber, loadData, selectedFileIdx, episodes]);
 
   const handleSubtitleTrackSelect = (trackIdx: number | null) => {
     subtitleSelectionRef.current = true;
