@@ -426,3 +426,35 @@ func TestWatchHistoryKeepsCompletedSessionsAndNewestWins(t *testing.T) {
 		t.Fatalf("since must filter: %s", rr.Body)
 	}
 }
+
+func TestHiddenAnimeAddRemoveAndValidation(t *testing.T) {
+	s := newTestService(t)
+	c := sessionCookie(s.post(t, s.Register, "register", map[string]string{"email": "n@example.com", "password": "longenough", "pseudo": "nope"}))
+	call := func(handler http.HandlerFunc, payload any) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest("PUT", "/me/hidden", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(c)
+		rr := httptest.NewRecorder()
+		handler(rr, req)
+		return rr
+	}
+	var got struct{ IDs []int64 }
+	_ = json.Unmarshal(call(s.PutHidden, map[string]any{"add": []int64{10, 20, 10}}).Body.Bytes(), &got)
+	if len(got.IDs) != 2 {
+		t.Fatalf("adding twice must not duplicate: %v", got.IDs)
+	}
+	_ = json.Unmarshal(call(s.PutHidden, map[string]any{"remove": []int64{10}}).Body.Bytes(), &got)
+	if len(got.IDs) != 1 || got.IDs[0] != 20 {
+		t.Fatalf("remove: %v", got.IDs)
+	}
+	if rr := call(s.PutHidden, map[string]any{"add": []int64{0}}); rr.Code != http.StatusBadRequest {
+		t.Fatalf("invalid id must be rejected, got %d", rr.Code)
+	}
+	req := httptest.NewRequest("GET", "/me/hidden", nil)
+	rr := httptest.NewRecorder()
+	s.GetHidden(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous must be refused, got %d", rr.Code)
+	}
+}

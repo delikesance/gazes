@@ -106,6 +106,12 @@ CREATE TABLE IF NOT EXISTS watch_sessions (
 	tz_offset INTEGER NOT NULL DEFAULT 0,
 	PRIMARY KEY (user_id, session_id)
 );
+CREATE TABLE IF NOT EXISTS hidden_anime (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	anime_id INTEGER NOT NULL,
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (user_id, anime_id)
+);
 CREATE INDEX IF NOT EXISTS watch_sessions_user_time ON watch_sessions(user_id, started_at);`
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
@@ -273,6 +279,43 @@ func (s *Store) ListWatchSessions(userID, since int64, limit int) ([]WatchSessio
 		}
 		w.Completed = done == 1
 		out = append(out, w)
+	}
+	return out, rows.Err()
+}
+
+// UpdateHidden adds and removes "not interested" anime in one transaction.
+func (s *Store) UpdateHidden(userID int64, add, remove []int64, now time.Time) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, id := range add {
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO hidden_anime(user_id, anime_id, created_at) VALUES(?,?,?)`, userID, id, now.Unix()); err != nil {
+			return err
+		}
+	}
+	for _, id := range remove {
+		if _, err := tx.Exec(`DELETE FROM hidden_anime WHERE user_id = ? AND anime_id = ?`, userID, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) ListHidden(userID int64) ([]int64, error) {
+	rows, err := s.db.Query(`SELECT anime_id FROM hidden_anime WHERE user_id = ? ORDER BY created_at DESC LIMIT 2000`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
 	}
 	return out, rows.Err()
 }

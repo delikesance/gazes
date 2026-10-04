@@ -1,6 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { pullProgress, pushProgress, type RemoteProgress } from "./auth";
+import { setHiddenSyncEnabled, syncHiddenOnLogin } from "./hidden-anime";
 import { recordPlayback, setWatchLogSyncEnabled, syncWatchLogOnLogin } from "./watch-log";
 
 export type WatchProgress = {episode:number; position:number};
@@ -19,6 +20,7 @@ let flushTimer: ReturnType<typeof setTimeout> | undefined;
 export function setProgressSyncEnabled(enabled:boolean) {
  syncEnabled = enabled;
  setWatchLogSyncEnabled(enabled);
+ setHiddenSyncEnabled(enabled);
  if (!enabled) { pending.clear(); if (flushTimer) clearTimeout(flushTimer); flushTimer = undefined; }
 }
 function queuePush(entry:RemoteProgress) {
@@ -75,6 +77,7 @@ export function saveProgress(season:number, episode:number, position:number, dur
 export async function syncProgressOnLogin() {
  setProgressSyncEnabled(true);
  void syncWatchLogOnLogin();
+ void syncHiddenOnLogin();
  try {
   const remote = await pullProgress();
   const bySeason = new Map(remote.map((item) => [item.season_id, item]));
