@@ -14,6 +14,9 @@ services:
       - dev-data:/app/data
       - dev-cache:/app/cache
       - dev-accounts:/app/accounts
+      # Replaces the production /mnt/gazes bind (same target). The dev pool is empty: create a disk with
+      #   docker compose -p gazes-dev exec backend sh -c 'mkdir -p /app/library-pool/dev && echo "{\"disk_id\":\"dev\"}" > /app/library-pool/dev/.gazes-library'
+      - dev-library-pool:/app/library-pool
     healthcheck:
       start_period: 180s
   web:
@@ -33,6 +36,7 @@ volumes:
   dev-data:
   dev-cache:
   dev-accounts:
+  dev-library-pool:
   web-modules:
   web-next:
   pnpm-store:

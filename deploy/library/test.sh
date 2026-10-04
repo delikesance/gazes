@@ -19,7 +19,7 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 if out=$(bash install-host.sh --dry-run --root "$tmp" 2>&1); then
-  for want in "/mnt/gazes/internal" ".gazes-library" "gazes-library-shared.service" \
+  for want in "/mnt/gazes/internal" ".gazes-library" \
     "gazes-library-mount@.service" "99-gazes-library.rules" "mount-disk.sh"; do
     grep -qF -- "$want" <<<"$out" || ko "dry run does not mention $want"
   done
@@ -34,6 +34,9 @@ grep -qF "label must start with GAZES" <<<"$out" || ko "label-disk.sh message: $
 for bad in OTHER "GAZES/x" "GAZES..1" "GAZES 1"; do
   bash mount-disk.sh "$bad" >/dev/null 2>&1 && ko "mount-disk.sh accepted '$bad'"
 done
+
+[ ! -e gazes-library-shared.service ] || ko "self-bind unit must not exist"
+grep -q 'ACTION=="remove"' 99-gazes-library.rules || ko "udev remove rule missing"
 
 [ "$fail" -eq 0 ] && echo "OK"
 exit "$fail"
