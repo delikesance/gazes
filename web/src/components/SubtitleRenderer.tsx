@@ -70,6 +70,9 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
     }
     function layout() {
       if (!canvas) return;
+      // React inserts a replacement video before siblings it does not know, which would put the
+      // captions underneath it: keep the canvas directly above the current video.
+      if (video!.nextElementSibling !== canvas) video!.insertAdjacentElement("afterend", canvas);
       width = video!.videoWidth || width;
       height = video!.videoHeight || height;
       const scale = Math.min(video!.clientWidth / (width || 1), video!.clientHeight / (height || 1));

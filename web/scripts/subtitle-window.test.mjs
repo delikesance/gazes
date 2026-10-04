@@ -83,6 +83,7 @@ try{
   await page.locator('video[data-revision="1"]').waitFor();
   await pixels();
   assert.equal(await canvas.evaluate(el=>el===window.firstCanvas),true,'remux seeks retain the warmed subtitle decoder and canvas');
+  assert.equal(await canvas.evaluate(el=>el.previousElementSibling?.tagName==='VIDEO'),true,'captions stay stacked above the replacement video');
   assert.equal(requests.length,beforeRemux,'remux seek into the loaded window needs no download');
   await page.evaluate(()=>window.lastFrameCallbacks.get(window.originalVideo)?.(performance.now(),{mediaTime:999,expectedDisplayTime:performance.now(),width:128,height:64}));
   await page.waitForTimeout(100);await pixels();
