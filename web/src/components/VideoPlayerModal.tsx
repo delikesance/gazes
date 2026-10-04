@@ -937,6 +937,18 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   </div>
                 )}
 
+                {/* First-byte wait: the stream can take several seconds to start, never leave a bare black frame */}
+                {!started && !error && (
+                  <div className="player-connecting is-overlay" role="status" aria-live="polite">
+                    <svg className="watch-loading-ring" viewBox="0 0 72 72" aria-hidden="true">
+                      <circle className="watch-loading-track" cx="36" cy="36" r="32" />
+                      <circle className="watch-loading-arc" cx="36" cy="36" r="32" pathLength={100} />
+                    </svg>
+                    <h2 className="serif">{t("Démarrage du flux…")}</h2>
+                    <p>{t("Le premier chargement peut prendre quelques secondes")}</p>
+                  </div>
+                )}
+
                 {/* Buffering Indicator */}
                 {isBuffering && (
                   <div className="player-frost absolute right-6 top-24 z-20 flex items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-xs text-zinc-200">
