@@ -481,3 +481,45 @@ func TestSingleEpisodeFormsDoNotMisreadOtherNumbers(t *testing.T) {
 		}
 	}
 }
+
+func mhaS1E1Identity() indexer.EpisodeIdentity {
+	return indexer.EpisodeIdentity{
+		Titles:       []string{"My Hero Academia", "Boku no Hero Academia"},
+		SeasonNumber: 1, EpisodeNumber: 1, AbsoluteEpisode: 1,
+	}
+}
+
+func TestFanEditsAreRejectedForEpisodeRequests(t *testing.T) {
+	mha := mhaS1E1Identity()
+	for _, tc := range []struct {
+		title    string
+		identity indexer.EpisodeIdentity
+	}{
+		{"[Johker] My Hero Academia Henshū (Fan-Kaï) - Saisons 1/2/3/4/5/6 - 1080p.MULTI.VF/VOSTFR.x264", mha},
+		{"[XYZ] Naruto Kai (Fan Kai) - 01 [1080p]", indexer.EpisodeIdentity{Titles: []string{"Naruto"}, SeasonNumber: 1, EpisodeNumber: 1, AbsoluteEpisode: 1}},
+		{"One Piece Fan-Kai - 12 VOSTFR", indexer.EpisodeIdentity{Titles: []string{"One Piece"}, SeasonNumber: 1, EpisodeNumber: 12, AbsoluteEpisode: 12}},
+		{"Bleach Henshu 03 MULTI", indexer.EpisodeIdentity{Titles: []string{"Bleach"}, SeasonNumber: 1, EpisodeNumber: 3, AbsoluteEpisode: 3}},
+		{"Attack on Titan Fan Edit Ep 5", indexer.EpisodeIdentity{Titles: []string{"Attack on Titan"}, SeasonNumber: 1, EpisodeNumber: 5, AbsoluteEpisode: 5}},
+	} {
+		ok, _, why := indexer.MatchEpisodeDebug(tc.title, tc.identity)
+		if ok || !strings.Contains(why, "fan edit") {
+			t.Errorf("%q should be rejected as a fan edit, got ok=%v %q", tc.title, ok, why)
+		}
+	}
+}
+
+func TestFanEditFilterKeepsLegitReleases(t *testing.T) {
+	for _, tc := range []struct {
+		title    string
+		identity indexer.EpisodeIdentity
+	}{
+		{"[SubsPlease] Dragon Ball Kai - 01 (1080p)", indexer.EpisodeIdentity{Titles: []string{"Dragon Ball Kai"}, SeasonNumber: 1, EpisodeNumber: 1, AbsoluteEpisode: 1}},
+		{"[Erai-raws] Boku no Hero Academia - 01 [1080p][Multiple Subtitle]", mhaS1E1Identity()},
+		{"Kaiju No. 8 - 01", indexer.EpisodeIdentity{Titles: []string{"Kaiju No. 8"}, SeasonNumber: 1, EpisodeNumber: 1, AbsoluteEpisode: 1}},
+	} {
+		ok, _, why := indexer.MatchEpisodeDebug(tc.title, tc.identity)
+		if !ok {
+			t.Errorf("%q should still match, got %q", tc.title, why)
+		}
+	}
+}
