@@ -136,8 +136,8 @@ func (s *AnimeCatalogService) SetRedis(c *kv.Client) {
 
 func (s *AnimeCatalogService) initCaches(c *kv.Client) {
 	s.catalogC = kv.NewCache[CatalogResponse](c, "catalog", kv.CacheOptions{L1Max: 256})
-	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail", kv.CacheOptions{L1Max: 512})
-	s.franchiseC = kv.NewCache[Franchise](c, "franchise", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
+	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail:v2", kv.CacheOptions{L1Max: 512})
+	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v2", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
 	s.scheduleC = kv.NewCache[ScheduleResponse](c, "schedule", kv.CacheOptions{L1Max: 64})
 }
 
@@ -876,8 +876,9 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 var regexpProviderEpisode = regexp.MustCompile(`^Episode (\d+)(\.\d+)?\b`)
 
 // InSeason returns the entry as the season placed after offset main-continuity episodes:
-// the AbsoluteEpisodes (provider numbering across the whole series) that fall inside it replace
-// the generic ones. Only the franchise knows that offset.
+// the AbsoluteEpisodes (provider numbering across the whole series) replace the generic titles,
+// but only when every one of them falls inside the season; otherwise the offset is doubtful and
+// none apply. Only the franchise knows that offset.
 func (item AnimeCatalogItem) InSeason(offset int) AnimeCatalogItem {
 	episodes := append([]EpisodeInfo(nil), item.EpisodeList...)
 	if offset > 0 {
@@ -885,7 +886,17 @@ func (item AnimeCatalogItem) InSeason(offset int) AnimeCatalogItem {
 		for i, ep := range episodes {
 			index[ep.EpisodeNumber] = i
 		}
+		fits := true
 		for _, provider := range item.AbsoluteEpisodes {
+			if _, ok := index[provider.EpisodeNumber-offset]; !ok {
+				fits = false
+				break
+			}
+		}
+		for _, provider := range item.AbsoluteEpisodes {
+			if !fits {
+				break
+			}
 			i, ok := index[provider.EpisodeNumber-offset]
 			if !ok {
 				continue

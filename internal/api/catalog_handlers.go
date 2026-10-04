@@ -229,7 +229,7 @@ func (s *Server) HandleCatalogAnimeDetail(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(item)
+	_ = json.NewEncoder(w).Encode(item.InSeason(0))
 }
 
 // HandleEpisodeSources resolves all torrent swarms for a specific anime episode, prioritized for French (VOSTFR/VF).

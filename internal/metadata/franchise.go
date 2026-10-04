@@ -254,26 +254,30 @@ func labelMainSeasons(seasons []AnimeSeason, canonical *AnimeCatalogItem) {
 			perSeason[entry.SeasonNumber]++
 		}
 	}
-	position := map[int]int{}
+	lastPart := map[int]int{}
 	for i := range seasons {
 		entry := &seasons[i]
 		if entry.Group != "main" {
 			continue
 		}
-		position[entry.SeasonNumber]++
 		label := fmt.Sprintf("Saison %d", entry.SeasonNumber)
 		entryTitles := titles(entry.Title, entry.Aliases)
 		if perSeason[entry.SeasonNumber] > 1 {
-			part := fmt.Sprintf(" · Partie %d", position[entry.SeasonNumber])
+			// Without a part in its titles, an entry continues after the earlier parts of its season.
+			highest := lastPart[entry.SeasonNumber] + 1
+			part := fmt.Sprintf(" · Partie %d", highest)
 			for _, title := range entryTitles {
 				if match := regexpPartNumbers.FindStringSubmatch(title); match != nil {
 					part = " · Partie " + match[1]
+					highest, _ = strconv.Atoi(match[1])
 					if match[2] != "" {
 						part = fmt.Sprintf(" · Parties %s et %s", match[1], match[2])
+						highest, _ = strconv.Atoi(match[2])
 					}
 					break
 				}
 			}
+			lastPart[entry.SeasonNumber] = max(lastPart[entry.SeasonNumber], highest)
 			label += part
 		}
 		known := false
