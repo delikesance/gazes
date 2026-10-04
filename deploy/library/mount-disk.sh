@@ -21,22 +21,31 @@ fi
 
 dev=/dev/disk/by-label/$label
 target=$POOL/$label
+
+# A mountpoint left behind by an unplugged disk (device gone, or now a different device) is detached first.
+if mountpoint -q "$target"; then
+  current=$(findmnt -no SOURCE "$target" || true)
+  if [ -e "$dev" ] && [ -n "$current" ] && [ "$(readlink -f "$current")" = "$(readlink -f "$dev")" ]; then
+    exit 0
+  fi
+  umount -l "$target"
+fi
 [ -e "$dev" ] || { echo "mount-disk: $dev not found" >&2; exit 1; }
 
 mkdir -p "$target"
-if mountpoint -q "$target"; then
-  exit 0
-fi
 
 fstype=$(blkid -o value -s TYPE "$dev" || true)
 opts=nofail,noatime
 case "$fstype" in
   exfat | ntfs | vfat) opts="$opts,uid=$UID_GID,gid=$UID_GID" ;;
 esac
-mount -o "$opts" "$dev" "$target"
+if ! mount -o "$opts" "$dev" "$target"; then
+  rmdir "$target" 2>/dev/null || true
+  exit 1
+fi
 
 case "$fstype" in
-  ext4 | xfs | btrfs) chown "$UID_GID:$UID_GID" "$target" ;;
+  ext2 | ext3 | ext4 | xfs | btrfs) chown "$UID_GID:$UID_GID" "$target" ;;
 esac
 
 marker=$target/.gazes-library

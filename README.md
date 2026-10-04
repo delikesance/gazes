@@ -500,4 +500,6 @@ make library-label-disk DEV=/dev/sdX1 LABEL=GAZES-1
 docker compose exec backend gazes-library status
 ```
 
-`/mnt/gazes` est monté dans le conteneur en `rshared` : un disque branché plus tard apparaît sans recréer le conteneur. Aucun `:z` n'est nécessaire tant que le démon Docker tourne sans SELinux ; s'il est activé un jour, le pool doit porter le type `container_file_t` (option de montage `context=system_u:object_r:container_file_t:s0` pour exfat/ntfs/vfat, `chcon -R -t container_file_t` pour ext4).
+`/mnt/gazes` est monté dans le conteneur en `rshared` : les disques montés après l'installation (ou branchés plus tard, puis re-branchés) apparaissent sans recréer le conteneur, car c'est le même dossier hôte, situé sur un montage `shared` (`install-host.sh` le vérifie et échoue sinon). Le conteneur doit seulement avoir été créé avec ce volume (`docker compose up -d`). La stack de développement (`gazes-dev`) n'utilise pas ce pool : elle a son propre volume vide `dev-library-pool` (voir `compose.dev.yaml` pour créer un disque factice).
+
+Aucun `:z` n'est nécessaire tant que le démon Docker tourne sans SELinux ; s'il est activé un jour, le pool doit porter le type `container_file_t` (option de montage `context=system_u:object_r:container_file_t:s0` pour exfat/ntfs/vfat, `chcon -R -t container_file_t` pour ext4).
