@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -231,5 +232,74 @@ func TestEpisodeSchedulePreservesConfirmedDates(t *testing.T) {
 	}
 	if item.EpisodeList[2].AiringAt != 0 {
 		t.Fatal("invented an unconfirmed date")
+	}
+}
+
+func assertGenericEpisodes(t *testing.T, item AnimeCatalogItem, count int) {
+	t.Helper()
+	if len(item.EpisodeList) != count {
+		t.Fatalf("got %d episodes, want %d", len(item.EpisodeList), count)
+	}
+	for _, ep := range item.EpisodeList {
+		if ep.Title != "Épisode "+strconv.Itoa(ep.EpisodeNumber) {
+			t.Fatalf("provider title leaked onto a wrongly placed season: %+v", ep)
+		}
+	}
+}
+
+// A listing that does not fit entirely inside the season (offset off by one season) is not
+// applied at all rather than half of it.
+func TestInSeasonIgnoresListingOutsideTheSeason(t *testing.T) {
+	titles := []string{"Episode 48.5 - Digression"}
+	for n := 49; n <= 72; n++ {
+		titles = append(titles, "Episode "+strconv.Itoa(n)+" - Title "+strconv.Itoa(n))
+	}
+	m := withStreamingEpisodes(aniListMediaItem{ID: 4, Episodes: 24, Status: "FINISHED"}, titles...)
+	item := formatCatalogItem(&m, true)
+	assertGenericEpisodes(t, item.InSeason(36), 24)
+}
+
+// A relative listing one ahead of the airing count was set aside; it must not land on episodes 1-2.
+func TestInSeasonIgnoresRelativeListingAheadOfAiring(t *testing.T) {
+	var titles []string
+	for n := 1; n <= 14; n++ {
+		titles = append(titles, "Episode "+strconv.Itoa(n))
+	}
+	m := withStreamingEpisodes(aniListMediaItem{ID: 5, Status: "RELEASING"}, titles...)
+	m.NextAiringEpisode = &struct {
+		Episode int `json:"episode"`
+	}{Episode: 14}
+	item := formatCatalogItem(&m, true)
+	assertGenericEpisodes(t, item.InSeason(12), 13)
+}
+
+func TestMainSeasonPartFallbackContinuesAfterEarlierParts(t *testing.T) {
+	s := NewAnimeCatalogService(nil)
+	rows := []struct {
+		id           int
+		title, start string
+	}{
+		{1, "X Season 4 Part 1 & 2", "2026-04-01"},
+		{2, "X Season 4 Final", "2026-10-01"},
+	}
+	for i, r := range rows {
+		item := &AnimeCatalogItem{ID: r.id, DisplayTitle: r.title, Format: "TV", StartDate: r.start}
+		if i > 0 {
+			item.Relations = append(item.Relations, AnimeRelation{ID: rows[i-1].id, RelationType: "PREQUEL"})
+		}
+		if i < len(rows)-1 {
+			item.Relations = append(item.Relations, AnimeRelation{ID: rows[i+1].id, RelationType: "SEQUEL"})
+		}
+		s.detailC.Put(context.Background(), strconv.Itoa(r.id), item, time.Hour)
+	}
+	f, err := s.GetFranchise(context.Background(), 1)
+	if err != nil || len(f.Seasons) != 2 {
+		t.Fatalf("%+v %v", f, err)
+	}
+	want := []string{"Saison 4 · Parties 1 et 2", "Saison 4 · Partie 3"}
+	for i, w := range want {
+		if !strings.HasPrefix(f.Seasons[i].SeasonName, w) {
+			t.Errorf("%d: got %q, want prefix %q", i, f.Seasons[i].SeasonName, w)
+		}
 	}
 }
