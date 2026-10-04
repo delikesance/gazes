@@ -237,6 +237,12 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
         else if (!windows.has(start) || (spans.get(start) ?? 0) < span) {
           const cached = [...windows.keys()].reverse().find(candidate => contains(candidate, time));
           if (cached !== undefined) { start = cached; span = spans.get(cached) ?? FULL_WINDOW; }
+          else {
+            // Seeking into an area with nothing cached: the swarm may have to fetch every byte of
+            // a full window, so show captions from a short one first (the full one follows).
+            start = Math.max(0, Math.floor(time) - 5);
+            span = QUICK_WINDOW;
+          }
         }
       }
       updateVisibility();

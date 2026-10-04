@@ -33,11 +33,13 @@ func (e *ClientEngine) trackerStatusLoop() {
 		var buf bytes.Buffer
 		e.client.WriteStatus(&buf)
 		for _, entry := range parseTrackerStatus(buf.String()) {
+			// "next ann" is a countdown that changes on every tick: only the outcome of the last announce is news.
 			key := entry.infoHash + " " + entry.host
-			if last[key] == entry.status {
+			_, outcome, _ := strings.Cut(entry.status, "last ann: ")
+			if last[key] == outcome {
 				continue
 			}
-			last[key] = entry.status
+			last[key] = outcome
 			e.logger.Info("torrent.tracker_status", "infohash", entry.infoHash, "tracker", entry.host, "status", entry.status)
 		}
 	}
