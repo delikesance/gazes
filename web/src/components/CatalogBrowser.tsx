@@ -88,7 +88,7 @@ export function CatalogBrowser({
     let active = true;
     setLoading(true);
     setError("");
-    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), listHidden(), page, 24) : getCatalogSeasonal(page, 24);
+    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), listHidden(), page, 28) : getCatalogSeasonal(page, 24);
     request.then(result => {
       if (active) {
         setData(result);
