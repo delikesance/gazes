@@ -99,6 +99,8 @@ func Open(opts Options, inner torrent.Engine, fetcher Fetcher, logger *slog.Logg
 		janitor: NewJanitor(store, pool, eng.InUse, clock),
 		rate:    map[int64][]time.Time{},
 	}
+	svc.enc.inUse = eng.InUse
+	svc.enc.free = func(diskID string, need int64) { _, _ = svc.janitor.Free(diskID, need) }
 	svc.watch()
 	return svc, nil
 }
@@ -247,9 +249,9 @@ func (s *Service) recent(userID int64, now time.Time) []time.Time {
 	return keep
 }
 
-// Copies lists the ready (ORIGINAL or AV1) copies of an episode.
+// Copies lists the ready (ORIGINAL, ENCODING or AV1) copies; an ENCODING copy is still the original file and is reported as ORIGINAL of an episode.
 func (s *Service) Copies(seasonID, episode int) ([]Copy, error) {
-	list, err := s.store.List(Filter{SeasonID: seasonID, Episode: episode, States: []State{StateOriginal, StateAV1}})
+	list, err := s.store.List(Filter{SeasonID: seasonID, Episode: episode, States: []State{StateOriginal, StateEncoding, StateAV1}})
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +261,11 @@ func (s *Service) Copies(seasonID, episode int) ([]Copy, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, Copy{Lang: e.Lang, State: string(e.State), VideoCodec: e.VideoCodec, StreamID: id,
+		state := e.State
+		if state == StateEncoding { // the original is untouched at RelPath until the encoder swaps it
+			state = StateOriginal
+		}
+		out = append(out, Copy{Lang: e.Lang, State: string(state), VideoCodec: e.VideoCodec, StreamID: id,
 			DurationMS: e.DurationMS, AudioTracks: e.AudioTracks, SubtitleTracks: e.SubtitleTracks})
 	}
 	return out, nil

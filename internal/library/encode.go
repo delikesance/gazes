@@ -92,7 +92,22 @@ type Encoder struct {
 	signal      func(p *os.Process, sig syscall.Signal) error
 	useNice     bool
 	backoff     bool // set after a failed attempt: Run waits poll before the next one
+
+	inUse      func(Key) bool                               // whether a reader has the copy open; nil means never
+	free       func(diskID string, need int64)              // makes room on a disk (janitor); nil means no eviction
+	update     func(Key, func(*Entry) error) (Entry, error) // store.Update, replaceable in tests
+	idlePoll   time.Duration                                // how often to re-check before swapping the file
+	idleCap    time.Duration                                // give up swapping after this long
+	retryDelay time.Duration                                // pause between retries of the final index update
 }
+
+const (
+	swapIdleAfter = 10 * time.Minute // a copy read more recently than this is not swapped
+	finishRetries = 5
+)
+
+// errSwapBusy means the copy stayed in use for the whole wait: try again later, it says nothing about the media.
+var errSwapBusy = errors.New("library: copy still in use, swap postponed")
 
 // envError marks a failure of the environment (cannot start ffmpeg, cannot create the output),
 // which says nothing about the media file and must not count as an attempt.
@@ -121,8 +136,10 @@ func NewEncoder(store *Store, pool *Pool, p Prober, active func() int, s EncodeS
 	return &Encoder{
 		store: store, pool: pool, probe: p, active: active, s: s, clock: clock,
 		poll: 10 * time.Second, tick: time.Second, statusEvery: 10 * time.Second,
-		signal:  func(p *os.Process, sig syscall.Signal) error { return p.Signal(sig) },
-		useNice: err == nil,
+		signal:   func(p *os.Process, sig syscall.Signal) error { return p.Signal(sig) },
+		useNice:  err == nil,
+		idlePoll: 30 * time.Second, idleCap: 30 * time.Minute, retryDelay: 500 * time.Millisecond,
+		update: store.Update,
 	}
 }
 
@@ -191,6 +208,10 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 	}
 
 	res, err := e.pool.ReserveOn(ent.DiskID, st.Size()/2)
+	if errors.Is(err, ErrNoSpace) && e.free != nil {
+		e.free(ent.DiskID, st.Size()/2)
+		res, err = e.pool.ReserveOn(ent.DiskID, st.Size()/2)
+	}
 	if errors.Is(err, ErrDiskAbsent) {
 		return e.markUnavailable(k, nil)
 	}
@@ -198,7 +219,7 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 		return false
 	}
 	claimed := false
-	_, err = e.store.Update(k, func(en *Entry) error {
+	_, err = e.update(k, func(en *Entry) error {
 		if en.State != StateOriginal || en.EncodeSkipped != "" {
 			return errors.New("library: entry no longer encodable")
 		}
@@ -224,7 +245,9 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 				en.State, en.EncodeSkipped, en.LastError = StateOriginal, "not_smaller", ""
 			})
 		}
-		if err := os.Rename(tmp, src); err != nil {
+		if err := e.waitUnused(ctx, k); err != nil {
+			encErr = err
+		} else if err := os.Rename(tmp, src); err != nil {
 			encErr = fmt.Errorf("rename: %w", err)
 		} else {
 			return e.finish(k, res, func(en *Entry) {
@@ -240,6 +263,10 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 		return e.finish(k, res, func(en *Entry) { en.State = StateOriginal })
 	case e.sourceGone(ent):
 		return e.finish(k, res, func(en *Entry) { en.State, en.PrevState = StateUnavailable, StateOriginal })
+	case errors.Is(encErr, errSwapBusy):
+		slog.Info("library: encoded copy still in use, discarding the result to retry later", "key", k.String())
+		e.backoff = true
+		return e.finish(k, res, func(en *Entry) { en.State = StateOriginal })
 	case isEnvError(encErr):
 		slog.Warn("library: encoder environment failure", "key", k.String(), "err", encErr)
 		e.backoff = true
@@ -260,6 +287,29 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 	}
 }
 
+// waitUnused blocks until nobody reads the copy and it has not been accessed for swapIdleAfter, so the
+// rename does not change a file under a player (Range requests reopen it and expect stable offsets). It
+// gives up with errSwapBusy after idleCap, and returns ctx.Err() when cancelled.
+func (e *Encoder) waitUnused(ctx context.Context, k Key) error {
+	deadline := time.Now().Add(e.idleCap)
+	for {
+		busy := e.inUse != nil && e.inUse(k)
+		if !busy {
+			if cur, err := e.store.Get(k); err != nil || e.clock().Sub(cur.LastAccessAt) > swapIdleAfter {
+				return nil // idle, or the entry is gone and finish will sort that out
+			}
+		}
+		if !time.Now().Before(deadline) {
+			return errSwapBusy
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(e.idlePoll):
+		}
+	}
+}
+
 // sourceGone reports whether the original file or its disk has disappeared.
 func (e *Encoder) sourceGone(ent Entry) bool {
 	p, err := e.pool.Path(ent.DiskID, ent.RelPath)
@@ -275,7 +325,7 @@ func (e *Encoder) sourceGone(ent Entry) bool {
 
 // markUnavailable flags the entry UNAVAILABLE. It returns false if the index could not be updated.
 func (e *Encoder) markUnavailable(k Key, res *Reservation) bool {
-	_, err := e.store.Update(k, func(en *Entry) error {
+	_, err := e.update(k, func(en *Entry) error {
 		if en.State == StateUnavailable {
 			return nil
 		}
@@ -295,11 +345,19 @@ func (e *Encoder) markUnavailable(k Key, res *Reservation) bool {
 // finish applies the terminal state change, clears the reservation and releases it. It returns
 // false if the index could not be updated, so the caller does not spin on the same entry.
 func (e *Encoder) finish(k Key, res Reservation, fn func(*Entry)) bool {
-	_, err := e.store.Update(k, func(en *Entry) error {
-		fn(en)
-		en.ReservedBytes = 0
-		return nil
-	})
+	// Retry: after a successful rename a lost update would leave the index at ENCODING on an AV1 file.
+	var err error
+	for i := 0; i < finishRetries; i++ {
+		_, err = e.update(k, func(en *Entry) error {
+			fn(en)
+			en.ReservedBytes = 0
+			return nil
+		})
+		if err == nil || errors.Is(err, ErrNotFound) {
+			break
+		}
+		time.Sleep(e.retryDelay)
+	}
 	e.pool.Release(res)
 	e.setStatus(nil, 0, false)
 	if err != nil && !errors.Is(err, ErrNotFound) {
@@ -343,14 +401,10 @@ func (e *Encoder) runFFmpeg(ctx context.Context, k Key, src, tmp string) (int64,
 	go func() {
 		defer close(eof)
 		sc := bufio.NewScanner(stdout)
+		pp := newProgressParser(info.DurationMS, info.FrameRate)
 		for sc.Scan() {
-			v, ok := strings.CutPrefix(sc.Text(), "out_time_us=")
-			if !ok || info.DurationMS <= 0 {
-				continue
-			}
-			if us, err := strconv.ParseInt(v, 10, 64); err == nil {
-				p := float64(us) / 1000 / float64(info.DurationMS)
-				progress.Store(math.Float64bits(math.Max(0, math.Min(1, p))))
+			if p, ok := pp.Line(sc.Text()); ok {
+				progress.Store(math.Float64bits(p))
 			}
 		}
 	}()
@@ -427,3 +481,80 @@ func (t *tailBuffer) Write(p []byte) (int, error) {
 }
 
 func (t *tailBuffer) String() string { return tail(t.b, 500) }
+
+// progressParser turns ffmpeg's -progress lines into a 0..1 fraction. Which fields carry a value depends
+// on the argument set: out_time_us is N/A for some stream mappings, hence the fallbacks: out_time_ms
+// (microseconds despite its name), out_time=HH:MM:SS.xx, then frame= against frame rate and duration.
+type progressParser struct {
+	durationMS int64
+	fps        float64
+	frames     int64
+	timeSeen   bool // a time field gave a value: frame counts are then ignored
+}
+
+func newProgressParser(durationMS int64, fps float64) *progressParser {
+	return &progressParser{durationMS: durationMS, fps: fps}
+}
+
+// Line consumes one line and reports the new progress when it carries one.
+func (p *progressParser) Line(line string) (float64, bool) {
+	if p.durationMS <= 0 {
+		return 0, false
+	}
+	key, val, ok := strings.Cut(line, "=")
+	if !ok {
+		return 0, false
+	}
+	val = strings.TrimSpace(val)
+	var us int64
+	switch key {
+	case "out_time_us", "out_time_ms":
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		us = n
+	case "out_time":
+		n, ok := parseOutTime(val)
+		if !ok {
+			return 0, false
+		}
+		us = n
+	case "frame":
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil || n < 0 {
+			return 0, false
+		}
+		p.frames = n
+		if p.timeSeen || p.fps <= 0 {
+			return 0, false
+		}
+		return clamp01(float64(n) / (p.fps * float64(p.durationMS) / 1000)), true
+	default:
+		return 0, false
+	}
+	p.timeSeen = true
+	return clamp01(float64(us) / 1000 / float64(p.durationMS)), true
+}
+
+func clamp01(f float64) float64 { return math.Max(0, math.Min(1, f)) }
+
+// parseOutTime reads ffmpeg's out_time ("HH:MM:SS.ffffff", possibly negative at the very start) in microseconds.
+func parseOutTime(s string) (int64, bool) {
+	neg := strings.HasPrefix(s, "-")
+	parts := strings.Split(strings.TrimPrefix(s, "-"), ":")
+	if len(parts) != 3 {
+		return 0, false
+	}
+	h, err1 := strconv.ParseInt(parts[0], 10, 64)
+	m, err2 := strconv.ParseInt(parts[1], 10, 64)
+	sec, err3 := strconv.ParseFloat(parts[2], 64)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return 0, false
+	}
+	us := (h*3600+m*60)*1_000_000 + int64(sec*1_000_000)
+	if neg {
+		us = -us
+	}
+	return us, true
+}

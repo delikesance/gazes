@@ -53,7 +53,8 @@ func isStreamID(s string) bool {
 	return true
 }
 
-// lookup returns the servable library entry behind hash, if any. Errors other than "not found"
+// lookup returns the servable library entry behind hash, if any. An ENCODING copy is servable: the
+// original is untouched at RelPath until the encoder renames the AV1 output over it. Errors other than "not found"
 // are swallowed so torrent playback is never broken by the library.
 func (e *Engine) lookup(hash string) (Entry, string, bool) {
 	id := strings.ToLower(hash)
@@ -61,7 +62,7 @@ func (e *Engine) lookup(hash string) (Entry, string, bool) {
 		return Entry{}, "", false
 	}
 	ent, err := e.store.ByStreamID(id)
-	if err != nil || (ent.State != StateOriginal && ent.State != StateAV1) {
+	if err != nil || (ent.State != StateOriginal && ent.State != StateEncoding && ent.State != StateAV1) {
 		return Entry{}, "", false
 	}
 	return ent, id, true

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
 // MediaInfo is what the library needs to know about a media file.
@@ -16,7 +17,8 @@ type MediaInfo struct {
 	AudioCodecs                      []string
 	AudioChannels                    []int
 	SubtitleTracks, AttachmentTracks int
-	VideoStreams                     int // real video streams, attached pictures excluded
+	VideoStreams                     int     // real video streams, attached pictures excluded
+	FrameRate                        float64 // avg_frame_rate of the first real video stream, 0 if unknown
 }
 
 // Prober inspects a media file.
@@ -44,6 +46,7 @@ func parseProbe(b []byte) (MediaInfo, error) {
 		Streams []struct {
 			CodecType string `json:"codec_type"`
 			CodecName string `json:"codec_name"`
+			AvgFPS    string `json:"avg_frame_rate"`
 			Channels  int    `json:"channels"`
 			Dispo     struct {
 				AttachedPic int `json:"attached_pic"`
@@ -69,6 +72,7 @@ func parseProbe(b []byte) (MediaInfo, error) {
 			mi.VideoStreams++
 			if mi.VideoCodec == "" {
 				mi.VideoCodec = s.CodecName
+				mi.FrameRate = parseRate(s.AvgFPS)
 			}
 		case "audio":
 			mi.AudioCodecs = append(mi.AudioCodecs, s.CodecName)
@@ -80,4 +84,21 @@ func parseProbe(b []byte) (MediaInfo, error) {
 		}
 	}
 	return mi, nil
+}
+
+// parseRate reads ffprobe's "num/den" frame rate; unknown or malformed values give 0.
+func parseRate(r string) float64 {
+	num, den, ok := strings.Cut(r, "/")
+	n, err := strconv.ParseFloat(num, 64)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	if !ok {
+		return n
+	}
+	d, err := strconv.ParseFloat(den, 64)
+	if err != nil || d <= 0 {
+		return 0
+	}
+	return n / d
 }
