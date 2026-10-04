@@ -276,7 +276,8 @@ func (s *Server) seasonContext(w http.ResponseWriter, r *http.Request) (*metadat
 				http.Error(w, "failed to load episodes", 502)
 				return nil, nil, nil
 			}
-			return item, f, &season
+			placed := item.InSeason(season.EpisodeOffset)
+			return &placed, f, &season
 		}
 	}
 	if !f.Complete {

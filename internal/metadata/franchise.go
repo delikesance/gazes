@@ -200,6 +200,20 @@ func (s *AnimeCatalogService) buildFranchise(ctx context.Context, id int) (*Fran
 	for i := range seasons {
 		seasons[i].ReleaseSeasonNumber = ReleaseSeasonNumber(seasons[i].Title, canonical.DisplayTitle, seasons[i].SeasonNumber)
 	}
+	// Absolute provider numbering continues across main seasons; it is unknown past a season
+	// whose episode count is unknown.
+	offset := 0
+	for i := range seasons {
+		if seasons[i].Group != "main" || offset < 0 {
+			continue
+		}
+		seasons[i].EpisodeOffset = offset
+		if seasons[i].Episodes > 0 {
+			offset += seasons[i].Episodes
+		} else {
+			offset = -1
+		}
+	}
 	f := &Franchise{ID: canonical.ID, Title: canonical.DisplayTitle, PosterImage: canonical.PosterImage, Description: canonical.Description, Seasons: seasons, Complete: complete}
 	if !complete {
 		f.Warning = "Certaines saisons n’ont pas pu être chargées. Réessayez."

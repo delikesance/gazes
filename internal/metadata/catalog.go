@@ -41,6 +41,7 @@ type AnimeSeason struct {
 	StartDate           string   `json:"start_date,omitempty"`
 	IsCurrent           bool     `json:"is_current"`
 	Aliases             []string `json:"aliases,omitempty"`
+	EpisodeOffset       int      `json:"episode_offset,omitempty"` // main-continuity episodes before this season
 }
 
 // AnimeRelation represents a connected anime season, prequel, sequel, movie, or spin-off.
@@ -82,6 +83,7 @@ type AnimeCatalogItem struct {
 	SeasonYear        int             `json:"season_year,omitempty"`
 	Status            string          `json:"status,omitempty"`
 	EpisodeList       []EpisodeInfo   `json:"episode_list,omitempty"`
+	AbsoluteEpisodes  []EpisodeInfo   `json:"absolute_episodes,omitempty"`
 	Relations         []AnimeRelation `json:"relations,omitempty"`
 	Seasons           []AnimeSeason   `json:"seasons,omitempty"`
 }
@@ -796,34 +798,42 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 		return item
 	}
 
-	// Generate / parse episode list
-	episodes := make([]EpisodeInfo, 0)
-	if len(m.StreamingEpisodes) > 0 {
-		parsed := make([]int, len(m.StreamingEpisodes))
-		for i, sep := range m.StreamingEpisodes {
-			parsed[i] = i + 1
-			var n int
-			if c, err := fmt.Sscanf(sep.Title, "Episode %d", &n); err == nil && c == 1 && n > 0 {
-				parsed[i] = n
-			}
-		}
-		offset := streamingEpisodeOffset(parsed, m.Episodes)
-		for i, sep := range m.StreamingEpisodes {
-			epNum := parsed[i] - offset
-			// AniList sometimes attaches another season's provider episodes (absolute numbering,
-			// e.g. 48.5-72 on a 12-episode entry): they are not episodes of this season.
-			if epNum < 1 || (m.Episodes > 0 && epNum > m.Episodes) {
+	// Parse the provider listing. Fractional numbers (".5" recaps) are not episodes of the season.
+	episodes := make([]EpisodeInfo, 0, len(m.StreamingEpisodes))
+	highest := 0
+	for i, sep := range m.StreamingEpisodes {
+		epNum := i + 1
+		if match := regexpProviderEpisode.FindStringSubmatch(sep.Title); match != nil {
+			if match[2] != "" {
 				continue
 			}
-
-			episodes = append(episodes, EpisodeInfo{
-				EpisodeNumber: epNum,
-				Title:         sep.Title,
-				Thumbnail:     sep.Thumbnail,
-				URL:           sep.URL,
-				Site:          sep.Site,
-			})
+			epNum, _ = strconv.Atoi(match[1])
 		}
+		if epNum <= 0 {
+			continue
+		}
+		highest = max(highest, epNum)
+		episodes = append(episodes, EpisodeInfo{
+			EpisodeNumber: epNum,
+			Title:         sep.Title,
+			Thumbnail:     sep.Thumbnail,
+			URL:           sep.URL,
+			Site:          sep.Site,
+		})
+	}
+
+	count := m.Episodes
+	if count == 0 && m.NextAiringEpisode != nil {
+		count = m.NextAiringEpisode.Episode - 1
+	}
+	if count > 2500 {
+		count = 2500
+	}
+	// A listing reaching beyond the season is numbered across the whole series (AniList even
+	// attaches one season's listing to every season of a franchise): set it aside for InSeason.
+	if count > 0 && highest > count {
+		item.AbsoluteEpisodes = episodes
+		episodes = nil
 	}
 
 	// Merge duplicate provider listings and fill gaps, without inventing unknown totals.
@@ -832,13 +842,6 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 		if _, ok := byNumber[ep.EpisodeNumber]; !ok {
 			byNumber[ep.EpisodeNumber] = ep
 		}
-	}
-	count := m.Episodes
-	if count == 0 && m.NextAiringEpisode != nil {
-		count = m.NextAiringEpisode.Episode - 1
-	}
-	if count > 2500 {
-		count = 2500
 	}
 	for n := 1; n <= count; n++ {
 		if _, ok := byNumber[n]; !ok {
@@ -870,30 +873,31 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 	return item
 }
 
-// streamingEpisodeOffset returns how much to subtract from provider episode numbers when the
-// provider numbers this season absolutely (e.g. 49-72 for a 24-episode season). Rebasing only
-// applies when every number lies beyond the season's total and the listing is about as long as the
-// season itself (one extra entry allowed for a ".5" special): a longer listing belongs to
-// several seasons at once and cannot be attributed to this one.
-func streamingEpisodeOffset(numbers []int, total int) int {
-	if total <= 0 || len(numbers) == 0 {
-		return 0
-	}
-	distinct := make(map[int]struct{}, len(numbers))
-	highest := 0
-	for _, n := range numbers {
-		if n <= total {
-			return 0
+var regexpProviderEpisode = regexp.MustCompile(`^Episode (\d+)(\.\d+)?\b`)
+
+// InSeason returns the entry as the season placed after offset main-continuity episodes:
+// the AbsoluteEpisodes (provider numbering across the whole series) that fall inside it replace
+// the generic ones. Only the franchise knows that offset.
+func (item AnimeCatalogItem) InSeason(offset int) AnimeCatalogItem {
+	episodes := append([]EpisodeInfo(nil), item.EpisodeList...)
+	if offset > 0 {
+		index := make(map[int]int, len(episodes))
+		for i, ep := range episodes {
+			index[ep.EpisodeNumber] = i
 		}
-		distinct[n] = struct{}{}
-		if n > highest {
-			highest = n
+		for _, provider := range item.AbsoluteEpisodes {
+			i, ok := index[provider.EpisodeNumber-offset]
+			if !ok {
+				continue
+			}
+			ep := &episodes[i]
+			ep.Title, ep.Thumbnail, ep.URL, ep.Site = provider.Title, provider.Thumbnail, provider.URL, provider.Site
+			delete(index, ep.EpisodeNumber)
 		}
 	}
-	if len(distinct) > total+1 {
-		return 0
-	}
-	return highest - total
+	item.EpisodeList = episodes
+	item.AbsoluteEpisodes = nil
+	return item
 }
 
 // GetTrending returns current trending anime.
