@@ -24,7 +24,7 @@ export function EpisodeCard({episode, href, current = false, seasonId}: {episode
   <span className="episode-number">{episode.episode_number}</span>
   {hasPreview&&<div className="episode-preview">
    {/* eslint-disable-next-line @next/next/no-img-element */}
-   <img src={previewSrc} alt="" loading="lazy" onError={()=>setFailedImage(previewSrc!)} />
+   <img src={previewSrc} alt="" loading="lazy" onError={()=>setFailedImage(previewSrc!)} ref={(img)=>{ if(img&&img.complete&&img.naturalWidth===0) setFailedImage(previewSrc!); }} />
   </div>}
   <div className="episode-copy"><div>
    <h2>{title||`${t("Épisode")} ${episode.episode_number}`}</h2>

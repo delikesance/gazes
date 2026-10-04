@@ -21,6 +21,14 @@ export function getApiBase(): string {
 }
 
 /**
+ * API base for URLs that end up in markup the browser fetches (img src, ...). Unlike getApiBase() it never resolves
+ * to the docker-internal BACKEND_URL, which would otherwise leak into server-rendered HTML.
+ */
+export function publicApiBase(): string {
+  return process.env.NEXT_PUBLIC_API_BASE || "/api/v1";
+}
+
+/**
  * The backend answers an upstream (AniList) throttle with 503 + Retry-After. Keep the request pending
  * through up to two cooldowns of at most 30 s each, so the page shows its loader instead of an error.
  */
@@ -252,7 +260,8 @@ export async function getCatalogSeasonal(page = 1, perPage = 24): Promise<Catalo
 
 /** Frame cut from the middle of the episode once someone has played it; 404 until then. */
 export function episodePreviewUrl(seasonId: number, episode: number): string {
-  return `${getApiBase()}/catalog/seasons/${seasonId}/episodes/${episode}/preview`;
+  // Rendered into <img src>, also during SSR: the browser must be able to resolve it.
+  return `${publicApiBase()}/catalog/seasons/${seasonId}/episodes/${episode}/preview`;
 }
 
 /**
