@@ -26,10 +26,12 @@ jobs:
 
       - name: Pull and restart the stack
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          # The runner shares the production host: 172.19.0.1 is the host as seen
+          # from the forgejo_forgejo_net Docker network.
+          DEPLOY_HOST: 172.19.0.1
+          DEPLOY_USER: workstation
+          DEPLOY_PORT: "22"
+          DEPLOY_PATH: /home/workstation/Projects/gazes
           DEPLOY_SHA: ${{ github.sha }}
         run: |
           ssh -i ~/.ssh/id_deploy -p "${DEPLOY_PORT:-22}" \
