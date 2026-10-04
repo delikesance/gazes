@@ -20,6 +20,7 @@ import (
 	"github.com/gazes/gazes/internal/indexer/nyaa"
 	"github.com/gazes/gazes/internal/indexer/settings"
 	"github.com/gazes/gazes/internal/kv"
+	"github.com/gazes/gazes/internal/library"
 	"github.com/gazes/gazes/internal/stream"
 	"github.com/gazes/gazes/internal/torrent"
 )
@@ -112,7 +113,40 @@ func main() {
 	}
 	defer accounts.Close()
 
-	server := api.NewServer(cfg, logger, catalogIndexers, torrentEngine, streamPipeline, api.WithAuth(accounts), api.WithRedis(redisClient))
+	// The AV1 library wraps the torrent engine; any failure to open it leaves the plain engine in place.
+	var engine torrent.Engine = torrentEngine
+	serverOpts := []api.Option{api.WithAuth(accounts), api.WithRedis(redisClient)}
+	libraryCtx, libraryCancel := context.WithCancel(context.Background())
+	defer libraryCancel()
+	if cfg.LibraryEnabled {
+		libraryService, err := library.Open(library.Options{
+			PoolDir:        cfg.LibraryPoolDir,
+			IndexDir:       cfg.LibraryIndexDir,
+			FFmpeg:         "ffmpeg",
+			FFprobe:        "ffprobe",
+			ReservePercent: cfg.LibraryReservePercent,
+			ReserveBytes:   cfg.LibraryReserveBytes,
+			Stall:          cfg.LibraryStallTimeout,
+			Encode: library.EncodeSettings{
+				Preset:       cfg.LibraryEncodePreset,
+				CRF:          cfg.LibraryEncodeCRF,
+				Threads:      cfg.LibraryEncodeThreads,
+				PauseStreams: cfg.LibraryEncodePauseStreams,
+				Window:       cfg.LibraryEncodeWindow,
+			},
+		}, torrentEngine, torrentEngine, logger)
+		if err != nil {
+			diagnostics.Log(libraryCtx, slog.LevelError, "library.disabled", "error", err.Error())
+		} else {
+			// Stop the workers before the torrent engine they read from closes.
+			defer libraryService.Close()
+			libraryService.Start(libraryCtx)
+			engine = libraryService.Engine()
+			serverOpts = append(serverOpts, api.WithLibrary(libraryService))
+		}
+	}
+
+	server := api.NewServer(cfg, logger, catalogIndexers, engine, streamPipeline, serverOpts...)
 	defer server.ClosePlayback()
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)

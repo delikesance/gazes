@@ -147,6 +147,9 @@ func (s *Service) setSession(w http.ResponseWriter, r *http.Request, userID int6
 	return nil
 }
 
+// CurrentUser returns the signed-in user of the request, or nil.
+func (s *Service) CurrentUser(r *http.Request) *User { return s.currentUser(r) }
+
 func (s *Service) currentUser(r *http.Request) *User {
 	c, err := r.Cookie(cookieName)
 	if err != nil || c.Value == "" {

@@ -128,6 +128,16 @@ func (e *Engine) GetStats(hash string) (*torrent.SwarmStats, error) {
 	}, nil
 }
 
+// Files forwards to the inner engine when it can list the files of a loaded torrent.
+func (e *Engine) Files(infoHash string) ([]torrent.FileInfo, bool) {
+	if f, ok := e.inner.(interface {
+		Files(string) ([]torrent.FileInfo, bool)
+	}); ok {
+		return f.Files(infoHash)
+	}
+	return nil, false
+}
+
 func (e *Engine) Close() error { return e.inner.Close() }
 
 // ActiveStreams is the number of distinct (hash, file) pairs with at least one open reader.
