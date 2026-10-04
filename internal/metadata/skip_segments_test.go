@@ -24,8 +24,10 @@ func TestDetectSkipSegments(t *testing.T) {
 		{"OP1/ED1", titled("OP1", "ED1"), 1420, both},
 		{"french", titled("Générique de début", "Générique de fin"), 1420, both},
 		{"japanese", titled("オープニング", "エンディング"), 1420, both},
-		{"Episode is not ed", []Chapter{ch(0, 40, "Episode"), ch(40, 1420, "Main")}, 1420, nil},
-		{"Opera/Edited do not match", []Chapter{ch(0, 400, "Opera"), ch(400, 800, "Edited")}, 1420, nil},
+		// 150 s is in the titled range but outside the heuristic one: a false keyword match would yield a segment.
+		{"Opera is not op", []Chapter{ch(0, 120, "A"), ch(120, 270, "Opera"), ch(270, 1420, "B")}, 1420, nil},
+		{"Episode is not ed", []Chapter{ch(0, 1000, "A"), ch(1000, 1130, "B"), ch(1130, 1270, "Episode"), ch(1270, 1420, "Edited")}, 1420, nil},
+		{"Credited is not credits", []Chapter{ch(0, 1000, "A"), ch(1000, 1130, "B"), ch(1130, 1270, "C"), ch(1270, 1420, "Credited")}, 1420, nil},
 		{"generic both", []Chapter{ch(0, 150, "Chapter 01"), ch(150, 240, "Chapter 02"), ch(240, 1290, "Chapter 03"), ch(1290, 1380, "Chapter 04"), ch(1380, 1420, "Chapter 05")}, 1420, both2()},
 		{"generic opening only", []Chapter{ch(0, 89, "Chapter 01"), ch(89, 1420, "Chapter 02")}, 1420, []SkipSegment{op(0, 89)}},
 		{"generic no ending candidate", []Chapter{ch(0, 150, "Chapter 01"), ch(150, 240, "Chapter 02"), ch(240, 1290, "Chapter 03"), ch(1290, 1420, "Chapter 04")}, 1420, []SkipSegment{op(150, 240)}},
@@ -57,4 +59,35 @@ func both2() []SkipSegment {
 
 func both3() []SkipSegment {
 	return []SkipSegment{{"opening", 0, 100, "chapters"}, {"ending", 1290, 1380, "chapters"}}
+}
+
+func TestKeywordMatching(t *testing.T) {
+	const (
+		none = ""
+		o    = "opening"
+		e    = "ending"
+	)
+	tests := []struct{ title, want string }{
+		{"Episode", none}, {"Opera", none}, {"Edited", none}, {"Credited", none},
+		{"Introspection", none}, {"Operation", none}, {"Main", none},
+		{"OP1", o}, {"op-1", o}, {"Opening", o}, {"Opening Song", o}, {"OP", o}, {"Intro", o},
+		{"Générique de début", o}, {"オープニング", o},
+		{"(ED)", e}, {"ED", e}, {"ED2", e}, {"ed 1", e}, {"Credits", e}, {"Outro", e},
+		{"Générique de fin", e}, {"エンディング", e},
+	}
+	for _, tt := range tests {
+		got := none
+		if matchesKeyword(tt.title, openingKeywords) {
+			got = o
+		}
+		if matchesKeyword(tt.title, endingKeywords) {
+			if got != none {
+				t.Fatalf("%q matched both lists", tt.title)
+			}
+			got = e
+		}
+		if got != tt.want {
+			t.Errorf("%q: got %q, want %q", tt.title, got, tt.want)
+		}
+	}
 }
