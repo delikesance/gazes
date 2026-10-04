@@ -216,6 +216,10 @@ var cjkTotalEpisode = regexp.MustCompile(`(?:(\d+)\s*-\s*)?[总總]第\s*0*(\d+)
 var seasonBareEpisode = regexp.MustCompile(`(?i)(?:\b\d+(?:st|nd|rd|th)|\bS0*\d+|\b(?:season|saison)\s*0*\d+)\s+0*(\d+)(?:v\d+)?(?:\s|\[|\(|$)`)
 var releaseRange = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])0*(\d+)[\s_]*[-~][\s_]*0*(\d+)(?:$|[^\p{L}\p{N}])`)
 var extraVideoTag = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])(?:OP|ED|OST|NCOP|NCED|opening|ending|soundtrack|trailer|sample)(?:$|[^\p{L}\p{N}])`)
+
+// fanEditTag matches French fan recuts ("Fan-Kaï", "Henshū" chapters) and generic fan edits.
+// Standalone "Kai" is deliberately absent: Dragon Ball Kai and friends are official series.
+var fanEditTag = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])(?:fan[\s_-]*ka[iï]|hensh[uūû]|fan[\s_-]*edit|re[\s_-]?cut)(?:$|[^\p{L}\p{N}])`)
 var narutoVariantTag = regexp.MustCompile(`(?i)\bnaruto\s+(?:shippu?den\s+)?(?:yaba[iï]|kai|full\s*edit|sd|spin\s*off)(?:\s|$)`)
 var movieTag = regexp.MustCompile(`(?i)\b(?:movies?|films?|gekijouban)\b`)
 var seasonSetTag = regexp.MustCompile(`(?i)\bS0*(\d+)((?:\+(?:S)?0*\d+)+)\b`)
@@ -350,6 +354,9 @@ func MatchEpisodeDebug(title string, identity EpisodeIdentity) (bool, bool, stri
 func (matcher *EpisodeMatcher) Match(title string) (bool, bool, string) {
 	identity := matcher.identity
 	title = strings.NewReplacer("_", " ", ".", " ").Replace(title)
+	if fanEditTag.MatchString(title) {
+		return false, false, "rejected: fan edit"
+	}
 	matchTitle := leadingReleaseGroup.ReplaceAllString(title, "")
 	normalized := " " + normalize(matchTitle) + " "
 	// Recuts and spin-offs have numbering distinct from standard Naruto TV episodes.
