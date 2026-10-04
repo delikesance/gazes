@@ -560,6 +560,10 @@ func RankSource(item TorrentItem, identity EpisodeIdentity, batch bool) EpisodeS
 	if len(identity.Titles) > 0 {
 		animeTitle = identity.Titles[0]
 	}
+	if item.IndexerOnly {
+		// Also rewrites results cached before the provider was marked indexer-only.
+		item.MagnetURI = PrivateMagnet(item)
+	}
 	return EpisodeSource{AnimeTitle: animeTitle, AnimeAliases: identity.Titles, ExcludedTitles: identity.ExcludedTitles, TorrentItem: item, EpisodeNumber: identity.EpisodeNumber, SeasonNumber: identity.SeasonNumber, AbsoluteEpisode: identity.AbsoluteEpisode, TaggedEpisode: identity.TaggedEpisode, LanguageTag: tag, LanguageLabel: label, LanguageFlags: flags, IsFrench: fr, FrenchEvidence: evidence, Quality: quality, ReleaseGroup: ExtractReleaseGroup(item.Title), ScoreRank: breakdown.French + breakdown.Multi + breakdown.Swarm + breakdown.Leechers + breakdown.Quality, ScoreBreakdown: breakdown, IsBatch: batch}
 }
 
@@ -829,7 +833,7 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 		searched = map[string]bool{}
 		phaseParent = searchParent
 		for _, item := range items {
-			if matched, batch, _ := matcher.Match(item.Title); matched && batch && item.Seeders > 0 {
+			if matched, batch, _ := matcher.Match(item.Title); matched && batch && item.Seeders > 0 && !item.IndexerOnly {
 				tag, _, _ := ClassifyLanguage(item.Title)
 				// MULTI remains unconfirmed, but its tracks can be checked while
 				// exhaustive discovery is deferred until the player's fallback.
@@ -861,8 +865,26 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 	if len(identity.ExcludedTitles) > 0 {
 		debugLog = append(debugLog, fmt.Sprintf("[Resolver] Excluded titles (%d): %v", len(identity.ExcludedTitles), identity.ExcludedTitles))
 	}
+	// Indexer-only results come from a private tracker whose ratio playback consumes:
+	// they are a last resort, kept only for a seeded VF when no public one exists.
+	publicVF := false
+	for _, item := range items {
+		if matched, _, _ := matcher.Match(item.Title); matched && !item.IndexerOnly && item.Seeders > 0 {
+			if tag, _, _ := ClassifyLanguage(item.Title); tag == LangVF {
+				publicVF = true
+				break
+			}
+		}
+	}
 	for _, item := range items {
 		matches, batch, reason := matcher.Match(item.Title)
+		if matches && item.IndexerOnly {
+			if tag, _, _ := ClassifyLanguage(item.Title); tag != LangVF || item.Seeders == 0 {
+				matches, reason = false, "rejected: private tracker kept only as a seeded VF fallback"
+			} else if publicVF {
+				matches, reason = false, "rejected: private VF unnecessary, a public VF exists"
+			}
+		}
 		if !matches {
 			diagnostics.Log(ctx, slog.LevelDebug, "resolver.rejected", "infohash", item.InfoHash, "provider", item.Provider, "title", item.Title, "reason", reason)
 			if len(debugLog) < 60 {

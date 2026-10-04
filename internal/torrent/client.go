@@ -130,6 +130,32 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 	return engine, nil
 }
 
+// fetchMetainfo downloads the .torrent of a magnet marked "xs=gazes:<provider>" from
+// that provider, and caches it so a restart does not repeat the request.
+func (e *ClientEngine) fetchMetainfo(ctx context.Context, magnet metainfo.Magnet) *metainfo.MetaInfo {
+	provider, ok := strings.CutPrefix(magnet.Params.Get("xs"), "gazes:")
+	fetch := e.cfg.MetainfoFetchers[provider]
+	if !ok || fetch == nil {
+		return nil
+	}
+	infoHash := magnet.InfoHash.HexString()
+	fctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	mi, err := fetch(fctx, infoHash)
+	if err != nil || mi == nil {
+		if err != nil {
+			diagnostics.Logger(ctx, e.logger).Warn("torrent.metainfo_fetch_failed", "infohash", infoHash, "provider", provider, "err", diagnostics.Redact(err.Error()))
+		}
+		return nil
+	}
+	if e.metainfo != nil {
+		if saveErr := e.metainfo.Save(infoHash, mi); saveErr != nil {
+			e.logger.Warn("metainfo cache write failed", "infohash", infoHash, "err", saveErr)
+		}
+	}
+	return mi
+}
+
 // AddTorrent resolves the file list without downloading video data.
 // GetFileStream schedules headers only for the file selected by the viewer.
 func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string, []FileInfo, error) {
@@ -141,6 +167,10 @@ func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string
 	if e.metainfo != nil {
 		cached = e.metainfo.Load(magnet.InfoHash.HexString())
 	}
+	if cached == nil {
+		cached = e.fetchMetainfo(ctx, magnet)
+	}
+	private := cached != nil && isPrivate(cached)
 	var t *anacrolixTorrent.Torrent
 	if cached != nil {
 		// Known source: skip the DHT/tracker metadata exchange entirely.
@@ -152,8 +182,9 @@ func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string
 		return "", nil, fmt.Errorf("invalid magnet uri: %w", err)
 	}
 
-	// Add fast public tracker tiers to ensure high seeder connectivity
-	if len(e.cfg.DefaultTrackers) > 0 {
+	// Add fast public tracker tiers to ensure high seeder connectivity. A private
+	// torrent's peers are only on its own tracker.
+	if len(e.cfg.DefaultTrackers) > 0 && !private {
 		trackerTiers := make([][]string, len(e.cfg.DefaultTrackers))
 		for i, tr := range e.cfg.DefaultTrackers {
 			trackerTiers[i] = []string{tr}

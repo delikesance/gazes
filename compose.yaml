@@ -24,8 +24,25 @@ services:
       timeout: 3s
       start_period: 30s
       retries: 12
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      LOG_LEVEL: info
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8191/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 8
   prowlarr-configure:
     image: python:3.13-alpine
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      FLARESOLVERR_URL: http://flaresolverr:8191
     volumes:
       - prowlarr-config:/config:ro
       - indexer-secrets:/shared
@@ -33,6 +50,8 @@ services:
     command: ["python", "/bootstrap.py", "configure"]
     depends_on:
       prowlarr:
+        condition: service_healthy
+      flaresolverr:
         condition: service_healthy
   backend:
     build:
