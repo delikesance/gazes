@@ -39,3 +39,5 @@ export async function syncHiddenOnLogin() {
     write([...new Set([...local, ...merged])]);
   } catch {}
 }
+
+export function clearHidden() { try { localStorage.removeItem(KEY); } catch {} }

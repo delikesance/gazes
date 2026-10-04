@@ -142,3 +142,13 @@ export async function syncWatchLogOnLogin() {
     if (toPush.length) await push(toPush);
   } catch {}
 }
+
+/** Forgets the log on this device (after the account copy was erased, or on request). */
+export function clearLocalWatchLog() {
+  sessions = [];
+  current = null;
+  dirty.clear();
+  if (persistTimer) { clearTimeout(persistTimer); persistTimer = undefined; }
+  try { localStorage.removeItem(KEY); } catch {}
+  window.dispatchEvent(new Event(changed));
+}

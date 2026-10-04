@@ -153,7 +153,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
               <label className="terms">
                 <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} />
                 <span className="terms-box" aria-hidden="true" />
-                <span>{t("J’accepte les conditions d’utilisation")}</span>
+                <span>{t("J’accepte les conditions d’utilisation")} {" "}(<Link href="/privacy" target="_blank">{t("Confidentialité")}</Link>)</span>
               </label>
               {errors.terms && <p className="field-error" role="alert">{errors.terms}</p>}
             </>

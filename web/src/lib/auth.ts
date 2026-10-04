@@ -72,6 +72,10 @@ export async function updateHidden(add: number[], remove: number[]): Promise<num
   return (await request<{ ids: number[] }>("/me/hidden", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add, remove }) })).ids;
 }
 
+export async function deleteWatchData(): Promise<void> {
+  await request("/me/history", { method: "DELETE" });
+}
+
 export async function pullWatchSessions<T>(): Promise<T[]> {
   return (await request<{ sessions: T[] }>("/me/history")).sessions;
 }
