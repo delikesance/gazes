@@ -45,7 +45,8 @@ func BuildArgs(in, out string, info MediaInfo, s EncodeSettings) []string {
 	args := []string{
 		"-y", "-nostdin", "-hide_banner", "-nostats", "-progress", "pipe:1",
 		"-i", in,
-		"-map", "0", "-map", "-0:d?",
+		// Real video only (no attached pictures), then audio, subtitles and attachments; never data streams.
+		"-map", "0:V", "-map", "0:a?", "-map", "0:s?", "-map", "0:t?", "-map", "-0:d?",
 		"-c:v", "libsvtav1", "-preset", strconv.Itoa(preset), "-crf", strconv.Itoa(crf),
 		"-pix_fmt", "yuv420p10le", "-svtav1-params", "lp=" + strconv.Itoa(lp),
 	}

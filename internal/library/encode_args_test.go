@@ -15,12 +15,15 @@ func TestBuildArgsCopiesAACAndOpusTranscodesOthers(t *testing.T) {
 	line := " " + strings.Join(args, " ") + " "
 	for _, want := range []string{
 		" -i in.mkv ", " -c:v libsvtav1 ", " -preset 8 ", " -crf 30 ", " -pix_fmt yuv420p10le ", " -svtav1-params lp=8 ",
-		" -map 0 ", " -map -0:d? ", " -c:s copy ", " -c:t copy ", " -map_chapters 0 ", " -map_metadata 0 ",
+		" -map 0:V ", " -map 0:a? ", " -map 0:s? ", " -map 0:t? ", " -map -0:d? ", " -c:s copy ", " -c:t copy ", " -map_chapters 0 ", " -map_metadata 0 ",
 		" -c:a:0 copy ", " -c:a:1 libopus -b:a:1 256k ", " -c:a:2 libopus -b:a:2 128k ", " -progress pipe:1 ",
 	} {
 		if !strings.Contains(line, want) {
 			t.Errorf("missing %q in %s", want, line)
 		}
+	}
+	if strings.Contains(line, " -map 0 ") {
+		t.Errorf("must not map every stream (attached pictures would be encoded): %s", line)
 	}
 	if strings.Contains(line, "-b:a:0") {
 		t.Errorf("copied track must not get a bitrate: %s", line)
@@ -89,7 +92,7 @@ func TestVerifyRejectsDurationAndTrackMismatch(t *testing.T) {
 	dir := t.TempDir()
 	orig, enc := writeFile(t, dir, "o.mkv", 10), writeFile(t, dir, "e.mkv", 5)
 	ff := fakeFFmpeg(t, "exit 0\n")
-	base := MediaInfo{DurationMS: 100000, AudioCodecs: []string{"aac", "opus"}, AudioChannels: []int{2, 2}, SubtitleTracks: 2}
+	base := MediaInfo{DurationMS: 100000, VideoStreams: 1, AudioCodecs: []string{"aac", "opus"}, AudioChannels: []int{2, 2}, SubtitleTracks: 2}
 	check := func(e MediaInfo) error {
 		return Verify(context.Background(), mapProber{"o.mkv": base, "e.mkv": e}, ff, orig, enc)
 	}
@@ -111,6 +114,16 @@ func TestVerifyRejectsDurationAndTrackMismatch(t *testing.T) {
 	if err := check(fewAudio); err == nil {
 		t.Fatal("missing audio track accepted")
 	}
+	twoVideo := base
+	twoVideo.VideoStreams = 2
+	if err := check(twoVideo); err == nil {
+		t.Fatal("2 video streams accepted")
+	}
+	noVideo := base
+	noVideo.VideoStreams = 0
+	if err := check(noVideo); err == nil {
+		t.Fatal("no video stream accepted")
+	}
 	fewSubs := base
 	fewSubs.SubtitleTracks = 1
 	if err := check(fewSubs); err == nil {
@@ -121,7 +134,7 @@ func TestVerifyRejectsDurationAndTrackMismatch(t *testing.T) {
 func TestVerifyRejectsEmptyFileAndDecodeFailure(t *testing.T) {
 	dir := t.TempDir()
 	orig := writeFile(t, dir, "o.mkv", 10)
-	info := MediaInfo{DurationMS: 60000}
+	info := MediaInfo{DurationMS: 60000, VideoStreams: 1}
 	p := mapProber{"o.mkv": info, "e.mkv": info}
 	empty := writeFile(t, dir, "e.mkv", 0)
 	if err := Verify(context.Background(), p, fakeFFmpeg(t, "exit 0\n"), orig, empty); err == nil {

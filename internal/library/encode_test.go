@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -327,4 +329,98 @@ func TestEncoderReportsProgress(t *testing.T) {
 	})
 	os.WriteFile(gate, nil, 0o644)
 	waitFor(t, func() bool { return env.entry(t).State == StateAV1 })
+}
+
+func TestEncodeReturnsFalseWhenStoreUpdateFails(t *testing.T) {
+	// Early path: file gone -> markUnavailable, whose Update fails on a closed store.
+	env := newEncEnv(t, writeOutput(10), EncodeSettings{})
+	ent := env.entry(t)
+	os.Remove(env.src)
+	env.store.Close()
+	if env.enc.encode(context.Background(), ent) {
+		t.Fatal("encode reported progress although the store update failed (Run would spin)")
+	}
+}
+
+func TestEncodeReturnsFalseWhenTerminalUpdateFails(t *testing.T) {
+	dir := t.TempDir()
+	started, gate := filepath.Join(dir, "started"), filepath.Join(dir, "go")
+	env := newEncEnv(t, fmt.Sprintf("touch %q\nwhile [ ! -f %q ]; do sleep 0.02; done\nexit 1\n", started, gate), EncodeSettings{})
+	ent := env.entry(t)
+	result := make(chan bool, 1)
+	go func() { result <- env.enc.encode(context.Background(), ent) }()
+	waitFor(t, func() bool { _, err := os.Stat(started); return err == nil })
+	env.store.Close()
+	os.WriteFile(gate, nil, 0o644)
+	select {
+	case ok := <-result:
+		if ok {
+			t.Fatal("encode reported progress although the terminal update failed")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("encode did not return")
+	}
+}
+
+func TestEncoderMissingFFmpegDoesNotBurnAttempts(t *testing.T) {
+	env := newEncEnv(t, writeOutput(10), EncodeSettings{})
+	env.enc.s.FFmpeg = filepath.Join(t.TempDir(), "no-such-ffmpeg")
+	for i := 0; i < 4; i++ {
+		if !env.enc.encodeNext(context.Background()) {
+			t.Fatalf("round %d: no work", i)
+		}
+		en := env.entry(t)
+		if en.State != StateOriginal || en.Attempts != 0 || en.EncodeSkipped != "" || en.LastError == "" || en.ReservedBytes != 0 {
+			t.Fatalf("round %d: %+v", i, en)
+		}
+	}
+	if env.reserved() != 0 {
+		t.Fatalf("reservation leaked: %d", env.reserved())
+	}
+}
+
+func TestEncoderUnwritableTempDoesNotBurnAttempts(t *testing.T) {
+	env := newEncEnv(t, writeOutput(10), EncodeSettings{})
+	// A directory squatting on the temp path makes it impossible to create the file.
+	squat := filepath.Join(env.diskDir, "7/1-vostfr.av1.tmp.mkv")
+	if err := os.Mkdir(squat, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, squat, "keep", 1) // non-empty: the pre-encode cleanup cannot remove it
+
+	env.enc.encodeNext(context.Background())
+	if en := env.entry(t); en.State != StateOriginal || en.Attempts != 0 || en.LastError == "" {
+		t.Fatalf("entry %+v", en)
+	}
+}
+
+func TestRunWaitsPollBetweenFailedAttempts(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "calls")
+	env := newEncEnv(t, fmt.Sprintf("date +%%s%%N >> %q\nexit 1\n", log), EncodeSettings{})
+	env.enc.poll = 200 * time.Millisecond
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { env.enc.Run(ctx); close(done) }()
+	defer func() { cancel(); <-done }()
+	var stamps []int64
+	waitFor(t, func() bool {
+		b, _ := os.ReadFile(log)
+		stamps = stamps[:0]
+		for _, f := range strings.Fields(string(b)) {
+			n, _ := strconv.ParseInt(f, 10, 64)
+			stamps = append(stamps, n)
+		}
+		return len(stamps) >= 2
+	})
+	if gap := time.Duration(stamps[1] - stamps[0]); gap < 180*time.Millisecond {
+		t.Fatalf("failed attempts only %v apart, want >= poll (200ms)", gap)
+	}
+}
+
+func TestNewEncoderDropsInvalidWindow(t *testing.T) {
+	env := newEncEnv(t, writeOutput(10), EncodeSettings{})
+	enc := NewEncoder(env.store, env.pool, fakeProber{}, nil, EncodeSettings{Window: "bogus"}, nil)
+	if enc.s.Window != "" || enc.shouldPause() {
+		t.Fatalf("invalid window kept: %q", enc.s.Window)
+	}
 }

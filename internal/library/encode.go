@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"math"
 	"os"
@@ -41,6 +42,9 @@ func Verify(ctx context.Context, p Prober, ffmpeg, original, encoded string) err
 	ei, err := p.Probe(ctx, encoded)
 	if err != nil {
 		return fmt.Errorf("verify: probe encoded: %w", err)
+	}
+	if ei.VideoStreams != 1 {
+		return fmt.Errorf("verify: %d video streams, want exactly 1", ei.VideoStreams)
 	}
 	if d := ei.DurationMS - oi.DurationMS; d > 1000 || d < -1000 {
 		return fmt.Errorf("verify: duration %d ms differs from original %d ms", ei.DurationMS, oi.DurationMS)
@@ -87,6 +91,19 @@ type Encoder struct {
 	statusEvery time.Duration // status row refresh period
 	signal      func(p *os.Process, sig syscall.Signal) error
 	useNice     bool
+	backoff     bool // set after a failed attempt: Run waits poll before the next one
+}
+
+// envError marks a failure of the environment (cannot start ffmpeg, cannot create the output),
+// which says nothing about the media file and must not count as an attempt.
+type envError struct{ err error }
+
+func (e envError) Error() string { return e.err.Error() }
+func (e envError) Unwrap() error { return e.err }
+
+func isEnvError(err error) bool {
+	var ee envError
+	return errors.As(err, &ee) || errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrPermission)
 }
 
 func NewEncoder(store *Store, pool *Pool, p Prober, active func() int, s EncodeSettings, clock func() time.Time) *Encoder {
@@ -95,6 +112,10 @@ func NewEncoder(store *Store, pool *Pool, p Prober, active func() int, s EncodeS
 	}
 	if active == nil {
 		active = func() int { return 0 }
+	}
+	if _, err := InWindow(s.Window, time.Now()); err != nil {
+		slog.Warn("library: invalid encode window, encoding at any time", "window", s.Window, "err", err)
+		s.Window = ""
 	}
 	_, err := exec.LookPath("nice")
 	return &Encoder{
@@ -108,9 +129,10 @@ func NewEncoder(store *Store, pool *Pool, p Prober, active func() int, s EncodeS
 // Run processes entries until ctx is cancelled.
 func (e *Encoder) Run(ctx context.Context) {
 	for ctx.Err() == nil {
-		if e.encodeNext(ctx) {
+		if e.encodeNext(ctx) && !e.backoff {
 			continue
 		}
+		e.backoff = false
 		e.setStatus(nil, 0, false)
 		select {
 		case <-ctx.Done():
@@ -153,8 +175,7 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 	k := ent.Key
 	src, err := e.pool.Path(ent.DiskID, ent.RelPath)
 	if errors.Is(err, ErrDiskAbsent) {
-		e.markUnavailable(k, nil)
-		return true
+		return e.markUnavailable(k, nil)
 	}
 	if err != nil {
 		slog.Warn("library: encoder path", "key", k.String(), "err", err)
@@ -162,8 +183,7 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 	}
 	st, err := os.Stat(src)
 	if errors.Is(err, os.ErrNotExist) {
-		e.markUnavailable(k, nil)
-		return true
+		return e.markUnavailable(k, nil)
 	}
 	if err != nil {
 		slog.Warn("library: encoder stat", "key", k.String(), "err", err)
@@ -172,8 +192,7 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 
 	res, err := e.pool.ReserveOn(ent.DiskID, st.Size()/2)
 	if errors.Is(err, ErrDiskAbsent) {
-		e.markUnavailable(k, nil)
-		return true
+		return e.markUnavailable(k, nil)
 	}
 	if err != nil { // ErrNoSpace: leave it for later
 		return false
@@ -201,32 +220,36 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 	if encErr == nil {
 		if newSize >= st.Size() {
 			os.Remove(tmp)
-			e.finish(k, res, func(en *Entry) {
+			return e.finish(k, res, func(en *Entry) {
 				en.State, en.EncodeSkipped, en.LastError = StateOriginal, "not_smaller", ""
 			})
-			return true
 		}
 		if err := os.Rename(tmp, src); err != nil {
 			encErr = fmt.Errorf("rename: %w", err)
 		} else {
-			e.finish(k, res, func(en *Entry) {
+			return e.finish(k, res, func(en *Entry) {
 				en.State, en.PrevState = StateAV1, ""
 				en.SizeBytes, en.VideoCodec, en.SHA256, en.LastError = newSize, "av1", "", ""
 			})
-			return true
 		}
 	}
 
 	os.Remove(tmp)
 	switch {
 	case ctx.Err() != nil:
-		e.finish(k, res, func(en *Entry) { en.State = StateOriginal })
+		return e.finish(k, res, func(en *Entry) { en.State = StateOriginal })
 	case e.sourceGone(ent):
-		e.finish(k, res, func(en *Entry) { en.State, en.PrevState = StateUnavailable, StateOriginal })
+		return e.finish(k, res, func(en *Entry) { en.State, en.PrevState = StateUnavailable, StateOriginal })
+	case isEnvError(encErr):
+		slog.Warn("library: encoder environment failure", "key", k.String(), "err", encErr)
+		e.backoff = true
+		msg := encErr.Error()
+		return e.finish(k, res, func(en *Entry) { en.State, en.LastError = StateOriginal, msg })
 	default:
 		slog.Warn("library: encode failed", "key", k.String(), "err", encErr)
+		e.backoff = true
 		msg := encErr.Error()
-		e.finish(k, res, func(en *Entry) {
+		return e.finish(k, res, func(en *Entry) {
 			en.State = StateOriginal
 			en.Attempts++
 			en.LastError = msg
@@ -235,7 +258,6 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 			}
 		})
 	}
-	return true
 }
 
 // sourceGone reports whether the original file or its disk has disappeared.
@@ -251,7 +273,8 @@ func (e *Encoder) sourceGone(ent Entry) bool {
 	return errors.Is(err, os.ErrNotExist)
 }
 
-func (e *Encoder) markUnavailable(k Key, res *Reservation) {
+// markUnavailable flags the entry UNAVAILABLE. It returns false if the index could not be updated.
+func (e *Encoder) markUnavailable(k Key, res *Reservation) bool {
 	_, err := e.store.Update(k, func(en *Entry) error {
 		if en.State == StateUnavailable {
 			return nil
@@ -259,26 +282,31 @@ func (e *Encoder) markUnavailable(k Key, res *Reservation) {
 		en.PrevState, en.State = en.State, StateUnavailable
 		return nil
 	})
-	if err != nil && !errors.Is(err, ErrNotFound) {
-		slog.Warn("library: mark unavailable", "key", k.String(), "err", err)
-	}
 	if res != nil {
 		e.pool.Release(*res)
 	}
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		slog.Warn("library: mark unavailable", "key", k.String(), "err", err)
+		return false
+	}
+	return true
 }
 
-// finish applies the terminal state change, clears the reservation and releases it.
-func (e *Encoder) finish(k Key, res Reservation, fn func(*Entry)) {
+// finish applies the terminal state change, clears the reservation and releases it. It returns
+// false if the index could not be updated, so the caller does not spin on the same entry.
+func (e *Encoder) finish(k Key, res Reservation, fn func(*Entry)) bool {
 	_, err := e.store.Update(k, func(en *Entry) error {
 		fn(en)
 		en.ReservedBytes = 0
 		return nil
 	})
-	if err != nil && !errors.Is(err, ErrNotFound) {
-		slog.Warn("library: encoder finish", "key", k.String(), "err", err)
-	}
 	e.pool.Release(res)
 	e.setStatus(nil, 0, false)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		slog.Warn("library: encoder finish", "key", k.String(), "err", err)
+		return false
+	}
+	return true
 }
 
 // runFFmpeg encodes src into tmp, pausing and resuming the process as needed, then verifies the
@@ -287,6 +315,11 @@ func (e *Encoder) runFFmpeg(ctx context.Context, k Key, src, tmp string) (int64,
 	info, err := e.probe.Probe(ctx, src)
 	if err != nil {
 		return 0, fmt.Errorf("probe: %w", err)
+	}
+	if f, err := os.Create(tmp); err != nil { // fail early, and as an environment error, if the output is unwritable
+		return 0, envError{fmt.Errorf("create output: %w", err)}
+	} else {
+		f.Close()
 	}
 	ffmpeg := e.s.ffmpeg()
 	args := BuildArgs(src, tmp, info, e.s)
@@ -302,7 +335,7 @@ func (e *Encoder) runFFmpeg(ctx context.Context, k Key, src, tmp string) (int64,
 	var stderr tailBuffer
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
-		return 0, fmt.Errorf("start ffmpeg: %w", err)
+		return 0, envError{fmt.Errorf("start ffmpeg: %w", err)}
 	}
 
 	var progress atomic.Uint64 // float64 bits
