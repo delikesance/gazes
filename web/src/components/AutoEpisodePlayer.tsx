@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EpisodeInfo, EpisodeSource, LibraryCopy } from '@/types/api';
 import { diagnosticEvent } from "@/lib/diagnostics";
 import { loadTorrent, getSeasonSources, getLibraryCopies, registerLibraryCopy } from "@/lib/api";
-import { libraryLang, withLibraryCandidates } from '@/lib/library';
+import { libraryLang, lookupWithin, withLibraryCandidates } from '@/lib/library';
 import { useAuth } from './AuthProvider';
 import { playbackSources, extendPlaybackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
@@ -74,16 +74,17 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  useEffect(()=>{const active=libraryReadyRef.current?attemptRef.current.index:-1;setCandidates(list=>mergeSources(list,sources,active,libraryCopiesRef.current,libraryBase));},[sources,libraryBase]);
  useEffect(()=>{
   if(!seasonId)return;
-  const controller=new AbortController();
-  const timer=setTimeout(()=>{libraryReadyRef.current=true;controller.abort();setLibraryReady(true);},LIBRARY_LOOKUP_MS);
-  void getLibraryCopies(seasonId,props.episodeNumber,controller.signal).then(copies=>{
-   if(libraryReadyRef.current||controller.signal.aborted)return;
+  let cancelled=false;
+  void lookupWithin(LIBRARY_LOOKUP_MS,signal=>getLibraryCopies(seasonId,props.episodeNumber,signal)).then(({copies})=>{
+   if(cancelled||libraryReadyRef.current)return;
    libraryCopiesRef.current=copies;
    setCandidates(list=>mergeSources(list,[],-1,copies,libraryBase));
-   libraryReadyRef.current=true;
-   setLibraryReady(true);
-  }).finally(()=>clearTimeout(timer));
-  return()=>{clearTimeout(timer);controller.abort();};
+  }).catch(()=>{}).finally(()=>{
+   // The gate must open whatever happened above; lookupWithin's own timer bounds the wait.
+   if(cancelled||libraryReadyRef.current)return;
+   libraryReadyRef.current=true;setLibraryReady(true);
+  });
+  return()=>{cancelled=true;};
  },[seasonId,props.episodeNumber,libraryBase]);
  useEffect(()=>()=>discoveryController.current?.abort(),[]);
  useEffect(()=>{
@@ -148,7 +149,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    setAttempt({index,position:positionRef.current,reason:'',id:randomId()});
   }} />;
  const onFileResolved=(infoHash:string,fileIndex:number)=>{
-  const played=candidates.find(candidate=>candidate.info_hash===infoHash);
+  const played=candidates.find(candidate=>candidate.info_hash.toLowerCase()===infoHash.toLowerCase());
   const lang=played&&!played.library?libraryLang(played):null;
   if(!user||!lang||!seasonId||!animeId||!played)return;
   const key=`${seasonId}:${props.episodeNumber}:${lang}:${infoHash}:${fileIndex}`;
