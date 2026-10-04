@@ -1,10 +1,11 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { pullProgress, pushProgress, type RemoteProgress } from "./auth";
+import { recordPlayback, setWatchLogSyncEnabled, syncWatchLogOnLogin } from "./watch-log";
 
 export type WatchProgress = {episode:number; position:number};
 export type SavedProgress = WatchProgress & {season:number; animeId:number; title:string; updatedAt:number; duration?:number};
-export type ProgressMeta = {animeId?:number; title?:string};
+export type ProgressMeta = {animeId?:number; title?:string; genres?:string[]; format?:string; audioLang?:string; subLang?:string};
 
 const PREFIX = "gazes-progress:";
 const lastSaved = new Map<number,string>();
@@ -17,6 +18,7 @@ let flushTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function setProgressSyncEnabled(enabled:boolean) {
  syncEnabled = enabled;
+ setWatchLogSyncEnabled(enabled);
  if (!enabled) { pending.clear(); if (flushTimer) clearTimeout(flushTimer); flushTimer = undefined; }
 }
 function queuePush(entry:RemoteProgress) {
@@ -51,6 +53,7 @@ export const listProgress = readAll;
 
 export function saveProgress(season:number, episode:number, position:number, duration:number, meta:ProgressMeta = {}) {
  if (position < 5 || !Number.isFinite(position)) return;
+ recordPlayback(season, episode, position, duration, meta);
  try {
   const key = PREFIX + season;
   const complete=duration>0&&position>=duration-15;
@@ -71,6 +74,7 @@ export function saveProgress(season:number, episode:number, position:number, dur
 /** Merge local and server progress once after sign-in: the newest entry per season wins on both sides. */
 export async function syncProgressOnLogin() {
  setProgressSyncEnabled(true);
+ void syncWatchLogOnLogin();
  try {
   const remote = await pullProgress();
   const bySeason = new Map(remote.map((item) => [item.season_id, item]));

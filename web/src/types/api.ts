@@ -40,6 +40,7 @@ export interface AnimeRelation {
 }
 
 export interface AnimeCatalogItem {
+  format?: string;
   available_episodes?: number;
   start_date?: string;
   id: number;

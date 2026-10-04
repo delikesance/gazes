@@ -64,6 +64,14 @@ export async function pullProgress(): Promise<RemoteProgress[]> {
   return (await request<{ progress: RemoteProgress[] }>("/me/progress")).progress;
 }
 
+export async function pullWatchSessions<T>(): Promise<T[]> {
+  return (await request<{ sessions: T[] }>("/me/history")).sessions;
+}
+
+export async function pushWatchSessions<T>(sessions: T[]): Promise<void> {
+  await request("/me/history", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessions }) });
+}
+
 export async function pushProgress(progress: RemoteProgress[]): Promise<RemoteProgress[]> {
   return (await request<{ progress: RemoteProgress[] }>("/me/progress", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ progress }) })).progress;
 }

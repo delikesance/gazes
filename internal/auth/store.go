@@ -2,6 +2,7 @@ package auth
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -35,6 +36,28 @@ type Progress struct {
 	UpdatedAt int64   `json:"updated_at"`
 }
 
+// WatchSession is one sitting on one episode, kept for good (unlike Progress, completion never
+// removes it) as raw material for recommendations.
+type WatchSession struct {
+	ID             string   `json:"id"`
+	SeasonID       int64    `json:"season_id"`
+	AnimeID        int64    `json:"anime_id"`
+	Episode        int      `json:"episode"`
+	Title          string   `json:"title"`
+	Genres         []string `json:"genres"`
+	Format         string   `json:"format"`
+	StartedAt      int64    `json:"started_at"`
+	UpdatedAt      int64    `json:"updated_at"`
+	StartPosition  float64  `json:"start_position"`
+	EndPosition    float64  `json:"end_position"`
+	WatchedSeconds float64  `json:"watched_seconds"`
+	Duration       float64  `json:"duration"`
+	Completed      bool     `json:"completed"`
+	AudioLang      string   `json:"audio_lang"`
+	SubLang        string   `json:"sub_lang"`
+	TZOffset       int      `json:"tz_offset"`
+}
+
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +84,29 @@ CREATE TABLE IF NOT EXISTS progress (
 	completed INTEGER NOT NULL,
 	updated_at INTEGER NOT NULL,
 	PRIMARY KEY (user_id, season_id)
-);`
+);
+CREATE TABLE IF NOT EXISTS watch_sessions (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	session_id TEXT NOT NULL,
+	season_id INTEGER NOT NULL,
+	anime_id INTEGER NOT NULL DEFAULT 0,
+	episode INTEGER NOT NULL,
+	title TEXT NOT NULL DEFAULT '',
+	genres TEXT NOT NULL DEFAULT '[]',
+	format TEXT NOT NULL DEFAULT '',
+	started_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL,
+	start_position REAL NOT NULL DEFAULT 0,
+	end_position REAL NOT NULL DEFAULT 0,
+	watched_seconds REAL NOT NULL DEFAULT 0,
+	duration REAL NOT NULL DEFAULT 0,
+	completed INTEGER NOT NULL DEFAULT 0,
+	audio_lang TEXT NOT NULL DEFAULT '',
+	sub_lang TEXT NOT NULL DEFAULT '',
+	tz_offset INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (user_id, session_id)
+);
+CREATE INDEX IF NOT EXISTS watch_sessions_user_time ON watch_sessions(user_id, started_at);`
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
 func OpenStore(dir string) (*Store, error) {
@@ -178,6 +223,56 @@ func (s *Store) ListProgress(userID int64) ([]Progress, error) {
 		}
 		p.Completed = done == 1
 		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// MergeWatchSessions upserts each session only if it is newer than the stored one.
+func (s *Store) MergeWatchSessions(userID int64, items []WatchSession) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, w := range items {
+		genres, _ := json.Marshal(w.Genres)
+		done := 0
+		if w.Completed {
+			done = 1
+		}
+		if _, err := tx.Exec(`INSERT INTO watch_sessions(user_id, session_id, season_id, anime_id, episode, title, genres, format, started_at, updated_at, start_position, end_position, watched_seconds, duration, completed, audio_lang, sub_lang, tz_offset)
+			VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			ON CONFLICT(user_id, session_id) DO UPDATE SET season_id=excluded.season_id, anime_id=excluded.anime_id, episode=excluded.episode, title=excluded.title, genres=excluded.genres, format=excluded.format,
+				updated_at=excluded.updated_at, end_position=excluded.end_position, watched_seconds=excluded.watched_seconds, duration=excluded.duration, completed=excluded.completed, audio_lang=excluded.audio_lang, sub_lang=excluded.sub_lang
+			WHERE excluded.updated_at > watch_sessions.updated_at`,
+			userID, w.ID, w.SeasonID, w.AnimeID, w.Episode, w.Title, string(genres), w.Format, w.StartedAt, w.UpdatedAt, w.StartPosition, w.EndPosition, w.WatchedSeconds, w.Duration, done, w.AudioLang, w.SubLang, w.TZOffset); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ListWatchSessions returns a user's sessions updated after since, newest first (at most limit).
+func (s *Store) ListWatchSessions(userID, since int64, limit int) ([]WatchSession, error) {
+	rows, err := s.db.Query(`SELECT session_id, season_id, anime_id, episode, title, genres, format, started_at, updated_at, start_position, end_position, watched_seconds, duration, completed, audio_lang, sub_lang, tz_offset
+		FROM watch_sessions WHERE user_id = ? AND updated_at > ? ORDER BY updated_at DESC LIMIT ?`, userID, since, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []WatchSession{}
+	for rows.Next() {
+		var w WatchSession
+		var genres string
+		var done int
+		if err := rows.Scan(&w.ID, &w.SeasonID, &w.AnimeID, &w.Episode, &w.Title, &genres, &w.Format, &w.StartedAt, &w.UpdatedAt, &w.StartPosition, &w.EndPosition, &w.WatchedSeconds, &w.Duration, &done, &w.AudioLang, &w.SubLang, &w.TZOffset); err != nil {
+			return nil, err
+		}
+		if json.Unmarshal([]byte(genres), &w.Genres) != nil || w.Genres == nil {
+			w.Genres = []string{}
+		}
+		w.Completed = done == 1
+		out = append(out, w)
 	}
 	return out, rows.Err()
 }

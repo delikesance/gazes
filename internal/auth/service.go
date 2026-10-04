@@ -10,6 +10,7 @@ import (
 	"net/mail"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -406,4 +407,67 @@ func (s *Service) PutProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.GetProgress(w, r)
+}
+
+func validSessionText(value string, max int) bool {
+	return utf8.ValidString(value) && utf8.RuneCountInString(value) <= max
+}
+
+// GetHistory lists the account's watch sessions (?since=<unix> for incremental pulls).
+func (s *Service) GetHistory(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		fail(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	since, _ := strconv.ParseInt(r.URL.Query().Get("since"), 10, 64)
+	items, err := s.store.ListWatchSessions(u.ID, since, 5000)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": items})
+}
+
+// PutHistory merges client watch sessions (newest wins per session id).
+func (s *Service) PutHistory(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		fail(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !s.sameOrigin(r) {
+		fail(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	var body struct {
+		Sessions []WatchSession `json:"sessions"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 512<<10)).Decode(&body) != nil || len(body.Sessions) > 200 {
+		fail(w, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	now := s.now().Unix()
+	for i := range body.Sessions {
+		v := &body.Sessions[i]
+		if v.ID == "" || !validSessionText(v.ID, 64) || v.SeasonID <= 0 || v.AnimeID < 0 || v.Episode <= 0 ||
+			v.StartedAt <= 0 || v.UpdatedAt < v.StartedAt || v.UpdatedAt > now+300 ||
+			v.StartPosition < 0 || v.EndPosition < 0 || v.Duration < 0 || v.WatchedSeconds < 0 || v.WatchedSeconds > 86400 ||
+			v.TZOffset < -900 || v.TZOffset > 900 || len(v.Genres) > 20 ||
+			!validSessionText(v.Title, 200) || !validSessionText(v.Format, 24) || !validSessionText(v.AudioLang, 16) || !validSessionText(v.SubLang, 16) {
+			fail(w, http.StatusBadRequest, "invalid_request")
+			return
+		}
+		for _, genre := range v.Genres {
+			if !validSessionText(genre, 40) {
+				fail(w, http.StatusBadRequest, "invalid_request")
+				return
+			}
+		}
+	}
+	if err := s.store.MergeWatchSessions(u.ID, body.Sessions); err != nil {
+		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"saved": len(body.Sessions)})
 }
