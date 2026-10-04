@@ -186,3 +186,31 @@ func TestPoolPathRejectsEscape(t *testing.T) {
 		t.Fatalf("Path = %q, %v", got, err)
 	}
 }
+
+func TestReserveOnTargetsOneDisk(t *testing.T) {
+	// reserve 100 on each: available a=900 (huge), b=150.
+	p, _, _ := newPoolTest(t, fakeFS{"a": {1000, 1000}, "b": {1000, 250}}, 0, 100, "a", "b")
+	if _, _, err := p.Scan(); err != nil {
+		t.Fatal(err)
+	}
+	var bID string
+	for _, d := range p.Disks() {
+		if d.Label == "b" {
+			bID = d.ID
+		}
+	}
+	r, err := p.ReserveOn(bID, 100)
+	if err != nil || r.DiskID != bID || r.Size != 100 {
+		t.Fatalf("ReserveOn = %+v, %v", r, err)
+	}
+	if _, err := p.ReserveOn(bID, 100); err != ErrNoSpace {
+		t.Fatalf("second ReserveOn err = %v, want ErrNoSpace", err)
+	}
+	p.Release(r)
+	if _, err := p.ReserveOn(bID, 150); err != nil {
+		t.Fatalf("after release: %v", err)
+	}
+	if _, err := p.ReserveOn("nope", 1); err != ErrDiskAbsent {
+		t.Fatalf("unknown disk err = %v", err)
+	}
+}
