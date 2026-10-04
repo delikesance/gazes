@@ -222,6 +222,8 @@ query ($search: String, $genreIn: [String], $genreNotIn: [String], $tagIn: [Stri
         romaji
         native
       }
+      format
+      startDate { year month day }
       coverImage {
         extraLarge
         large
@@ -233,14 +235,19 @@ query ($search: String, $genreIn: [String], $genreNotIn: [String], $tagIn: [Stri
       averageScore
       seasonYear
       status
+      relations {
+        edges {
+          relationType
+          node { id format }
+        }
+      }
     }
   }
 }
 `
 
-const animeDetailWithEpisodesQuery = `
-query ($id: Int) {
-  Media(id: $id, type: ANIME) {
+// detailFields is everything a franchise entry needs; one lookup or a whole id_in batch selects it.
+const detailFields = `
     id
     idMal
     title {
@@ -315,6 +322,20 @@ query ($id: Int) {
       url
       site
     }
+`
+
+const animeDetailWithEpisodesQuery = `
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {` + detailFields + `  }
+}
+`
+
+// animeDetailBatchQuery loads several entries in one call, so a franchise walk spends one AniList
+// request per wave of relations instead of one per entry.
+const animeDetailBatchQuery = `
+query ($ids: [Int], $perPage: Int) {
+  Page(perPage: $perPage) {
+    media(id_in: $ids, type: ANIME) {` + detailFields + `    }
   }
 }
 `
@@ -934,7 +955,7 @@ func (s *AnimeCatalogService) GetTrending(ctx context.Context, page, perPage int
 		"perPage": perPage,
 	}
 
-	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: 30 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
+	return s.catalogC.Get(ctx, cacheKey, catalogPolicy(30*time.Minute), func(ctx context.Context) (*CatalogResponse, error) {
 		return s.doGraphQLPageQuery(ctx, trendingQuery, variables)
 	})
 }
@@ -954,9 +975,23 @@ func (s *AnimeCatalogService) GetPopular(ctx context.Context, page, perPage int)
 		"perPage": perPage,
 	}
 
-	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: time.Hour}, func(ctx context.Context) (*CatalogResponse, error) {
+	return s.catalogC.Get(ctx, cacheKey, catalogPolicy(time.Hour), func(ctx context.Context) (*CatalogResponse, error) {
 		return s.doGraphQLPageQuery(ctx, popularQuery, variables)
 	})
+}
+
+// partialCatalogTTL is how long a page whose franchise enrichment fell short is kept: long enough
+// to absorb a burst of visitors, short enough that the next renewal completes it.
+const partialCatalogTTL = 2 * time.Minute
+
+// catalogPolicy keeps complete pages for ttl and partial ones only briefly.
+func catalogPolicy(ttl time.Duration) kv.Policy[CatalogResponse] {
+	return kv.Policy[CatalogResponse]{TTLFor: func(r *CatalogResponse) time.Duration {
+		if r.Partial {
+			return partialCatalogTTL
+		}
+		return ttl
+	}}
 }
 
 // SearchCatalog searches anime by title and an optional single genre.
@@ -1052,8 +1087,156 @@ func (s *AnimeCatalogService) SearchCatalogFiltered(ctx context.Context, query s
 	}
 
 	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: 15 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
-		return s.doGraphQLPageQuery(ctx, searchQuery, variables)
+		var parsed aniListPageResponse
+		if err := s.anilist.post(ctx, searchQuery, variables, &parsed); err != nil {
+			return nil, err
+		}
+		if len(parsed.Errors) > 0 {
+			return nil, fmt.Errorf("anilist: %s", parsed.Errors[0].Message)
+		}
+		return s.formatSearchResponse(ctx, &parsed, page, perPage), nil
 	})
+}
+
+// formatSearchResponse groups a search page with one AniList call. Walking each result's franchise
+// costs one call per related entry and used to exhaust the shared AniList budget, leaving searches
+// stuck behind rate limits. Instead, entries of one continuity inside the page share one card
+// leading to their first main season, and franchises already in cache are used as they are.
+func (s *AnimeCatalogService) formatSearchResponse(ctx context.Context, parsed *aniListPageResponse, page, perPage int) *CatalogResponse {
+	media := parsed.Data.Page.Media
+	inPage := make(map[int]bool, len(media))
+	for _, m := range media {
+		inPage[m.ID] = true
+	}
+	// up links an entry to one it belongs with, following the edges buildFranchise follows:
+	// prequels and parents, then the reverse of a sequel, then a film retelling a series. A single
+	// link per entry keeps a crossover from merging two series. Attached entries (side stories,
+	// retellings) join a group without ever representing it.
+	up := map[int]int{}
+	attached := map[int]bool{}
+	link := func(from, to int, attach bool) {
+		if _, linked := up[from]; !linked && from != to && inPage[from] && inPage[to] {
+			up[from] = to
+			attached[from] = attach
+		}
+	}
+	for _, m := range media {
+		for _, rel := range m.Relations.Edges {
+			if rel.RelationType == "PREQUEL" || rel.RelationType == "PARENT" {
+				link(m.ID, rel.Node.ID, rel.RelationType == "PARENT")
+			}
+		}
+	}
+	for _, m := range media {
+		for _, rel := range m.Relations.Edges {
+			if rel.RelationType == "SEQUEL" {
+				link(rel.Node.ID, m.ID, false)
+			}
+		}
+	}
+	for _, m := range media {
+		for _, rel := range m.Relations.Edges {
+			switch rel.RelationType {
+			case "ALTERNATIVE", "SIDE_STORY", "SPIN_OFF", "SUMMARY":
+				if m.Format == "MOVIE" && (rel.Node.Format == "TV" || rel.Node.Format == "TV_SHORT") {
+					link(m.ID, rel.Node.ID, true)
+				}
+			}
+		}
+	}
+	root := func(id int) (int, int) {
+		depth := 0
+		for seen := map[int]bool{id: true}; ; depth++ {
+			next, ok := up[id]
+			if !ok || seen[next] {
+				return id, depth
+			}
+			seen[next] = true
+			id = next
+		}
+	}
+
+	formatted := make([]AnimeCatalogItem, len(media))
+	roots := make([]int, len(media))
+	depths := make([]int, len(media))
+	for i := range media {
+		formatted[i] = formatCatalogItem(&media[i], false)
+		roots[i], depths[i] = root(media[i].ID)
+	}
+	// The card of a group is its first main season, as a franchise's canonical entry is.
+	better := func(a, b int) bool {
+		fa, fb := formatted[a], formatted[b]
+		if xa, xb := attached[fa.ID], attached[fb.ID]; xa != xb {
+			return xb
+		}
+		if ma, mb := isMainFormat(fa.Format), isMainFormat(fb.Format); ma != mb {
+			return ma
+		}
+		if ua, ub := fa.StartDate == "0000-00-00", fb.StartDate == "0000-00-00"; ua != ub {
+			return ub
+		}
+		if fa.StartDate != fb.StartDate {
+			return fa.StartDate < fb.StartDate
+		}
+		if depths[a] != depths[b] {
+			return depths[a] < depths[b]
+		}
+		return fa.ID < fb.ID
+	}
+	head := map[int]int{}
+	for i, r := range roots {
+		if h, ok := head[r]; !ok || better(i, h) {
+			head[r] = i
+		}
+	}
+	known := func(id int) *Franchise {
+		if f, ok := s.franchiseC.Peek(ctx, strconv.Itoa(id)); ok && f.Complete {
+			return f
+		}
+		return nil
+	}
+
+	seen := map[int]bool{}
+	items := make([]AnimeCatalogItem, 0, len(media))
+	for i := range media {
+		item := formatted[i]
+		item.MediaID = item.ID
+		item.MediaTitle = item.DisplayTitle
+		item.MediaPosterImage = item.PosterImage
+		first := formatted[head[roots[i]]]
+		franchise := known(first.ID)
+		if franchise == nil && first.ID != item.ID {
+			franchise = known(item.ID)
+		}
+		switch {
+		case franchise != nil:
+			item.ID = franchise.ID
+			item.DisplayTitle = franchise.Title
+			item.FranchiseTitle = franchise.Title
+			item.PosterImage = franchise.PosterImage
+		case first.ID != item.ID:
+			item.ID = first.ID
+			item.DisplayTitle = first.DisplayTitle
+			item.FranchiseTitle = first.FranchiseTitle
+			item.PosterImage = first.PosterImage
+		}
+		if seen[item.ID] {
+			continue
+		}
+		seen[item.ID] = true
+		items = append(items, item)
+	}
+	return &CatalogResponse{
+		HasNextPage: parsed.Data.Page.PageInfo.HasNextPage,
+		Page:        page,
+		PerPage:     perPage,
+		Total:       parsed.Data.Page.PageInfo.Total,
+		Items:       items,
+	}
+}
+
+func isMainFormat(format string) bool {
+	return format == "TV" || format == "TV_SHORT" || format == "ONA"
 }
 
 // GetAnimeDetailsWithEpisodes gets full anime metadata with episode details.
@@ -1077,6 +1260,41 @@ func (s *AnimeCatalogService) GetAnimeDetailsWithEpisodes(ctx context.Context, i
 	})
 }
 
+// maxDetailBatch bounds one id_in lookup; AniList's own page size cap is 50.
+const maxDetailBatch = 25
+
+// prefetchDetails loads the entries of ids missing from the detail cache with batched AniList
+// calls and stores them, so the lookups that follow are cache hits. A failed batch is ignored: the
+// caller's own lookup then retries each entry and reports the error it meets.
+func (s *AnimeCatalogService) prefetchDetails(ctx context.Context, ids []int) {
+	missing := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := s.detailC.Peek(ctx, strconv.Itoa(id)); !ok {
+			missing = append(missing, id)
+		}
+	}
+	// A lone entry is the same single lookup, and its cache path also shares the work across callers.
+	if len(missing) < 2 {
+		return
+	}
+	for start := 0; start < len(missing); start += maxDetailBatch {
+		batch := missing[start:min(start+maxDetailBatch, len(missing))]
+		var parsed aniListPageResponse
+		err := s.anilist.post(ctx, animeDetailBatchQuery, map[string]interface{}{"ids": batch, "perPage": len(batch)}, &parsed)
+		if err != nil || len(parsed.Errors) > 0 {
+			return
+		}
+		for i := range parsed.Data.Page.Media {
+			m := &parsed.Data.Page.Media[i]
+			if m.ID == 0 {
+				continue
+			}
+			item := formatCatalogItem(m, true)
+			s.detailC.Put(ctx, strconv.Itoa(m.ID), &item, 2*time.Hour)
+		}
+	}
+}
+
 func (s *AnimeCatalogService) doGraphQLPageQuery(ctx context.Context, query string, variables map[string]interface{}) (*CatalogResponse, error) {
 	var parsed aniListPageResponse
 	if err := s.anilist.post(ctx, query, variables, &parsed); err != nil {
@@ -1097,7 +1315,9 @@ func (s *AnimeCatalogService) formatPageResponse(ctx context.Context, parsed *an
 	var workers sync.WaitGroup
 	var resultMu sync.Mutex
 	sem := make(chan struct{}, 3)
-	resolveCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	// Enrichment only: a card without its franchise still works, so it must not take the
+	// AniList tokens a visitor's own request is waiting for.
+	resolveCtx, cancel := context.WithTimeout(kv.Background(ctx), 20*time.Second)
 	defer cancel()
 	for i := range parsed.Data.Page.Media {
 		workers.Add(1)
