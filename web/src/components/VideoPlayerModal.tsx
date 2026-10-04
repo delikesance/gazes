@@ -14,12 +14,14 @@ import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } fro
 import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
 import { episodeFile, episodeCandidates } from "@/lib/episode-file";
 import { HlsPlaybackController } from "@/lib/hls-playback";
+import { activeSkipSegment, mergeSkipSegments, needsAniSkip, skipAction, type SkipSegment } from "@/lib/skip-segments";
+import { SkipSegmentButton } from "./SkipSegmentButton";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata, SubtitleTrack } from "@/types/api";
-import { requestEpisodePreview, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
+import { requestEpisodePreview, getSkipTimes, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
 import {
   ArrowLeft,
   X,
@@ -224,6 +226,50 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   const totalDuration = videoMeta?.duration_sec || loadData?.main_video_metadata?.duration_sec || 0;
 
+  // Timeline: positions here are `playbackOffset + video.currentTime`, the value handleSeek takes.
+  // Legacy: the remux starts at timeOffset, so that sum is the file time (subtitles: no correction).
+  // HLS: playbackOffset is 0 and fragments/subtitles are rebased by -timeline_origin server side,
+  // so chapter times (raw file time) are shifted by -origin. AniSkip times already count from the
+  // first frame, so they are not shifted.
+  const skipSeasonId = Number(diagnostic?.season_id);
+  const skipDuration = Math.round(videoMeta?.duration_sec || 0);
+  const skipKey = skipSeasonId > 0 && episodeNumber && skipDuration > 0 && loadData && selectedFileIdx >= 0
+    ? `${skipSeasonId}:${episodeNumber}:${loadData.info_hash}:${selectedFileIdx}` : "";
+  const skipOrigin = hlsMode ? subtitleOrigin : 0;
+  const chapterSkips = React.useMemo(
+    () => (videoMeta?.skip_segments ?? []).map((s) => ({ ...s, start: s.start - skipOrigin, end: s.end - skipOrigin })),
+    [videoMeta?.skip_segments, skipOrigin],
+  );
+  const wantsAniSkip = skipKey !== "" && needsAniSkip(chapterSkips);
+  const [aniSkip, setAniSkip] = useState<{ key: string; segments: SkipSegment[] }>({ key: "", segments: [] });
+  // Fire-and-forget: never on the startup path, errors resolve to [].
+  useEffect(() => {
+    if (!wantsAniSkip) return;
+    const controller = new AbortController();
+    const [season, episode] = skipKey.split(":").map(Number);
+    void getSkipTimes(season, episode, skipDuration, controller.signal).then((segments) => {
+      if (!controller.signal.aborted) setAniSkip({ key: skipKey, segments });
+    });
+    return () => controller.abort();
+  }, [wantsAniSkip, skipKey, skipDuration]);
+  const skipSegments = React.useMemo(
+    () => mergeSkipSegments(chapterSkips, wantsAniSkip && aniSkip.key === skipKey ? aniSkip.segments : []),
+    [chapterSkips, wantsAniSkip, aniSkip, skipKey],
+  );
+  const skipSegmentsRef = useRef<SkipSegment[]>([]);
+  useEffect(() => { skipSegmentsRef.current = skipSegments; }, [skipSegments]);
+  const [activeSkip, setActiveSkip] = useState<SkipSegment | null>(null);
+  const activeSkipRef = useRef<SkipSegment | null>(null);
+  // Called on every timeupdate; re-renders only when the active segment changes.
+  const updateActiveSkip = useCallback((position: number) => {
+    const next = activeSkipSegment(skipSegmentsRef.current, position);
+    if (next === activeSkipRef.current) return;
+    activeSkipRef.current = next;
+    setActiveSkip(next);
+  }, []);
+  const shownSkip = activeSkip && skipSegments.includes(activeSkip) ? activeSkip : null;
+  const shownSkipAction = shownSkip ? skipAction(shownSkip, totalDuration, !!onNextEpisode) : "seek";
+
   // Direct DOM updates for smooth timeline
   const updateProgressDisplay = useCallback(
     (timeSec: number) => {
@@ -388,6 +434,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls]);
 
+  const runSkip = useCallback(() => {
+    if (!shownSkip) return;
+    if (shownSkipAction === "next-episode") onNextEpisode?.();
+    else handleSeek(shownSkip.end);
+  }, [shownSkip, shownSkipAction, onNextEpisode, handleSeek]);
+
   const toggleMute = useCallback(() => {
     if (!videoRef.current) return;
     const nextMuted = !isMuted;
@@ -545,12 +597,17 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           e.preventDefault();
           toggleMute();
           break;
+        case "KeyS":
+          if (!shownSkip) break;
+          e.preventDefault();
+          runSkip();
+          break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute]);
+  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute, shownSkip, runSkip]);
 
 
   const matchingFiles = loadData && item && "episode_number" in item ? episodeCandidates(loadData.files,item as EpisodeSource) : [];
@@ -758,6 +815,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       const height = stage.clientHeight;
       const reserve = dock.offsetHeight + (parseFloat(getComputedStyle(dock).bottom) || 0) + 12;
       stage.style.setProperty("--sub-scale", String(height > 0 ? Math.max(0.5, (height - reserve) / height) : 1));
+      stage.style.setProperty("--dock-reserve", `${reserve}px`);
     };
     update();
     const observer = new ResizeObserver(update);
@@ -870,6 +928,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                       onProgress?.(playbackOffset + time, totalDuration, {audioLang:videoMeta?.audio_tracks?.find(track=>track.index===selectedAudioTrack)?.language, subLang:selectedSubTrack===null?"":videoMeta?.subtitle_tracks?.find(track=>track.index===selectedSubTrack)?.language});
                       updateProgressDisplay(videoRef.current.currentTime);
                       updateBuffered();
+                      updateActiveSkip(playbackOffset + time);
                     }
                   }}
                   onPlay={(event) => { if (event.currentTarget === videoRef.current) {resumePlaybackRef.current=true;setNeedsPlaybackGesture(false);setIsPlaying(true);} }}
@@ -963,6 +1022,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
                     <span>{t("Buffering stream...")}</span>
                   </div>
+                )}
+
+                {shownSkip && (
+                  <SkipSegmentButton segment={shownSkip} action={shownSkipAction} onSkip={runSkip} />
                 )}
 
                 {/* Floating control dock */}

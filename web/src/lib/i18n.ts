@@ -99,6 +99,7 @@ const pairs: [string, string][] = [
  ["Votre navigateur ne prend pas en charge la lecture vidéo HTML5.","Your browser does not support HTML5 video playback."],
  ["Mise en mémoire tampon…","Buffering stream..."],["Chargement du flux…","Buffering..."],
  ["Épisode précédent","Previous Episode"],["Épisode suivant","Next Episode"],
+ ["Passer l'opening","Skip opening"],["Passer l'ending","Skip ending"],
  ["Reculer de 10 s (←)","Rewind 10s (←)"],["Avancer de 10 s (→)","Forward 10s (→)"],
  ["Couper le son (M)","Mute (M)"],["Rétablir le son (M)","Unmute (M)"],
  ["Pause (Espace)","Pause (Space)"],["Lecture (Espace)","Play (Space)"],["Volume","Volume"],
