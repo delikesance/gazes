@@ -41,6 +41,19 @@ type Config struct {
 	RedisNamespace string `json:"redis_namespace"`
 	// ResolverFastPhaseTimeout bounds the first (shared season-pack) round of a playback resolve.
 	ResolverFastPhaseTimeout time.Duration `json:"resolver_fast_phase_timeout"`
+
+	// AV1 episode library (see docs/superpowers/specs/2026-10-04-av1-episode-library-design.md).
+	LibraryEnabled            bool          `json:"library_enabled"`
+	LibraryPoolDir            string        `json:"library_pool_dir"`
+	LibraryIndexDir           string        `json:"library_index_dir"`
+	LibraryEncodeWindow       string        `json:"library_encode_window"`
+	LibraryReservePercent     int           `json:"library_reserve_percent"`
+	LibraryEncodePreset       int           `json:"library_encode_preset"`
+	LibraryEncodeCRF          int           `json:"library_encode_crf"`
+	LibraryEncodeThreads      int           `json:"library_encode_threads"`
+	LibraryEncodePauseStreams int           `json:"library_encode_pause_streams"`
+	LibraryReserveBytes       int64         `json:"library_reserve_bytes"`
+	LibraryStallTimeout       time.Duration `json:"library_stall_timeout"`
 }
 
 // Load loads configuration from environment variables with fallback defaults.
@@ -73,6 +86,18 @@ func Load() *Config {
 		RedisURL:                 getEnv("REDIS_URL", ""),
 		RedisNamespace:           getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
 		ResolverFastPhaseTimeout: getEnvDuration("RESOLVER_FAST_PHASE_TIMEOUT", 3*time.Second),
+
+		LibraryEnabled:            getEnvBool("LIBRARY_ENABLED", true),
+		LibraryPoolDir:            getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
+		LibraryIndexDir:           getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
+		LibraryEncodeWindow:       getEnv("LIBRARY_ENCODE_WINDOW", ""),
+		LibraryReservePercent:     getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
+		LibraryReserveBytes:       getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
+		LibraryStallTimeout:       getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
+		LibraryEncodePreset:       getEnvInt("LIBRARY_ENCODE_PRESET", 8),
+		LibraryEncodeCRF:          getEnvInt("LIBRARY_ENCODE_CRF", 30),
+		LibraryEncodeThreads:      getEnvInt("LIBRARY_ENCODE_THREADS", 8),
+		LibraryEncodePauseStreams: getEnvInt("LIBRARY_ENCODE_PAUSE_STREAMS", 3),
 	}
 }
 

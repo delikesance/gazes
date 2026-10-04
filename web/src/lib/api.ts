@@ -10,6 +10,7 @@ import {
   AnimeCatalogItem,
   EpisodeSourcesResponse,
   ScheduleResponse,
+  LibraryCopy,
 } from "@/types/api";
 
 export function getApiBase(): string {
@@ -284,4 +285,37 @@ export async function getSkipTimes(seasonId: number, episode: number, duration: 
     return Array.isArray(body.segments) ? body.segments : [];
   } catch { /* skipping is a nicety: stay silent */ }
   return [];
+}
+
+/** Copies of an episode cached by the server library; any failure means "none", never an error. */
+export type { LibraryCopy };
+
+export async function getLibraryCopies(seasonId: number, episode: number, signal?: AbortSignal): Promise<LibraryCopy[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/library/episodes/${seasonId}/${episode}`, { signal, credentials: "same-origin" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.copies) ? data.copies : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Offers a torrent file that just played for caching; the server validates it and every error is ignored. */
+export async function registerLibraryCopy(
+  seasonId: number,
+  episode: number,
+  lang: 'vf' | 'vostfr',
+  body: { info_hash: string; file_index: number; release_name: string; anime_id: number; title: string },
+): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/library/episodes/${seasonId}/${episode}/${lang}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(body),
+    });
+  } catch {
+    /* best effort */
+  }
 }

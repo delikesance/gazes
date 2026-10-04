@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/gazes/gazes/internal/cache"
 	"github.com/gazes/gazes/internal/diagnostics"
@@ -27,7 +28,8 @@ type ClientEngine struct {
 	prevStats  map[string]statSnapshot
 	schedulers map[string]*pieceScheduler
 	lastUsed   map[string]time.Time
-	verified   sync.Map // "infohash/file" -> struct{}: payload sampled once per process
+	pinned     map[string]map[int]bool // infohash -> pinned file indexes
+	verified   sync.Map                // "infohash/file" -> struct{}: payload sampled once per process
 	metainfo   *cache.MetainfoStore
 	stop       chan struct{}
 }
@@ -236,6 +238,25 @@ func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string
 	return infoHash, fileInfos, nil
 }
 
+// Files lists the files of an already loaded torrent without adding it. The bool is false when the
+// torrent is not loaded or its metadata has not arrived yet.
+func (e *ClientEngine) Files(infoHash string) ([]FileInfo, bool) {
+	if _, err := hex.DecodeString(infoHash); err != nil || len(infoHash) != 40 {
+		return nil, false
+	}
+	t, ok := e.getTorrent(infoHash)
+	if !ok || t.Info() == nil {
+		return nil, false
+	}
+	files := t.Files()
+	out := make([]FileInfo, len(files))
+	for i, f := range files {
+		path := f.DisplayPath()
+		out[i] = FileInfo{Index: i, Path: path, Length: f.Length(), IsVideo: IsVideoFile(path), MimeType: DetectMimeType(path)}
+	}
+	return out, true
+}
+
 // GetFileStream returns a responsive sequential reader for streaming a specific file.
 func (e *ClientEngine) GetFileStream(ctx context.Context, infoHash string, fileIndex int) (io.ReadSeekCloser, *FileInfo, error) {
 	infoHash = strings.ToLower(infoHash)
@@ -277,7 +298,7 @@ func (e *ClientEngine) GetFileStream(ctx context.Context, infoHash string, fileI
 	}
 	scheduler := e.schedulers[infoHash]
 	if scheduler == nil {
-		scheduler = &pieceScheduler{torrent: t, windows: make(map[*SequentialFileReader]map[int]anacrolixTorrent.PiecePriority), applied: make(map[int]anacrolixTorrent.PiecePriority)}
+		scheduler = newPieceScheduler(t)
 		e.schedulers[infoHash] = scheduler
 	}
 	e.mu.Unlock()
@@ -426,13 +447,7 @@ func (e *ClientEngine) evictIdle() {
 		if t.Info() == nil {
 			continue
 		}
-		active := false
-		if scheduler := e.schedulers[infoHash]; scheduler != nil {
-			scheduler.mu.Lock()
-			active = len(scheduler.windows) > 0
-			scheduler.mu.Unlock()
-		}
-		entries = append(entries, cacheEntry{infoHash: infoHash, bytes: t.BytesCompleted(), lastUsed: e.lastUsed[infoHash], active: active})
+		entries = append(entries, cacheEntry{infoHash: infoHash, bytes: t.BytesCompleted(), lastUsed: e.lastUsed[infoHash], active: e.activeLocked(infoHash), pinned: e.isPinnedLocked(infoHash)})
 	}
 	e.mu.RUnlock()
 	for _, infoHash := range pickEvictions(entries, e.cfg.CacheMaxBytes, e.cfg.CacheIdleTTL, time.Now()) {
@@ -440,13 +455,34 @@ func (e *ClientEngine) evictIdle() {
 	}
 }
 
+// activeLocked reports whether a reader holds a priority window. Caller holds e.mu.
+func (e *ClientEngine) activeLocked(infoHash string) bool {
+	scheduler := e.schedulers[infoHash]
+	if scheduler == nil {
+		return false
+	}
+	scheduler.mu.Lock()
+	defer scheduler.mu.Unlock()
+	return len(scheduler.windows) > 0
+}
+
+func (e *ClientEngine) isPinnedLocked(infoHash string) bool {
+	return len(e.pinned[infoHash]) > 0
+}
+
 func (e *ClientEngine) dropTorrent(infoHash string) {
 	e.mu.Lock()
+	// Revalidate: a download or reader may have claimed the torrent since the eviction snapshot.
+	if e.isPinnedLocked(infoHash) || e.activeLocked(infoHash) {
+		e.mu.Unlock()
+		return
+	}
 	t := e.torrents[infoHash]
 	delete(e.torrents, infoHash)
 	delete(e.prevStats, infoHash)
 	delete(e.schedulers, infoHash)
 	delete(e.lastUsed, infoHash)
+	delete(e.pinned, infoHash)
 	e.mu.Unlock()
 	if t == nil || t.Info() == nil {
 		return

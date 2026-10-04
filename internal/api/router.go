@@ -11,6 +11,7 @@ import (
 	"github.com/gazes/gazes/internal/auth"
 	"github.com/gazes/gazes/internal/config"
 	"github.com/gazes/gazes/internal/indexer"
+	"github.com/gazes/gazes/internal/library"
 	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/playback"
 	"github.com/gazes/gazes/internal/stream"
@@ -42,6 +43,8 @@ type Server struct {
 	playback        *playback.Manager
 	playbackOnce    sync.Once
 	subtitles       subtitleJobs
+	library         *library.Service
+	libraryUser     func(*http.Request) (int64, bool)
 }
 
 // Option customises a Server.
@@ -58,6 +61,14 @@ func (r unavailableEpisodeResolver) ResolvePlaybackSources(context.Context, inde
 
 // WithAuth enables the account routes.
 func WithAuth(svc *auth.Service) Option { return func(s *Server) { s.auth = svc } }
+
+// WithLibrary enables the AV1 episode library routes.
+func WithLibrary(svc *library.Service) Option { return func(s *Server) { s.library = svc } }
+
+// WithLibraryUser overrides how the library routes identify the caller (default: the auth session). Tests only.
+func WithLibraryUser(fn func(*http.Request) (int64, bool)) Option {
+	return func(s *Server) { s.libraryUser = fn }
+}
 
 // WithRedis moves every shared cache, upstream rate limit and single-flight to Redis, so all
 // instances behave like one polite client of AniList and the indexers.
@@ -179,6 +190,11 @@ func (s *Server) setupRoutes() {
 			cat.Get("/anime/{id}", s.HandleCatalogAnimeDetail)
 			cat.Get("/anime/{id}/episodes/{ep}/sources", s.HandleEpisodeSources)
 		})
+
+		if s.library != nil {
+			api.Post("/library/episodes/{season}/{ep}/{lang}", s.HandleLibraryRegister)
+			api.Get("/library/episodes/{season}/{ep}", s.HandleLibraryCopies)
+		}
 
 		// Torrent Engine Routes
 		api.Post("/torrent/load", s.HandleLoadTorrent)

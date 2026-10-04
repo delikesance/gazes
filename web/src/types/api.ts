@@ -98,6 +98,18 @@ export interface EpisodeSource extends TorrentItem {
   quality: string;
   is_french: boolean;
   score_rank: number;
+  /** Set when this entry is a copy cached by the server's episode library rather than a torrent. */
+  library?: { stream_id: string; lang: 'vf' | 'vostfr'; video_codec: string; duration_ms: number };
+}
+
+export interface LibraryCopy {
+  lang: 'vf' | 'vostfr';
+  state: 'ORIGINAL' | 'AV1';
+  video_codec: string;
+  stream_id: string;
+  duration_ms: number;
+  audio_tracks: number;
+  subtitle_tracks: number;
 }
 
 export interface EpisodeSourcesResponse {

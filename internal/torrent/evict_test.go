@@ -61,3 +61,15 @@ func TestRemoveTorrentDataStaysInsideDataDir(t *testing.T) {
 		t.Fatal("torrent payload must be removed")
 	}
 }
+
+func TestPickEvictionsSkipsPinned(t *testing.T) {
+	now := time.Now()
+	entries := []cacheEntry{
+		{infoHash: "old", bytes: 1000, lastUsed: now.Add(-48 * time.Hour), pinned: true},
+		{infoHash: "new", bytes: 10, lastUsed: now.Add(-2 * time.Hour)},
+	}
+	got := pickEvictions(entries, 5, time.Hour, now)
+	if !reflect.DeepEqual(got, []string{"new"}) {
+		t.Fatalf("got %v, want only the unpinned candidate", got)
+	}
+}

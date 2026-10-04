@@ -1,0 +1,4 @@
+# Mount every filesystem labelled GAZES* under /mnt/gazes/<label> (see gazes-library-mount@.service),
+# and release it when the disk disappears so a later re-plug mounts it again.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="GAZES*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="gazes-library-mount@%E{ID_FS_LABEL}.service"
+ACTION=="remove", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="GAZES*", RUN+="/usr/bin/systemctl --no-block stop gazes-library-mount@%E{ID_FS_LABEL}.service"
