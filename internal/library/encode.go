@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -96,18 +97,34 @@ type Encoder struct {
 	inUse      func(Key) bool                               // whether a reader has the copy open; nil means never
 	free       func(diskID string, need int64)              // makes room on a disk (janitor); nil means no eviction
 	update     func(Key, func(*Entry) error) (Entry, error) // store.Update, replaceable in tests
-	idlePoll   time.Duration                                // how often to re-check before swapping the file
-	idleCap    time.Duration                                // give up swapping after this long
 	retryDelay time.Duration                                // pause between retries of the final index update
+
+	// awaiting holds verified AV1 outputs whose swap timed out because the copy kept being read. Their
+	// entries stay ENCODING (served from the untouched original) with the encode reservation held, and
+	// Run retries the swap on every tick. It is in memory only: after a restart Store.Recover resets
+	// ENCODING to ORIGINAL and Janitor.Reconcile removes the orphan .av1.tmp.mkv, so a restart costs one
+	// re-encode of those entries (accepted, no schema change). A parked swap holds no pool reservation: the
+	// temp bytes are already visible to statfs, so keeping it would count them twice.
+	mu       sync.Mutex
+	awaiting map[Key]pendingSwap
 }
+
+// pendingSwap is a verified encode waiting for the copy to be idle.
+type pendingSwap struct {
+	diskID   string
+	src      string
+	tmp      string
+	newSize  int64
+	parkedAt time.Time
+}
+
+// swapParkMax is how long a verified output may wait for its copy to go idle before it is dropped.
+const swapParkMax = 24 * time.Hour
 
 const (
 	swapIdleAfter = 10 * time.Minute // a copy read more recently than this is not swapped
 	finishRetries = 5
 )
-
-// errSwapBusy means the copy stayed in use for the whole wait: try again later, it says nothing about the media.
-var errSwapBusy = errors.New("library: copy still in use, swap postponed")
 
 // envError marks a failure of the environment (cannot start ffmpeg, cannot create the output),
 // which says nothing about the media file and must not count as an attempt.
@@ -136,16 +153,17 @@ func NewEncoder(store *Store, pool *Pool, p Prober, active func() int, s EncodeS
 	return &Encoder{
 		store: store, pool: pool, probe: p, active: active, s: s, clock: clock,
 		poll: 10 * time.Second, tick: time.Second, statusEvery: 10 * time.Second,
-		signal:   func(p *os.Process, sig syscall.Signal) error { return p.Signal(sig) },
-		useNice:  err == nil,
-		idlePoll: 30 * time.Second, idleCap: 30 * time.Minute, retryDelay: 500 * time.Millisecond,
-		update: store.Update,
+		signal:     func(p *os.Process, sig syscall.Signal) error { return p.Signal(sig) },
+		useNice:    err == nil,
+		retryDelay: 500 * time.Millisecond,
+		update:     store.Update,
 	}
 }
 
 // Run processes entries until ctx is cancelled.
 func (e *Encoder) Run(ctx context.Context) {
 	for ctx.Err() == nil {
+		e.swapPending(ctx)
 		if e.encodeNext(ctx) && !e.backoff {
 			continue
 		}
@@ -245,16 +263,22 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 				en.State, en.EncodeSkipped, en.LastError = StateOriginal, "not_smaller", ""
 			})
 		}
-		if err := e.waitUnused(ctx, k); err != nil {
-			encErr = err
-		} else if err := os.Rename(tmp, src); err != nil {
-			encErr = fmt.Errorf("rename: %w", err)
+		// Try the swap once without blocking. A copy in use (or read recently) is parked with its verified
+		// output, ENCODING (served from the original) and its reservation: Run retries on later ticks and
+		// the queue moves on instead of waiting or re-encoding.
+		p := pendingSwap{diskID: ent.DiskID, src: src, tmp: tmp, newSize: newSize, parkedAt: e.clock()}
+		e.park(k, p)
+		e.pool.Release(res)
+		e.clearReserved(k)
+		if e.trySwap(k, p) {
+			e.mu.Lock()
+			delete(e.awaiting, k)
+			e.mu.Unlock()
 		} else {
-			return e.finish(k, res, func(en *Entry) {
-				en.State, en.PrevState = StateAV1, ""
-				en.SizeBytes, en.VideoCodec, en.SHA256, en.LastError = newSize, "av1", "", ""
-			})
+			slog.Info("library: encoded copy in use or recently read, swap postponed", "key", k.String())
+			e.setStatus(nil, 0, false)
 		}
+		return true
 	}
 
 	os.Remove(tmp)
@@ -263,10 +287,6 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 		return e.finish(k, res, func(en *Entry) { en.State = StateOriginal })
 	case e.sourceGone(ent):
 		return e.finish(k, res, func(en *Entry) { en.State, en.PrevState = StateUnavailable, StateOriginal })
-	case errors.Is(encErr, errSwapBusy):
-		slog.Info("library: encoded copy still in use, discarding the result to retry later", "key", k.String())
-		e.backoff = true
-		return e.finish(k, res, func(en *Entry) { en.State = StateOriginal })
 	case isEnvError(encErr):
 		slog.Warn("library: encoder environment failure", "key", k.String(), "err", encErr)
 		e.backoff = true
@@ -287,27 +307,108 @@ func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 	}
 }
 
-// waitUnused blocks until nobody reads the copy and it has not been accessed for swapIdleAfter, so the
-// rename does not change a file under a player (Range requests reopen it and expect stable offsets). It
-// gives up with errSwapBusy after idleCap, and returns ctx.Err() when cancelled.
-func (e *Encoder) waitUnused(ctx context.Context, k Key) error {
-	deadline := time.Now().Add(e.idleCap)
-	for {
-		busy := e.inUse != nil && e.inUse(k)
-		if !busy {
-			if cur, err := e.store.Get(k); err != nil || e.clock().Sub(cur.LastAccessAt) > swapIdleAfter {
-				return nil // idle, or the entry is gone and finish will sort that out
-			}
+// clearReserved zeroes the entry's reserved bytes once its reservation is given back.
+func (e *Encoder) clearReserved(k Key) {
+	if _, err := e.update(k, func(en *Entry) error { en.ReservedBytes = 0; return nil }); err != nil && !errors.Is(err, ErrNotFound) {
+		slog.Warn("library: clear reserved bytes", "key", k.String(), "err", err)
+	}
+}
+
+func (e *Encoder) park(k Key, p pendingSwap) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.awaiting == nil {
+		e.awaiting = map[Key]pendingSwap{}
+	}
+	e.awaiting[k] = p
+}
+
+// pendingSwaps is the number of verified outputs waiting for their copy to be idle.
+func (e *Encoder) pendingSwaps() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return len(e.awaiting)
+}
+
+// swapPending tries, without blocking, to complete every postponed swap whose copy is now unused and idle.
+// A swap whose entry changed or whose files vanished is dropped and cleaned up.
+func (e *Encoder) swapPending(ctx context.Context) {
+	e.mu.Lock()
+	keys := make([]Key, 0, len(e.awaiting))
+	for k := range e.awaiting {
+		keys = append(keys, k)
+	}
+	e.mu.Unlock()
+	for _, k := range keys {
+		if ctx.Err() != nil {
+			return
 		}
-		if !time.Now().Before(deadline) {
-			return errSwapBusy
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(e.idlePoll):
+		e.mu.Lock()
+		p := e.awaiting[k]
+		e.mu.Unlock()
+		if e.trySwap(k, p) {
+			e.mu.Lock()
+			delete(e.awaiting, k)
+			e.mu.Unlock()
 		}
 	}
+}
+
+// trySwap reports whether the pending swap is settled (done or dropped) and so leaves the awaiting set.
+func (e *Encoder) trySwap(k Key, p pendingSwap) bool {
+	cur, err := e.store.Get(k)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		slog.Warn("library: pending swap lookup", "key", k.String(), "err", err)
+		return false
+	}
+	if err != nil || cur.State != StateEncoding {
+		// Deleted, or someone else already moved the entry on: only the temp is ours to clean up.
+		os.Remove(p.tmp)
+		return true
+	}
+	none := Reservation{} // released when parked
+	back := func(fn func(*Entry)) bool {
+		os.Remove(p.tmp)
+		e.finish(k, none, fn)
+		return true
+	}
+	toOriginal := func(en *Entry) { en.State = StateOriginal }
+	if cur.DiskID != p.diskID {
+		return back(toOriginal) // the entry moved to another disk: the output is useless
+	}
+	if _, err := e.pool.Path(cur.DiskID, cur.RelPath); err != nil || e.sourceGone(cur) {
+		return back(func(en *Entry) { en.State, en.PrevState = StateUnavailable, StateOriginal })
+	}
+	if e.inUse != nil && e.inUse(k) || e.clock().Sub(cur.LastAccessAt) <= swapIdleAfter {
+		if e.clock().Sub(p.parkedAt) <= swapParkMax {
+			return false
+		}
+		slog.Warn("library: pending swap expired, discarding the output", "key", k.String())
+		// updated_at moves to now, so the entry sorts after the other ORIGINAL ones and is not re-picked at once.
+		return back(func(en *Entry) { en.State, en.LastError = StateOriginal, "swap postponed 24h" })
+	}
+	if _, err := os.Stat(p.tmp); err != nil {
+		slog.Warn("library: pending swap output vanished", "key", k.String(), "err", err)
+		return back(toOriginal)
+	}
+	if err := os.Rename(p.tmp, p.src); err != nil {
+		slog.Warn("library: pending swap rename", "key", k.String(), "err", err)
+		e.backoff = true
+		msg := fmt.Sprintf("rename: %v", err)
+		return back(func(en *Entry) {
+			en.State = StateOriginal
+			en.Attempts++
+			en.LastError = msg
+			if en.Attempts >= maxEncodeAttempts {
+				en.EncodeSkipped = "encode_failed"
+			}
+		})
+	}
+	e.finish(k, none, func(en *Entry) {
+		en.State, en.PrevState = StateAV1, ""
+		en.SizeBytes, en.VideoCodec, en.SHA256, en.LastError = p.newSize, "av1", "", ""
+	})
+	return true
 }
 
 // sourceGone reports whether the original file or its disk has disappeared.

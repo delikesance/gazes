@@ -476,17 +476,18 @@ func TestEncoderReportsProgressFromFrames(t *testing.T) {
 	waitFor(t, func() bool { return env.entry(t).State == StateAV1 })
 }
 
-func TestEncoderDefersRenameWhileCopyIsInUse(t *testing.T) {
+func TestEncoderParksImmediatelyWhileCopyIsInUse(t *testing.T) {
 	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
 	var busy atomic.Bool
 	busy.Store(true)
 	env.enc.inUse = func(Key) bool { return busy.Load() }
-	env.enc.idlePoll, env.enc.idleCap = 10*time.Millisecond, time.Minute
-	done := make(chan bool, 1)
-	go func() { done <- env.enc.encodeNext(context.Background()) }()
-	tmp := filepath.Join(env.diskDir, "7/1-vostfr.av1.tmp.mkv")
-	waitFor(t, func() bool { st, err := os.Stat(tmp); return err == nil && st.Size() == 400 })
-	time.Sleep(150 * time.Millisecond)
+	start := time.Now()
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("no work done")
+	}
+	if time.Since(start) > 5*time.Second {
+		t.Fatal("encoder waited for the copy")
+	}
 	if st, err := os.Stat(env.src); err != nil || st.Size() != origSize {
 		t.Fatalf("original replaced while a reader is open: %v %v", st, err)
 	}
@@ -494,11 +495,8 @@ func TestEncoderDefersRenameWhileCopyIsInUse(t *testing.T) {
 		t.Fatalf("state %s, want ENCODING", en.State)
 	}
 	busy.Store(false)
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("encoder did not finish once the copy was free")
-	}
+	env.enc.clock = func() time.Time { return time.Now().Add(time.Hour) }
+	env.enc.swapPending(context.Background())
 	if en := env.entry(t); en.State != StateAV1 || en.SizeBytes != 400 {
 		t.Fatalf("entry %+v", en)
 	}
@@ -507,39 +505,149 @@ func TestEncoderDefersRenameWhileCopyIsInUse(t *testing.T) {
 	}
 }
 
-func TestEncoderWaitsForRecentAccessToAge(t *testing.T) {
+func TestEncoderParksWhenAccessedRecently(t *testing.T) {
 	now := time.Now()
 	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
-	env.enc.idlePoll, env.enc.idleCap = 10*time.Millisecond, time.Minute
 	var offset atomic.Int64 // seconds added to the clock
 	env.enc.clock = func() time.Time { return now.Add(time.Duration(offset.Load()) * time.Second) }
 	if err := env.store.Touch(env.key, now.Add(time.Second)); err != nil { // accessed just now
 		t.Fatal(err)
 	}
-	done := make(chan bool, 1)
-	go func() { done <- env.enc.encodeNext(context.Background()) }()
-	time.Sleep(300 * time.Millisecond)
-	if en := env.entry(t); en.State != StateEncoding {
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("no work done")
+	}
+	if en := env.entry(t); en.State != StateEncoding || env.enc.pendingSwaps() != 1 {
 		t.Fatalf("renamed although accessed under 10 min ago: %s", en.State)
 	}
 	offset.Store(11 * 60)
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("encoder did not finish after the access aged")
-	}
+	env.enc.swapPending(context.Background())
 	if en := env.entry(t); en.State != StateAV1 {
 		t.Fatalf("state %s", en.State)
 	}
 }
 
-func TestEncoderGivesUpWaitingWithoutCountingAnAttempt(t *testing.T) {
+func TestEncoderSwapsAtOnceWhenCopyIsIdle(t *testing.T) {
 	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
-	env.enc.inUse = func(Key) bool { return true }
-	env.enc.idlePoll, env.enc.idleCap = 5*time.Millisecond, 50*time.Millisecond
+	env.enc.clock = func() time.Time { return time.Now().Add(time.Hour) }
 	if !env.enc.encodeNext(context.Background()) {
 		t.Fatal("no work done")
 	}
+	if en := env.entry(t); en.State != StateAV1 || env.enc.pendingSwaps() != 0 || env.reserved() != 0 {
+		t.Fatalf("entry %+v pending=%d", en, env.enc.pendingSwaps())
+	}
+}
+
+// addSecond adds a second ORIGINAL entry (episode 2) next to the one of the env.
+func (e *encEnv) addSecond(t *testing.T) Key {
+	t.Helper()
+	rel := "7/2-vostfr.mkv"
+	if err := os.WriteFile(filepath.Join(e.diskDir, rel), e.original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	k := Key{SeasonID: 7, Episode: 2, Lang: "vostfr"}
+	if err := e.store.Create(Entry{Key: k, AnimeID: 1, Title: "T", State: StateOriginal, DiskID: e.pool.Disks()[0].ID, RelPath: rel,
+		SizeBytes: origSize, OriginalSizeBytes: origSize, VideoCodec: "h264"}); err != nil {
+		t.Fatal(err)
+	}
+	return k
+}
+
+func (e *encEnv) tmpPath() string { return filepath.Join(e.diskDir, "7/1-vostfr.av1.tmp.mkv") }
+
+// parkSwap runs an encode whose swap wait times out because the copy stays in use, leaving it awaiting swap.
+func parkSwap(t *testing.T, env *encEnv, busy *atomic.Bool) {
+	t.Helper()
+	busy.Store(true)
+	env.enc.inUse = func(Key) bool { return busy.Load() }
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("no work done")
+	}
+}
+
+func TestEncoderSwapTimeoutKeepsTheVerifiedOutput(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	second := env.addSecond(t)
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	en := env.entry(t)
+	if en.State != StateEncoding || en.Attempts != 0 || en.EncodeSkipped != "" || en.ReservedBytes != 0 {
+		t.Fatalf("entry %+v", en)
+	}
+	if st, err := os.Stat(env.tmpPath()); err != nil || st.Size() != 400 {
+		t.Fatalf("verified output not kept: %v %v", st, err)
+	}
+	if st, _ := os.Stat(env.src); st == nil || st.Size() != origSize {
+		t.Fatalf("original touched: %v", st)
+	}
+	if env.reserved() != 0 {
+		t.Fatalf("reservation held while parked (the temp bytes are already on disk): %d", env.reserved())
+	}
+	if n := env.enc.pendingSwaps(); n != 1 {
+		t.Fatalf("pending swaps = %d, want 1", n)
+	}
+	if env.enc.backoff {
+		t.Fatal("encoder backs off instead of moving on to the next entry")
+	}
+	// The queue is not blocked: the next call encodes the other entry (which parks as well).
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("encoder did not proceed to the next entry")
+	}
+	if sec, err := env.store.Get(second); err != nil || sec.State != StateEncoding {
+		t.Fatalf("second entry %+v %v", sec, err)
+	}
+	if n := env.enc.pendingSwaps(); n != 2 {
+		t.Fatalf("pending swaps = %d, want 2", n)
+	}
+}
+
+func TestEncoderPendingSwapCompletesOnceIdle(t *testing.T) {
+	now := time.Now()
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var offset atomic.Int64
+	env.enc.clock = func() time.Time { return now.Add(time.Duration(offset.Load()) * time.Second) }
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	ctx := context.Background()
+	env.enc.swapPending(ctx)
+	if env.entry(t).State != StateEncoding || env.enc.pendingSwaps() != 1 {
+		t.Fatal("swapped while the copy is in use")
+	}
+	busy.Store(false)
+	if err := env.store.Touch(env.key, now); err != nil { // read just now
+		t.Fatal(err)
+	}
+	env.enc.swapPending(ctx)
+	if env.entry(t).State != StateEncoding || env.enc.pendingSwaps() != 1 {
+		t.Fatal("swapped although accessed under 10 min ago")
+	}
+	offset.Store(11 * 60)
+	env.enc.swapPending(ctx)
+	en := env.entry(t)
+	if en.State != StateAV1 || en.SizeBytes != 400 || en.VideoCodec != "av1" || en.Attempts != 0 || en.ReservedBytes != 0 {
+		t.Fatalf("entry %+v", en)
+	}
+	if st, _ := os.Stat(env.src); st == nil || st.Size() != 400 {
+		t.Fatalf("final file %v", st)
+	}
+	env.noTmp(t)
+	if env.reserved() != 0 {
+		t.Fatalf("reservation leaked: %d", env.reserved())
+	}
+	if env.enc.pendingSwaps() != 0 {
+		t.Fatal("swap still pending")
+	}
+}
+
+func TestEncoderPendingSwapWithVanishedTempGoesBackToOriginal(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	if err := os.Remove(env.tmpPath()); err != nil {
+		t.Fatal(err)
+	}
+	busy.Store(false)
+	env.enc.clock = func() time.Time { return time.Now().Add(time.Hour) }
+	env.enc.swapPending(context.Background())
 	en := env.entry(t)
 	if en.State != StateOriginal || en.Attempts != 0 || en.EncodeSkipped != "" || en.ReservedBytes != 0 {
 		t.Fatalf("entry %+v", en)
@@ -547,9 +655,181 @@ func TestEncoderGivesUpWaitingWithoutCountingAnAttempt(t *testing.T) {
 	if st, _ := os.Stat(env.src); st == nil || st.Size() != origSize {
 		t.Fatalf("original touched: %v", st)
 	}
+	if env.reserved() != 0 || env.enc.pendingSwaps() != 0 {
+		t.Fatalf("reserved=%d pending=%d", env.reserved(), env.enc.pendingSwaps())
+	}
+}
+
+func TestEncoderPendingSwapDroppedWhenEntryDeleted(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	if err := env.store.Delete(env.key); err != nil {
+		t.Fatal(err)
+	}
+	busy.Store(false)
+	env.enc.swapPending(context.Background())
+	if env.reserved() != 0 || env.enc.pendingSwaps() != 0 {
+		t.Fatalf("reserved=%d pending=%d", env.reserved(), env.enc.pendingSwaps())
+	}
 	env.noTmp(t)
-	if env.reserved() != 0 {
-		t.Fatalf("reservation leaked: %d", env.reserved())
+}
+
+func TestEncoderPendingSwapRenameFailureCountsAnAttempt(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	if _, err := env.store.Update(env.key, func(en *Entry) error { en.Attempts = maxEncodeAttempts - 2; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	// Make the rename fail persistently: the original path becomes a non-empty directory.
+	if err := os.Remove(env.src); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(env.src, "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	busy.Store(false)
+	env.enc.clock = func() time.Time { return time.Now().Add(time.Hour) }
+	env.enc.swapPending(context.Background())
+	en := env.entry(t)
+	if en.State != StateOriginal || en.Attempts != maxEncodeAttempts-1 || en.LastError == "" || en.EncodeSkipped != "" {
+		t.Fatalf("entry %+v", en)
+	}
+	if !env.enc.backoff {
+		t.Fatal("no backoff after a failed swap")
+	}
+	if env.enc.pendingSwaps() != 0 || env.reserved() != 0 {
+		t.Fatalf("pending=%d reserved=%d", env.enc.pendingSwaps(), env.reserved())
+	}
+	env.noTmp(t)
+	// The last allowed attempt gives up for good.
+	if _, err := env.store.Update(env.key, func(en *Entry) error { en.State = StateEncoding; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	env.enc.park(env.key, pendingSwap{diskID: en.DiskID, src: env.src, tmp: env.tmpPath(), newSize: 400, parkedAt: time.Now()})
+	if err := os.WriteFile(env.tmpPath(), make([]byte, 400), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env.enc.swapPending(context.Background())
+	if en := env.entry(t); en.State != StateOriginal || en.Attempts != maxEncodeAttempts || en.EncodeSkipped != "encode_failed" {
+		t.Fatalf("entry %+v", en)
+	}
+}
+
+func TestEncoderPendingSwapNeverReleasesAReservationTwice(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	other, err := env.pool.ReserveOn(env.pool.Disks()[0].ID, 100) // someone else's reservation
+	if err != nil {
+		t.Fatal(err)
+	}
+	busy.Store(false)
+	env.enc.clock = func() time.Time { return time.Now().Add(time.Hour) }
+	env.enc.swapPending(context.Background())
+	if en := env.entry(t); en.State != StateAV1 {
+		t.Fatalf("state %s", en.State)
+	}
+	if env.reserved() != other.Size {
+		t.Fatalf("reserved = %d, want %d: the swap released a reservation it no longer held", env.reserved(), other.Size)
+	}
+}
+
+func TestEncoderPendingSwapExpiresAfterADay(t *testing.T) {
+	now := time.Now()
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	second := env.addSecond(t)
+	var offset atomic.Int64
+	env.enc.clock = func() time.Time { return now.Add(time.Duration(offset.Load()) * time.Second) }
+	var busy atomic.Bool
+	parkSwap(t, env, &busy) // still in use for good
+	offset.Store(23 * 3600)
+	env.enc.swapPending(context.Background())
+	if env.entry(t).State != StateEncoding || env.enc.pendingSwaps() != 1 {
+		t.Fatal("dropped before 24 h")
+	}
+	offset.Store(25 * 3600)
+	time.Sleep(5 * time.Millisecond)
+	env.enc.swapPending(context.Background())
+	en := env.entry(t)
+	if en.State != StateOriginal || en.Attempts != 0 || en.EncodeSkipped != "" || en.LastError != "swap postponed 24h" || en.ReservedBytes != 0 {
+		t.Fatalf("entry %+v", en)
+	}
+	env.noTmp(t)
+	if env.enc.pendingSwaps() != 0 || env.reserved() != 0 {
+		t.Fatalf("pending=%d reserved=%d", env.enc.pendingSwaps(), env.reserved())
+	}
+	// It must not be re-picked ahead of the other entry: the update moved it to the end of the updated_at order.
+	list, err := env.store.List(Filter{States: []State{StateOriginal}})
+	if err != nil || len(list) != 2 || list[0].Key != second {
+		t.Fatalf("order %+v %v", list, err)
+	}
+}
+
+func TestEncoderPendingSwapWithChangedDiskGoesBackToOriginal(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	if _, err := env.store.Update(env.key, func(en *Entry) error { en.DiskID = "other"; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	env.enc.swapPending(context.Background())
+	if en := env.entry(t); en.State != StateOriginal || en.Attempts != 0 {
+		t.Fatalf("entry %+v", en)
+	}
+	env.noTmp(t)
+	if env.enc.pendingSwaps() != 0 || env.reserved() != 0 {
+		t.Fatalf("pending=%d reserved=%d", env.enc.pendingSwaps(), env.reserved())
+	}
+}
+
+func TestEncoderRunSwapsPendingBeforeEncodingNext(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	busy.Store(false)
+	env.enc.clock = func() time.Time { return time.Now().Add(time.Hour) }
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { env.enc.Run(ctx); close(done) }()
+	waitFor(t, func() bool { return env.entry(t).State == StateAV1 })
+	cancel()
+	<-done
+}
+
+func TestEncoderCancelWhilePendingKeepsEncodingForRecover(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	env.enc.Run(ctx) // returns at once
+	if en := env.entry(t); en.State != StateEncoding {
+		t.Fatalf("state %s, want ENCODING kept", en.State)
+	}
+	if _, err := os.Stat(env.tmpPath()); err != nil {
+		t.Fatalf("temp output removed on shutdown: %v", err)
+	}
+	// After a restart Recover resets it; the temp is then an orphan for the janitor (one re-encode accepted).
+	if _, err := env.store.Recover(); err != nil {
+		t.Fatal(err)
+	}
+	if en := env.entry(t); en.State != StateOriginal {
+		t.Fatalf("after Recover: %s", en.State)
+	}
+}
+
+func TestJanitorKeepsPendingSwapTemp(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{})
+	var busy atomic.Bool
+	parkSwap(t, env, &busy)
+	j := NewJanitor(env.store, env.pool, nil, nil)
+	if _, err := j.Reconcile(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(env.tmpPath()); err != nil {
+		t.Fatalf("janitor removed the pending temp: %v", err)
 	}
 }
 
