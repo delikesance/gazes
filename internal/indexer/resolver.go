@@ -192,6 +192,14 @@ var taggedRangeTail = regexp.MustCompile(`(?i)^\s*[-~]\s*(?:E|EP)?0*(\d+)(?:\s|\
 var latinSearchTitle = regexp.MustCompile(`[A-Za-z]`)
 
 var releaseEpisode = regexp.MustCompile(`(?i)\bS0*(\d+)E0*(\d+)(?:v\d+)?\b|\b(?:EP?|episode)\s*0*(\d+)(?:v\d+)?\b|(?:^|\s)-\s*0*(\d+)(?:v\d+)?(?:\s|\[|\(|\.|$)`)
+
+// cjkTotalEpisode matches "[18 - 总第84]" / "总第85": season-local episode (optional) plus absolute number.
+var cjkTotalEpisode = regexp.MustCompile(`(?:(\d+)\s*-\s*)?[总總]第\s*0*(\d+)`)
+
+// seasonBareEpisode matches a bare episode right after an ordinal/S/Season marker ("4th 15 [", "S2 05 ").
+// Underscores are already spaces by the time Match runs. Resolutions, years and "10bit"-style tokens
+// are excluded by the terminator and by the value check at the call site.
+var seasonBareEpisode = regexp.MustCompile(`(?i)(?:\b\d+(?:st|nd|rd|th)|\bS0*\d+|\b(?:season|saison)\s*0*\d+)\s+0*(\d+)(?:v\d+)?(?:\s|\[|\(|$)`)
 var releaseRange = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])0*(\d+)[\s_]*[-~][\s_]*0*(\d+)(?:$|[^\p{L}\p{N}])`)
 var extraVideoTag = regexp.MustCompile(`(?i)(?:^|[^\p{L}\p{N}])(?:OP|ED|OST|NCOP|NCED|opening|ending|soundtrack|trailer|sample)(?:$|[^\p{L}\p{N}])`)
 var narutoVariantTag = regexp.MustCompile(`(?i)\bnaruto\s+(?:shippu?den\s+)?(?:yaba[iï]|kai|full\s*edit|sd|spin\s*off)(?:\s|$)`)
@@ -205,6 +213,35 @@ var batchTag = regexp.MustCompile(`(?i)\b(batch|complete|integrale|intégrale|co
 var partTag = regexp.MustCompile(`(?i)\b(?:part|cour|partie)\s*0*(\d+)\b`)
 var wordSeason = regexp.MustCompile(`(?i)\b(?:season|saison)\s+(one|two|three|four|un|une|deux|trois|quatre)\b`)
 var wordSeasonNumbers = map[string]int{"one": 1, "un": 1, "une": 1, "two": 2, "deux": 2, "three": 3, "trois": 3, "four": 4, "quatre": 4}
+
+// cjkSeason matches "第四季", "第4期", "第二部" style season markers; 話/话 (episode) is deliberately excluded.
+var cjkSeason = regexp.MustCompile(`第\s*([一二三四五六七八九十0-9]{1,3})\s*[季期部]`)
+
+var cjkDigits = map[rune]int{'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9}
+
+// cjkSeasonNumber converts the number inside a 第N季 marker (digits or 一..九十九) to an int.
+func cjkSeasonNumber(s string) int {
+	if n := number(s); n > 0 {
+		return n
+	}
+	runes := []rune(s)
+	total := 0
+	for i, r := range runes {
+		switch {
+		case r == '十':
+			tens := 1
+			if i > 0 {
+				tens = cjkDigits[runes[i-1]]
+			}
+			total += tens * 10
+		case i+1 < len(runes) && runes[i+1] == '十':
+			// consumed by the following 十
+		default:
+			total += cjkDigits[r]
+		}
+	}
+	return total
+}
 
 var releaseSeason = regexp.MustCompile(`(?i)\bS0*(\d+)(?:E\d+)?\b|\b(?:season|saison)\s*0*(\d+)\b|\b(\d+)(?:st|nd|rd|th)(?:\s*season|\s*[-_ ]|\b)`)
 var normalizedTitle = regexp.MustCompile(`[^\p{L}\p{N}]+`)
@@ -338,6 +375,11 @@ func (matcher *EpisodeMatcher) Match(title string) (bool, bool, string) {
 			season = wordSeasonNumbers[strings.ToLower(m[1])]
 		}
 	}
+	if season == 0 {
+		if m := cjkSeason.FindStringSubmatch(title); len(m) > 1 {
+			season = cjkSeasonNumber(m[1])
+		}
+	}
 	if multiSeasonPack {
 		season = identity.SeasonNumber
 	}
@@ -425,6 +467,20 @@ func (matcher *EpisodeMatcher) Match(title string) (bool, bool, string) {
 	}
 
 	// 6. Episode number check
+	if m := cjkTotalEpisode.FindStringSubmatch(title); len(m) > 0 {
+		abs := number(m[2])
+		if m[1] != "" {
+			if ep := number(m[1]); ep == target || (identity.AbsoluteEpisode > 0 && abs == identity.AbsoluteEpisode) {
+				return true, false, fmt.Sprintf("matched: explicit episode %02d", ep)
+			} else {
+				return false, false, fmt.Sprintf("rejected: episode mismatch (got ep %d, want ep %d)", ep, target)
+			}
+		}
+		if identity.AbsoluteEpisode > 0 && abs == identity.AbsoluteEpisode {
+			return true, false, fmt.Sprintf("matched: explicit absolute episode %02d", abs)
+		}
+		return false, false, fmt.Sprintf("rejected: episode mismatch (got absolute %d, want ep %d)", abs, target)
+	}
 	if m := releaseEpisode.FindStringSubmatch(title); len(m) > 0 {
 		ep := 0
 		if m[2] != "" {
@@ -448,6 +504,17 @@ func (matcher *EpisodeMatcher) Match(title string) (bool, bool, string) {
 			return true, false, fmt.Sprintf("matched: explicit episode %02d", ep)
 		}
 		return false, false, fmt.Sprintf("rejected: episode mismatch (got ep %d, want ep %d)", ep, target)
+	}
+
+	if season > 0 && len(rangeMatch) == 0 {
+		if m := seasonBareEpisode.FindStringSubmatch(title); len(m) > 1 {
+			if ep := number(m[1]); ep > 0 && ep != 480 && ep != 720 && ep != 1080 && ep != 2160 && (ep < 1900 || ep > 2099) {
+				if ep == target {
+					return true, false, fmt.Sprintf("matched: explicit episode %02d", ep)
+				}
+				return false, false, fmt.Sprintf("rejected: episode mismatch (got ep %d, want ep %d)", ep, target)
+			}
+		}
 	}
 
 	if m := rangeMatch; len(m) > 2 {
