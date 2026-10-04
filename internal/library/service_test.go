@@ -1,6 +1,9 @@
 package library
 
 import (
+	"bytes"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,5 +116,46 @@ func TestEngineForwardsFiles(t *testing.T) {
 	plain := NewEngine(&fakeInner{}, env.store, env.pool, nil)
 	if _, ok := plain.Files("known"); ok {
 		t.Fatal("an inner engine without Files must report not loaded")
+	}
+}
+
+func TestStateChangesAreLoggedFromTheStoreHook(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	env := newJanitorEnv(t, nil)
+	s := newServiceTest(t, env, &fakeFetcher{}, func() time.Time { return janitorNow })
+	s.watch()
+	set := func(k Key, st State) {
+		if _, err := env.store.Update(k, func(e *Entry) error { e.State = st; return nil }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	k := Key{1, 1, "vf"}
+	if err := env.store.Create(entry(1, 1, "vf", StateDownloading)); err != nil {
+		t.Fatal(err)
+	}
+	set(k, StateOriginal)
+	set(k, StateEncoding)
+	set(k, StateAV1)
+	set(k, StateUnavailable)
+	if err := env.store.Delete(Key{1, 1, "vf"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.store.Create(entry(1, 2, "vf", StateAV1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.store.Delete(Key{1, 2, "vf"}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{"msg=library.state", "msg=library.encode", "msg=library.disk", "msg=library.evict", "season_id=1", "lang=vf"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in log:\n%s", want, out)
+		}
+	}
+	if n := strings.Count(out, "msg=library.encode"); n != 1 {
+		t.Errorf("library.encode logged %d times", n)
 	}
 }

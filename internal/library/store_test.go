@@ -231,3 +231,47 @@ func TestEncoderStatusRoundTrip(t *testing.T) {
 		t.Fatalf("key not cleared: %+v", st)
 	}
 }
+
+func TestOnChangeSeesCreateUpdateDeleteInOrder(t *testing.T) {
+	s, _ := openTest(t)
+	type ev struct{ old, new State }
+	var got []ev
+	s.SetOnChange(func(old, cur *Entry) {
+		e := ev{}
+		if old != nil {
+			e.old = old.State
+		}
+		if cur != nil {
+			e.new = cur.State
+		}
+		got = append(got, e)
+	})
+	k := Key{1, 1, "vf"}
+	if err := s.Create(entry(1, 1, "vf", StateDownloading)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Create(entry(1, 1, "vf", StateDownloading)); err != ErrExists {
+		t.Fatal(err)
+	}
+	if _, err := s.Update(k, func(e *Entry) error { e.State = StateOriginal; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Update(k, func(e *Entry) error { return errors.New("no") }); err == nil {
+		t.Fatal("expected failure")
+	}
+	if err := s.Delete(k); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Delete(k); err != nil { // already gone: no callback
+		t.Fatal(err)
+	}
+	want := []ev{{"", StateDownloading}, {StateDownloading, StateOriginal}, {StateOriginal, ""}}
+	if len(got) != len(want) {
+		t.Fatalf("callbacks = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("callbacks = %v, want %v", got, want)
+		}
+	}
+}
