@@ -63,7 +63,7 @@ func readMatroskaChapters(ctx context.Context, r io.ReadSeeker, size int64) ([]C
 
 Intégration dans `FFprobeAnalyzer.ProbeReader` (`internal/metadata/probe.go`) : après un probe ffprobe réussi,
 si le lecteur implémente `io.ReadSeeker`, rembobiner, appeler `readMatroskaChapters` avec un contexte limité à
-5 s (via `ReadContext` quand le lecteur l'expose, comme pour le probe), puis rembobiner à 0. Un échec est
+1 s (via `ReadContext` quand le lecteur l'expose, comme pour le probe), puis rembobiner à 0. Un échec est
 journalisé en Debug et ignoré. `VideoMetadata` gagne :
 
 ```go
@@ -207,7 +207,7 @@ export function needsAniSkip(fromChapters: SkipSegment[]): boolean
 | Situation | Comportement |
 |---|---|
 | Pas de chapitres / chapitres illisibles | `skip_segments` vide, appel AniSkip |
-| Lecture des chapitres lente (pièces manquantes) | abandon après 5 s, comme ci-dessus |
+| Lecture des chapitres lente (pièces manquantes) | abandon après 1 s (AniSkip prend le relais), comme ci-dessus |
 | AniSkip en panne, timeout, JSON invalide | 200 avec liste vide, rien en cache, pas de bouton |
 | AniSkip connaît un autre encodage | résultat rejeté (écart de durée > 3 s) |
 | Saison sans `idMal` | liste vide, pas d'appel externe |
