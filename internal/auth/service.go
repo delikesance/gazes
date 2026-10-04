@@ -485,3 +485,60 @@ func (s *Service) SessionsFor(r *http.Request, limit int) ([]WatchSession, bool)
 	}
 	return items, true
 }
+
+// GetHidden lists the anime the viewer marked "not interested".
+func (s *Service) GetHidden(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		fail(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	ids, err := s.store.ListHidden(u.ID)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ids": ids})
+}
+
+// PutHidden adds and removes "not interested" anime, then returns the merged list.
+func (s *Service) PutHidden(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		fail(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !s.sameOrigin(r) {
+		fail(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	var body struct {
+		Add    []int64 `json:"add"`
+		Remove []int64 `json:"remove"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&body) != nil || len(body.Add) > 500 || len(body.Remove) > 500 {
+		fail(w, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	for _, id := range append(append([]int64{}, body.Add...), body.Remove...) {
+		if id <= 0 {
+			fail(w, http.StatusBadRequest, "invalid_request")
+			return
+		}
+	}
+	if err := s.store.UpdateHidden(u.ID, body.Add, body.Remove, s.now()); err != nil {
+		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	s.GetHidden(w, r)
+}
+
+// HiddenFor returns the signed-in viewer's "not interested" anime ids.
+func (s *Service) HiddenFor(r *http.Request) []int64 {
+	u := s.currentUser(r)
+	if u == nil {
+		return nil
+	}
+	ids, _ := s.store.ListHidden(u.ID)
+	return ids
+}

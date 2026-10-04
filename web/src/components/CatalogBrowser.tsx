@@ -1,6 +1,7 @@
 "use client";
 import { listProgress } from "@/lib/watch-progress";
 import { watchedAnimeIds, listWatchSessions } from "@/lib/watch-log";
+import { hideAnime, listHidden } from "@/lib/hidden-anime";
 import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
@@ -87,7 +88,7 @@ export function CatalogBrowser({
     let active = true;
     setLoading(true);
     setError("");
-    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), page, 24) : getCatalogSeasonal(page, 24);
+    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), listHidden(), page, 24) : getCatalogSeasonal(page, 24);
     request.then(result => {
       if (active) {
         setData(result);
@@ -120,10 +121,16 @@ export function CatalogBrowser({
     return () => { active = false; };
   }, [discovery, retry]);
 
+  function hide(anime: { id: number; media_id?: number }) {
+    hideAnime(anime.id);
+    if (anime.media_id) hideAnime(anime.media_id);
+    setData(current => current ? { ...current, items: current.items.filter(item => item.id !== anime.id) } : current);
+  }
+
   const featured = discovery ? (popular?.items || []).filter(anime =>
     anime.status !== "NOT_YET_RELEASED" && (anime.banner_image || anime.media_poster_image || anime.poster_image)) : [];
   const heroLoading = discovery && !popular && !featuredUnavailable;
-  const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && !isSuggestions} />);
+  const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && !isSuggestions} onHide={isSuggestions ? hide : undefined} />);
 
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}

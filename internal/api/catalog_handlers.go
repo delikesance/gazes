@@ -106,8 +106,15 @@ func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if len(sessions) == 0 && r.Method == http.MethodPost {
+	var hidden []int
+	if s.auth != nil {
+		for _, id := range s.auth.HiddenFor(r) {
+			hidden = append(hidden, int(id))
+		}
+	}
+	if r.Method == http.MethodPost {
 		var body struct {
+			Hidden   []int `json:"hidden"`
 			Sessions []struct {
 				AnimeID        int      `json:"anime_id"`
 				SeasonID       int      `json:"season_id"`
@@ -118,9 +125,15 @@ func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
 				UpdatedAt      int64    `json:"updated_at"`
 			} `json:"sessions"`
 		}
-		if json.NewDecoder(io.LimitReader(r.Body, 256<<10)).Decode(&body) != nil || len(body.Sessions) > 500 {
+		if json.NewDecoder(io.LimitReader(r.Body, 256<<10)).Decode(&body) != nil || len(body.Sessions) > 500 || len(body.Hidden) > 2000 {
 			http.Error(w, `{"error": "invalid request"}`, http.StatusBadRequest)
 			return
+		}
+		if len(hidden) == 0 {
+			hidden = body.Hidden
+		}
+		if len(sessions) > 0 {
+			body.Sessions = nil
 		}
 		for _, v := range body.Sessions {
 			if len(v.Genres) > 20 {
@@ -130,6 +143,11 @@ func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	taste := metadata.BuildTaste(sessions, time.Now())
+	for _, id := range hidden {
+		if id > 0 {
+			taste.Dropped[id] = true
+		}
+	}
 	if len(taste.Seeds) > 0 {
 		seeds = taste.Seeds
 	}
