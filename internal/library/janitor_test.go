@@ -323,3 +323,46 @@ func TestReconcileSkipsUnreadableDirs(t *testing.T) {
 		t.Fatalf("orphan not removed, report = %+v", rep)
 	}
 }
+
+func TestPeriodicFreeIgnoresInFlightReservations(t *testing.T) {
+	e := newJanitorEnv(t, nil)
+	day := 24 * time.Hour
+	f1 := e.add(t, 1, StateOriginal, 3000, 10*day)
+	f2 := e.add(t, 2, StateAV1, 3000, 5*day)
+	// A 3000 byte reservation is taken, then the bytes land (a recent, protected 1000 byte file): 3000 are
+	// really free, far above the 100 reserve, but the reservation is never reduced, so available is -100.
+	if _, err := e.pool.ReserveOn(e.disk, 3000); err != nil {
+		t.Fatal(err)
+	}
+	e.add(t, 3, StateAV1, 1000, time.Minute)
+	if freed, err := e.j.Free(e.disk, 0); err != nil || freed != 0 {
+		t.Fatalf("periodic pass freed=%d err=%v, want nothing", freed, err)
+	}
+	if !exists(f1) || !exists(f2) {
+		t.Fatal("copies evicted although real free space is above the reserve")
+	}
+	// A reservation-driven call still makes room given the reservations.
+	if freed, err := e.j.Free(e.disk, 2000); err != nil || freed != 3000 {
+		t.Fatalf("need 2000: freed=%d err=%v", freed, err)
+	}
+	if exists(f1) || !exists(f2) {
+		t.Fatalf("wrong survivors: %v %v", exists(f1), exists(f2))
+	}
+}
+
+func TestPeriodicFreeEvictsWhenBelowReserve(t *testing.T) {
+	e := newJanitorEnv(t, nil)
+	day := 24 * time.Hour
+	f1 := e.add(t, 1, StateOriginal, 5000, 10*day)
+	f2 := e.add(t, 2, StateAV1, 4950, 5*day) // free 50 < reserve 100
+	if _, err := e.pool.ReserveOn(e.disk, 1); err == nil {
+		t.Fatal("reservation unexpectedly fit below the reserve")
+	}
+	freed, err := e.j.Free(e.disk, 0)
+	if err != nil || freed != 5000 {
+		t.Fatalf("freed=%d err=%v", freed, err)
+	}
+	if exists(f1) || !exists(f2) {
+		t.Fatalf("wrong survivors: %v %v", exists(f1), exists(f2))
+	}
+}

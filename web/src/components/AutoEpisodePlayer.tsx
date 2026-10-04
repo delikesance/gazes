@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EpisodeInfo, EpisodeSource, LibraryCopy } from '@/types/api';
 import { diagnosticEvent } from "@/lib/diagnostics";
 import { loadTorrent, getSeasonSources, getLibraryCopies, registerLibraryCopy } from "@/lib/api";
-import { libraryLang, lookupWithin, prewarmTargets, withLibraryCandidates } from '@/lib/library';
+import { libraryLang, lookupWithin, playerWaitState, prewarmTargets, withLibraryCandidates } from '@/lib/library';
 import { useAuth } from './AuthProvider';
 import { playbackSources, extendPlaybackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
@@ -17,6 +17,8 @@ interface Props {
  sources: EpisodeSource[];
  /** The source search has not answered yet: the library copies in initialLibraryCopies play meanwhile. */
  sourcesPending?: boolean;
+ /** The sources request failed (a library copy may still have played); retrying reloads it. */
+ sourcesFailed?: boolean;
  /** Copies the caller already looked up (possibly empty); the player then skips its own lookup. */
  initialLibraryCopies?: LibraryCopy[];
  diagnosticSession?:string;
@@ -50,7 +52,7 @@ function mergeSources(list: EpisodeSource[], discovered: EpisodeSource[], active
  return [...fixed, ...tail];
 }
 
-export function AutoEpisodePlayer({ sources, sourcesPending, initialLibraryCopies, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
+export function AutoEpisodePlayer({ sources, sourcesPending, sourcesFailed, initialLibraryCopies, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
   const { t } = useI18n();
  const engine = usePlaybackEngine();
  const pausedRef = useRef(false);
@@ -130,14 +132,15 @@ export function AutoEpisodePlayer({ sources, sourcesPending, initialLibraryCopie
  },[candidates,attempt.index]);
  if (!libraryReady) return <div role="status" className="fixed inset-0 z-50 bg-black/90" />;
  if (!source && partial && animeId && seasonId && (discoveryState==='idle'||discoveryState==='loading')) return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
- if (!source && sourcesPending) return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
+ if (playerWaitState({ hasSource: Boolean(source), sourcesState: sourcesPending ? 'pending' : 'loaded' }) === 'pending') return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
  if (!source) return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6">
   <div role="alert" className="max-w-lg space-y-4 text-center text-zinc-100">
    <p>{t(candidates.length?"Toutes les tentatives de lecture ont échoué.":partial?"La recherche de torrents est incomplète. Réessayez.":"Aucun torrent ne correspond à cet épisode.")}</p>
    <p className="text-xs text-zinc-400">{t("Référence de diagnostic")} : <code>{session}</code></p>
+   {sourcesFailed && <p className="text-sm text-zinc-400">{t("La recherche de sources a échoué.")}</p>}
    {attempt.reason && <p className="text-sm text-zinc-400">{t(attempt.reason)}</p>}
    <div className="flex justify-center gap-4">
-    {<button className="rounded-full bg-white text-black px-4 py-2" onClick={() => candidates.length?setAttempt({ index: 0, position: attempt.position, reason: '', id:randomId() }):onRetrySources?.()}>{t("Réessayer")}</button>}
+    {<button className="rounded-full bg-white text-black px-4 py-2" onClick={() => candidates.length&&!sourcesFailed?setAttempt({ index: 0, position: attempt.position, reason: '', id:randomId() }):onRetrySources?.()}>{t("Réessayer")}</button>}
     <button className="underline" onClick={props.onClose}>{t("Fermer")}</button>
    </div>
   </div>
