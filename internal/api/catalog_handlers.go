@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/metadata"
@@ -78,8 +80,9 @@ func (s *Server) HandleCatalogPopular(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(res)
 }
 
-// HandleCatalogForYou serves the "suggestions" feed: recommendations from the anime ids a viewer
-// watched (?ids=1,2,3, most recent first) blended with trending and popular titles.
+// HandleCatalogForYou serves the "suggestions" feed. The taste profile comes from the signed-in
+// viewer's stored watch log, or from the sessions a visitor posts ({"sessions":[...]}, their
+// local log). Without any, ?ids=1,2,3 (most recent first) seeds plain recommendations.
 func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
 	page, perPage := 1, 24
 	if p, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && p > 0 {
@@ -94,13 +97,51 @@ func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
 			seeds = append(seeds, id)
 		}
 	}
-	res, err := s.catalogService.GetForYou(r.Context(), seeds, page, perPage)
+
+	var sessions []metadata.TasteSession
+	if s.auth != nil {
+		if stored, ok := s.auth.SessionsFor(r, 500); ok {
+			for _, w := range stored {
+				sessions = append(sessions, metadata.TasteSession{AnimeID: int(w.AnimeID), SeasonID: int(w.SeasonID), Genres: w.Genres, WatchedSeconds: w.WatchedSeconds, Duration: w.Duration, Completed: w.Completed, UpdatedAt: w.UpdatedAt})
+			}
+		}
+	}
+	if len(sessions) == 0 && r.Method == http.MethodPost {
+		var body struct {
+			Sessions []struct {
+				AnimeID        int      `json:"anime_id"`
+				SeasonID       int      `json:"season_id"`
+				Genres         []string `json:"genres"`
+				WatchedSeconds float64  `json:"watched_seconds"`
+				Duration       float64  `json:"duration"`
+				Completed      bool     `json:"completed"`
+				UpdatedAt      int64    `json:"updated_at"`
+			} `json:"sessions"`
+		}
+		if json.NewDecoder(io.LimitReader(r.Body, 256<<10)).Decode(&body) != nil || len(body.Sessions) > 500 {
+			http.Error(w, `{"error": "invalid request"}`, http.StatusBadRequest)
+			return
+		}
+		for _, v := range body.Sessions {
+			if len(v.Genres) > 20 {
+				v.Genres = v.Genres[:20]
+			}
+			sessions = append(sessions, metadata.TasteSession{AnimeID: v.AnimeID, SeasonID: v.SeasonID, Genres: v.Genres, WatchedSeconds: v.WatchedSeconds, Duration: v.Duration, Completed: v.Completed, UpdatedAt: v.UpdatedAt})
+		}
+	}
+	taste := metadata.BuildTaste(sessions, time.Now())
+	if len(taste.Seeds) > 0 {
+		seeds = taste.Seeds
+	}
+
+	res, err := s.catalogService.GetForYou(r.Context(), seeds, taste, page, perPage)
 	if err != nil {
 		diagnostics.Logger(r.Context(), s.logger).Error("failed to get suggestions", "err", err)
 		http.Error(w, `{"error": "failed to get suggestions"}`, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, no-store")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(res)
 }
