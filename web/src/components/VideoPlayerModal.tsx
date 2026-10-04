@@ -1,4 +1,5 @@
 "use client";
+import { PlayerStartup } from "./PlayerStartup";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
 import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
@@ -796,14 +797,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         {/* Player & Content Area */}
         <div className="player-content flex-1 overflow-y-auto">
           {loading && !hlsMode ? (
-            <div className="player-connecting" role="status" aria-live="polite">
-              <svg className="watch-loading-ring" viewBox="0 0 72 72" aria-hidden="true">
-                <circle className="watch-loading-track" cx="36" cy="36" r="32" />
-                <circle className="watch-loading-arc" cx="36" cy="36" r="32" pathLength={100} />
-              </svg>
-              <h2 className="serif">{t("Connexion au swarm…")}</h2>
-              <p>{t("Récupération des métadonnées et des premières pièces")}</p>
-            </div>
+            <PlayerStartup stage="connect" image={fallbackThumbnail} title={animeTitle} episode={episodeNumber} />
           ) : needsFileSelection && !hlsMode ? (
             <div className="p-6 pt-24 space-y-4">
               <p>{onPlaybackFailure ? t("Cet épisode ne peut pas être identifié dans ce pack. Essai de la source suivante…") : t("Choisissez le fichier correspondant à l’épisode {episode}. Aucun fichier n’a été lancé automatiquement.", {episode:episodeNumber ?? "—"})}</p>
@@ -939,14 +933,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
                 {/* First-byte wait: the stream can take several seconds to start, never leave a bare black frame */}
                 {!started && !error && (
-                  <div className="player-connecting is-overlay" role="status" aria-live="polite">
-                    <svg className="watch-loading-ring" viewBox="0 0 72 72" aria-hidden="true">
-                      <circle className="watch-loading-track" cx="36" cy="36" r="32" />
-                      <circle className="watch-loading-arc" cx="36" cy="36" r="32" pathLength={100} />
-                    </svg>
-                    <h2 className="serif">{t("Démarrage du flux…")}</h2>
-                    <p>{t("Le premier chargement peut prendre quelques secondes")}</p>
-                  </div>
+                  <PlayerStartup stage="stream" overlay image={fallbackThumbnail} title={animeTitle} episode={episodeNumber} />
                 )}
 
                 {/* Buffering Indicator */}
