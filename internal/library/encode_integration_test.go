@@ -140,3 +140,60 @@ func TestRealAV1EncodeKeepsTracksAndIsHLSIndexable(t *testing.T) {
 		t.Fatalf("index has no segments: %+v", idx)
 	}
 }
+
+// An MP4 (stored under the library's .mkv name) can carry cover art as an attached-picture video
+// stream; it must neither be encoded as a second AV1 video stream nor make Verify fail.
+func TestRealAV1EncodeDropsAttachedPicture(t *testing.T) {
+	for _, bin := range []string{"ffmpeg", "ffprobe"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			t.Skipf("%s not installed", bin)
+		}
+	}
+	pool, store, _ := newPoolTest(t, fakeFS{"d1": {1 << 40, 1 << 39}}, 0, 0, "d1")
+	if _, _, err := pool.Scan(); err != nil {
+		t.Fatal(err)
+	}
+	disk := pool.Disks()[0]
+	rel := "7/1-vostfr.mkv"
+	src := filepath.Join(disk.Path, rel)
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cover := filepath.Join(t.TempDir(), "cover.png")
+	run(t, "ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=red:s=64x64", "-frames:v", "1", cover)
+	run(t, "ffmpeg", "-y", "-v", "error",
+		"-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=24:duration=3",
+		"-f", "lavfi", "-i", "sine=frequency=440:duration=3",
+		"-i", cover,
+		"-map", "0:v", "-map", "1:a", "-map", "2:v",
+		"-c:v:0", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac",
+		"-c:v:1", "copy", "-disposition:v:1", "attached_pic",
+		"-f", "mp4", src)
+	probe := func(path string) string {
+		return string(run(t, "ffprobe", "-v", "error", "-select_streams", "v", "-show_entries", "stream=codec_name:stream_disposition=attached_pic", "-of", "csv=p=0", path))
+	}
+	if got := probe(src); got != "h264,0\npng,1\n" {
+		t.Fatalf("fixture lacks an attached picture: %q", got)
+	}
+
+	k := Key{SeasonID: 7, Episode: 1, Lang: "vostfr"}
+	st, _ := os.Stat(src)
+	if err := store.Create(Entry{Key: k, AnimeID: 1, Title: "T", State: StateOriginal, DiskID: disk.ID, RelPath: rel,
+		SizeBytes: st.Size(), OriginalSizeBytes: st.Size()}); err != nil {
+		t.Fatal(err)
+	}
+	enc := NewEncoder(store, pool, FFprobe("ffprobe"), nil, EncodeSettings{Preset: 8, CRF: 30, Threads: 4}, nil)
+	if !enc.encodeNext(context.Background()) {
+		t.Fatal("encoder did no work")
+	}
+	e, err := store.Get(k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.State != StateAV1 {
+		t.Fatalf("state %s (skipped %q, err %q)", e.State, e.EncodeSkipped, e.LastError)
+	}
+	if got := probe(src); got != "av1,0\n" {
+		t.Fatalf("video streams after encode: %q, want only the real one as av1", got)
+	}
+}

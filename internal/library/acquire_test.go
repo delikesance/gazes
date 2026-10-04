@@ -55,7 +55,7 @@ func (f *fakeFetcher) VerifyFile(ctx context.Context, ih string, idx int) error 
 type fakeProber struct{}
 
 func (fakeProber) Probe(ctx context.Context, path string) (MediaInfo, error) {
-	return MediaInfo{DurationMS: 1420000, VideoCodec: "h264", AudioCodecs: []string{"aac", "opus"}, AudioChannels: []int{2, 2}, SubtitleTracks: 3}, nil
+	return MediaInfo{DurationMS: 1420000, VideoCodec: "h264", VideoStreams: 1, AudioCodecs: []string{"aac", "opus"}, AudioChannels: []int{2, 2}, SubtitleTracks: 3}, nil
 }
 
 type testClock struct{ now time.Time }

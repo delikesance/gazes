@@ -16,6 +16,7 @@ type MediaInfo struct {
 	AudioCodecs                      []string
 	AudioChannels                    []int
 	SubtitleTracks, AttachmentTracks int
+	VideoStreams                     int // real video streams, attached pictures excluded
 }
 
 // Prober inspects a media file.
@@ -44,6 +45,9 @@ func parseProbe(b []byte) (MediaInfo, error) {
 			CodecType string `json:"codec_type"`
 			CodecName string `json:"codec_name"`
 			Channels  int    `json:"channels"`
+			Dispo     struct {
+				AttachedPic int `json:"attached_pic"`
+			} `json:"disposition"`
 		} `json:"streams"`
 		Format struct {
 			Duration string `json:"duration"`
@@ -59,6 +63,10 @@ func parseProbe(b []byte) (MediaInfo, error) {
 	for _, s := range doc.Streams {
 		switch s.CodecType {
 		case "video":
+			if s.Dispo.AttachedPic == 1 { // cover art, not a real video stream
+				continue
+			}
+			mi.VideoStreams++
 			if mi.VideoCodec == "" {
 				mi.VideoCodec = s.CodecName
 			}
