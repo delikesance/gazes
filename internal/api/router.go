@@ -174,6 +174,7 @@ func (s *Server) setupRoutes() {
 			cat.Get("/anime/{id}/seasons/{season}/episodes/{ep}/sources", s.HandleSeasonSources)
 			cat.Get("/seasons/{season}/episodes/{ep}/preview", s.HandleEpisodePreview)
 			cat.Post("/seasons/{season}/episodes/{ep}/preview", s.HandleEpisodePreviewCreate)
+			cat.Get("/seasons/{season}/episodes/{ep}/skip-times", s.HandleSkipTimes)
 			cat.Get("/anime/{id}", s.HandleCatalogAnimeDetail)
 			cat.Get("/anime/{id}/episodes/{ep}/sources", s.HandleEpisodeSources)
 		})
