@@ -52,6 +52,8 @@ type VideoMetadata struct {
 	TotalBytes        int64           `json:"total_bytes"`
 	AudioTracks       []AudioTrack    `json:"audio_tracks"`
 	SubtitleTracks    []SubtitleTrack `json:"subtitle_tracks"`
+	Chapters          []Chapter       `json:"chapters,omitempty"`
+	SkipSegments      []SkipSegment   `json:"skip_segments,omitempty"`
 }
 
 type ffprobeOutput struct {
@@ -116,10 +118,36 @@ func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalByt
 		}
 		meta, err = a.probeReader(ctx, r, totalBytes, limit)
 		if err == nil && (meta.DurationSec > 0 || len(meta.AudioTracks) > 0) {
+			attachChapters(ctx, diagnostics.Logger(ctx, a.logger), r, meta)
 			return meta, nil
 		}
 	}
 	return meta, err
+}
+
+// chapterReadTimeout bounds the chapter read so a swarm stall never delays playback.
+var chapterReadTimeout = 5 * time.Second
+
+// attachChapters reads Matroska chapters from the start of r and derives skip segments.
+// Failures are logged and ignored: detection is best-effort and must not block playback.
+func attachChapters(ctx context.Context, logger *slog.Logger, r io.Reader, meta *VideoMetadata) {
+	seeker, ok := r.(io.ReadSeeker)
+	if !ok {
+		return
+	}
+	if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+		return
+	}
+	defer func() { _, _ = seeker.Seek(0, io.SeekStart) }()
+	ctx, cancel := context.WithTimeout(ctx, chapterReadTimeout)
+	defer cancel()
+	chapters, err := readMatroskaChapters(ctx, seeker, meta.TotalBytes)
+	if err != nil {
+		logger.Debug("media.chapters_failed", "err", err)
+		return
+	}
+	meta.Chapters = chapters
+	meta.SkipSegments = DetectSkipSegments(chapters, meta.DurationSec)
 }
 
 // probeLimits are the bytes read from the start of the file at each probe attempt.

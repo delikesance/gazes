@@ -114,13 +114,26 @@ printf '%s' '{"streams":[{"index":0,"codec_type":"video","codec_name":"h264"},{"
 		t.Fatal(err)
 	}
 	t.Setenv("FFPROBE_PATH", executable)
-	reader := bytes.NewReader(make([]byte, 2*1000000))
+	reader := &highWaterReader{Reader: bytes.NewReader(make([]byte, 2*1000000))}
 	result, err := NewFFprobeAnalyzer(slog.New(slog.NewTextHandler(io.Discard, nil))).ProbeReader(context.Background(), reader, reader.Size())
 	if err != nil || result == nil || len(result.AudioTracks) != 1 || result.AudioTracks[0].Language != "fra" {
 		t.Fatalf("%+v %v", result, err)
 	}
-	position, _ := reader.Seek(0, io.SeekCurrent)
-	if position != 1000000 {
-		t.Fatalf("larger header read %d bytes", position)
+	if reader.high != 1000000 {
+		t.Fatalf("larger header read %d bytes", reader.high)
 	}
+}
+
+// highWaterReader records the furthest offset read (the probe rewinds the reader afterwards).
+type highWaterReader struct {
+	*bytes.Reader
+	high int64
+}
+
+func (h *highWaterReader) Read(p []byte) (int, error) {
+	n, err := h.Reader.Read(p)
+	if pos := h.Reader.Size() - int64(h.Reader.Len()); pos > h.high {
+		h.high = pos
+	}
+	return n, err
 }
