@@ -1,6 +1,7 @@
 package indexer_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gazes/gazes/internal/indexer"
@@ -362,6 +363,121 @@ func TestRezeroS04ExclusionsDoNotRejectOwnReleases(t *testing.T) {
 	} {
 		if ok, _, why := indexer.MatchEpisodeDebug(title, identity); ok {
 			t.Errorf("%q should be rejected (%s)", title, why)
+		}
+	}
+}
+
+func TestRezeroS04ChineseReleasesWithoutMainSeasonExclusions(t *testing.T) {
+	// Exclusions now hold only non-main entries; foreign-language main-season titles are gone.
+	identity := indexer.EpisodeIdentity{
+		Titles: []string{"Re:Zero kara Hajimeru Isekai Seikatsu 4th Season", "Re:ZERO -Starting Life in Another World- Season 4", "Re：从零开始的异世界生活"},
+		ExcludedTitles: []string{"Re:Zero kara Hajimeru Kyuukei Jikan (Break Time)", "Re:PETIT ~Re: Starting Life in Another World From PETIT~",
+			"Re:ZERO -Starting Life in Another World- OVAs", "Memory Snow", "Hyouketsu no Kizuna"},
+		SeasonNumber: 4, EpisodeNumber: 19,
+	}
+	for _, title := range []string{
+		"Re：从零开始的异世界生活 第四季 - 19 [1080p]",
+		"[晚街与灯][Re：从零开始的异世界生活 第四季 / Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][19 - 总第85][WebRip][1080P_AVC_AAC][简日双语内嵌]",
+		"Re：从零开始的异世界生活 第4季 - 19 [1080p]",
+		"Re：从零开始的异世界生活 第四期 - 19 [1080p]",
+	} {
+		if ok, _, why := indexer.MatchEpisodeDebug(title, identity); !ok {
+			t.Errorf("%q should match S04E19: %s", title, why)
+		}
+	}
+	for _, title := range []string{
+		"Re：从零开始的异世界生活 第二季 - 19 [1080p]",
+		"Re：从零开始的异世界生活 第三季 - 19 [1080p]",
+		"Re：从零开始的异世界生活 第2期 - 19 [1080p]",
+		"Re：从零开始的异世界生活 第一季 - 19 [1080p]",
+		"Re：从零开始的异世界生活 第十季 - 19 [1080p]",
+		"Re：从零开始的异世界生活 - 19 [1080p]",
+		"[X][Re：从零开始的异世界生活 第二季 / Re:Zero kara Hajimeru Isekai Seikatsu][19][1080P]",
+		"Re:Zero kara Hajimeru Kyuukei Jikan (Break Time) - 19 [1080p]",
+	} {
+		if ok, _, why := indexer.MatchEpisodeDebug(title, identity); ok {
+			t.Errorf("%q must not match S04E19 (%s)", title, why)
+		}
+	}
+	// With the real S4 identity (AllowUnqualified false, absolute numbering) an unqualified
+	// S1-style title must not leak through its absolute episode.
+	real := identity
+	real.Titles = identity.Titles[:2]
+	real.AbsoluteEpisode = 151
+	if ok, _, why := indexer.MatchEpisodeDebug("Re:Zero kara Hajimeru Isekai Seikatsu 第二季 - 19 [1080p]", real); ok {
+		t.Errorf("S2 Chinese marker leaked: %s", why)
+	}
+}
+
+func rezeroS04E19Identity() indexer.EpisodeIdentity {
+	return indexer.EpisodeIdentity{
+		Titles:       []string{"Re:Zero kara Hajimeru Isekai Seikatsu 4th Season", "Re:ZERO -Starting Life in Another World- Season 4", "Re：从零开始的异世界生活"},
+		SeasonNumber: 4, EpisodeNumber: 19, AbsoluteEpisode: 85,
+	}
+}
+
+func TestSingleEpisodeFormsRejectWrongEpisode(t *testing.T) {
+	identity := rezeroS04E19Identity()
+	for _, title := range []string{
+		"[晚街与灯][Re：从零开始的异世界生活 第四季 / Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][18 - 总第84][WEB-DL Remux][1080P_AVC_AAC][简繁日内封PGS]",
+		"[晚街与灯][Re：从零开始的异世界生活 第四季 / Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][13 - 总第79][WebRip][1080P_AVC_AAC][简日双语内嵌]",
+		"[晚街与灯][Re：从零开始的异世界生活 第四季 / Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][18 - 總第84][WebRip][1080P]",
+		"[EA]Re_Zero_kara_Hajimeru_Isekai_Seikatsu_4th_15_[1920x1080][HEVC][C1549343].mkv",
+		"[EA]Re_Zero_kara_Hajimeru_Isekai_Seikatsu_4th_15_[1920x1080][HEVC].mkv",
+	} {
+		ok, _, why := indexer.MatchEpisodeDebug(title, identity)
+		if ok || !strings.Contains(why, "episode mismatch") {
+			t.Errorf("%q should be an episode mismatch for E19, got ok=%v %q", title, ok, why)
+		}
+	}
+}
+
+func TestSingleEpisodeFormsMatchRightEpisode(t *testing.T) {
+	identity := rezeroS04E19Identity()
+	for _, title := range []string{
+		"[晚街与灯][Re：从零开始的异世界生活 第四季 / Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][19 - 总第85][WebRip][1080P_AVC_AAC][简日双语内嵌]",
+		"[晚街与灯][Re：从零开始的异世界生活 第四季 / Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][19 - 總第85][WebRip][1080P]",
+		"[EA]Re_Zero_kara_Hajimeru_Isekai_Seikatsu_4th_19_[1920x1080][HEVC][C1549343].mkv",
+		"[EA]Re_Zero_kara_Hajimeru_Isekai_Seikatsu_4th_19v2_[1920x1080][HEVC].mkv",
+	} {
+		ok, batch, why := indexer.MatchEpisodeDebug(title, identity)
+		if !ok || batch || !strings.Contains(why, "explicit episode 19") {
+			t.Errorf("%q should match as explicit episode 19, got ok=%v batch=%v %q", title, ok, batch, why)
+		}
+	}
+	// Absolute-only marker (no leading episode) matches via the identity's absolute number.
+	if ok, _, why := indexer.MatchEpisodeDebug("[X][Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][总第85][1080P]", identity); !ok {
+		t.Errorf("总第85 should match absolute 85: %s", why)
+	}
+	if ok, _, why := indexer.MatchEpisodeDebug("[X][Re:Zero kara Hajimeru Isekai Seikatsu 4th Season][总第84][1080P]", identity); ok {
+		t.Errorf("总第84 must not match E19/abs 85: %s", why)
+	}
+}
+
+func TestSingleEpisodeFormsDoNotMisreadOtherNumbers(t *testing.T) {
+	identity := rezeroS04E19Identity()
+	// Not episodes: batches, ranges and resolution/codec/CRC/year numbers must stay pack candidates or be rejected as ranges.
+	for _, tc := range []struct{ title, want string }{
+		{"[EA]Re_Zero_kara_Hajimeru_Isekai_Seikatsu_4th_Season_01-11_[1920x1080][HEVC]", "range 01-11 does not contain"},
+		{"[X] Re Zero kara Hajimeru Isekai Seikatsu 4th Season [01-24] [1080p]", "contains ep 19"},
+		{"[X] Re Zero kara Hajimeru Isekai Seikatsu 4th Season 01~24 [1080p]", "contains ep 19"},
+	} {
+		ok, batch, why := indexer.MatchEpisodeDebug(tc.title, identity)
+		if !batch || !strings.Contains(why, tc.want) {
+			t.Errorf("%q: want range verdict containing %q, got ok=%v batch=%v %q", tc.title, tc.want, ok, batch, why)
+		}
+	}
+	for _, title := range []string{
+		"[X] Re Zero kara Hajimeru Isekai Seikatsu 4th Season [1920x1080][HEVC]",
+		"[X] Re Zero kara Hajimeru Isekai Seikatsu 4th Season 1080p x265 10bit",
+		"[X] Re Zero kara Hajimeru Isekai Seikatsu 4th Season [ABCD1234]",
+		"[X] Re Zero kara Hajimeru Isekai Seikatsu 4th Season (2024) [1080p]",
+		"[X] Re_Zero_kara_Hajimeru_Isekai_Seikatsu_4th_1080_[1920x1080]",
+		"[X] Re_Zero_kara_Hajimeru_Isekai_Seikatsu_4th_2024_[1080p]",
+	} {
+		ok, batch, why := indexer.MatchEpisodeDebug(title, identity)
+		if !ok || !batch || !strings.Contains(why, "season 4 pack") {
+			t.Errorf("%q should stay a season-4 pack candidate, got ok=%v batch=%v %q", title, ok, batch, why)
 		}
 	}
 }
