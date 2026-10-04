@@ -77,39 +77,51 @@ func (s *AnimeCatalogService) buildFranchise(ctx context.Context, id int) (*Fran
 	complete := true
 	walkCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	for len(queue) > 0 {
-		next := queue[0]
-		queue = queue[1:]
-		if seen[next.id] && !(next.main && !main[next.id]) {
-			if next.main {
-				main[next.id] = true
+	stopped := false
+	for len(queue) > 0 && !stopped {
+		// Entries come in waves (everything related to the previous wave), so one batched lookup
+		// per wave replaces one AniList call per entry.
+		wave := queue
+		queue = nil
+		wanted := make([]int, 0, len(wave))
+		for _, next := range wave {
+			if !seen[next.id] && next.id != id {
+				wanted = append(wanted, next.id)
 			}
-			continue
 		}
-		seen[next.id] = true
-		if len(entries) >= 80 || walkCtx.Err() != nil {
-			complete = false
-			break
-		}
-		item := root
-		if next.id != id {
-			item, err = s.GetAnimeDetailsWithEpisodes(walkCtx, next.id)
-			if err != nil {
-				complete = false
+		s.prefetchDetails(walkCtx, wanted)
+		for _, next := range wave {
+			if seen[next.id] && !(next.main && !main[next.id]) {
+				if next.main {
+					main[next.id] = true
+				}
 				continue
 			}
-		}
-		entries[item.ID] = item
-		main[item.ID] = next.main
-		if !next.main {
-			continue
-		}
-		for _, rel := range item.Relations {
-			switch rel.RelationType {
-			case "PREQUEL", "SEQUEL", "PARENT":
-				queue = append(queue, pending{rel.ID, true})
-			case "SIDE_STORY", "ALTERNATIVE", "SPIN_OFF", "SUMMARY":
-				queue = append(queue, pending{rel.ID, next.id == id && item.Format == "MOVIE" && (rel.Format == "TV" || rel.Format == "TV_SHORT")})
+			seen[next.id] = true
+			if len(entries) >= 80 || walkCtx.Err() != nil {
+				complete, stopped = false, true
+				break
+			}
+			item := root
+			if next.id != id {
+				item, err = s.GetAnimeDetailsWithEpisodes(walkCtx, next.id)
+				if err != nil {
+					complete = false
+					continue
+				}
+			}
+			entries[item.ID] = item
+			main[item.ID] = next.main
+			if !next.main {
+				continue
+			}
+			for _, rel := range item.Relations {
+				switch rel.RelationType {
+				case "PREQUEL", "SEQUEL", "PARENT":
+					queue = append(queue, pending{rel.ID, true})
+				case "SIDE_STORY", "ALTERNATIVE", "SPIN_OFF", "SUMMARY":
+					queue = append(queue, pending{rel.ID, next.id == id && item.Format == "MOVIE" && (rel.Format == "TV" || rel.Format == "TV_SHORT")})
+				}
 			}
 		}
 	}
