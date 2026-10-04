@@ -20,6 +20,11 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
   const exclude=picked?.exclude??parseList(initialExclude);
   const hasFilter=include.length>0||exclude.length>0;
   // Left click wants a genre, right click refuses it; clicking again on the same side clears it.
+  // Long press = exclude, for touch screens without a right click (iOS included): pointer events fire everywhere.
+  const pressTimer=useRef<ReturnType<typeof setTimeout>>(undefined);
+  const longPressed=useRef(false);
+  const cancelPress=()=>{if(pressTimer.current){clearTimeout(pressTimer.current);pressTimer.current=undefined;}};
+  const startPress=(value:string)=>{longPressed.current=false;cancelPress();pressTimer.current=setTimeout(()=>{longPressed.current=true;pressTimer.current=undefined;choose(value,"exclude");if(typeof navigator!=="undefined")navigator.vibrate?.(15);},450);};
   const choose=(value:string,side:"include"|"exclude")=>{
     const without=(list:string[])=>list.filter(item=>item!==value);
     const alreadyThere=(side==="include"?include:exclude).includes(value);
@@ -49,14 +54,15 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
         <button type="button" aria-label={t(onSearchPage?"Effacer la recherche":"Fermer la recherche")} onClick={()=>{if(onSearchPage&&onClear){resetSearch();onClear();}else closeSearch();}}><X size={17} /></button>
         {filterOpen&&<div id="search-filter-panel" className="search-filter-panel" role="group" aria-label={t("Genres")}>
           <p className="search-filter-title">{t("Genres")}</p>
-          <p className="search-filter-hint">{t("Clic gauche : inclure · Clic droit : exclure")}</p>
+          <p className="search-filter-hint">{t("Clic gauche : inclure · Clic droit ou appui long : exclure")}</p>
           <div className="search-filter-options">
             {GENRES.map(([value,label])=>{
               const state=include.includes(value)?"include":exclude.includes(value)?"exclude":"none";
               const name=t(label);
               return <button key={value} type="button" data-state={state} aria-pressed={state!=="none"}
                 aria-label={state==="include"?t("{genre}, inclus",{genre:name}):state==="exclude"?t("{genre}, exclu",{genre:name}):name}
-                onClick={()=>choose(value,"include")} onContextMenu={event=>{event.preventDefault();choose(value,"exclude");}}>
+                onPointerDown={event=>{if(event.button===0)startPress(value);}} onPointerUp={cancelPress} onPointerLeave={cancelPress} onPointerCancel={cancelPress}
+                onClick={()=>{if(longPressed.current){longPressed.current=false;return;}choose(value,"include");}} onContextMenu={event=>{event.preventDefault();if(!longPressed.current)choose(value,"exclude");}}>
                 {state==="include"&&<Plus size={13} aria-hidden="true" />}{state==="exclude"&&<Minus size={13} aria-hidden="true" />}{name}
               </button>;
             })}
