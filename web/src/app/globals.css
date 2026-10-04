@@ -121,6 +121,19 @@ button:disabled { cursor: default; opacity: .35; }
 .catalog-search { display: flex; align-items: center; gap: 10px; height: 36px; min-width: 0; width: min(100%, 420px); padding: 0 14px; color: #b8b8c2; }
 .catalog-header .site-wordmark, .catalog-search { border: 0; background: var(--surface); border-radius: 999px; box-shadow: inset 0 0 0 1px var(--border); transition: background .18s; }
 .catalog-header .site-wordmark:hover, .catalog-search:focus-within { background: var(--surface-hover); }
+.catalog-header .catalog-search { position: relative; }
+.catalog-search .search-filter-toggle[data-active="true"] { color: var(--accent); }
+.search-filter-panel { position: absolute; top: calc(100% + 10px); left: 0; right: 0; z-index: 30; display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: var(--radius-card); background: var(--surface-card); box-shadow: inset 0 0 0 1px var(--border), var(--shadow-card, 0 12px 40px rgba(0,0,0,.4)); color: var(--foreground); }
+.search-filter-title { margin: 0; font-family: var(--font-mono, "Geist Mono", monospace); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--design-muted); }
+.search-filter-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.catalog-search .search-filter-options button { display: inline-flex; padding: 8px 14px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--foreground); font-size: 13px; cursor: pointer; }
+.catalog-search .search-filter-options button:hover { background: var(--surface-hover); }
+.catalog-search .search-filter-options button[aria-pressed="true"] { background: var(--clay-bg); color: var(--clay-fg); }
+.search-filter-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.catalog-search .search-filter-actions button { display: inline-flex; padding: 9px 18px; border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.catalog-search .search-filter-clear { background: var(--surface); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border); }
+.catalog-search .search-filter-clear:disabled { opacity: .45; cursor: default; }
+.catalog-search .search-filter-apply { background: var(--clay-bg); color: var(--clay-fg); }
 .catalog-search > svg { flex-shrink: 0; width: 15px; height: 15px; }
 .catalog-search input::placeholder { color: #b8b8c2; }
 .catalog-search input { width: 100%; min-width: 0; background: transparent; color: #fafafa; font-size: 13px; outline-offset: 2px; }
