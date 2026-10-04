@@ -2,9 +2,11 @@
 import { randomId } from "@/lib/random-id";
 import { useI18n } from "@/lib/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { EpisodeInfo, EpisodeSource } from '@/types/api';
+import type { EpisodeInfo, EpisodeSource, LibraryCopy } from '@/types/api';
 import { diagnosticEvent } from "@/lib/diagnostics";
-import { loadTorrent, getSeasonSources } from "@/lib/api";
+import { loadTorrent, getSeasonSources, getLibraryCopies, registerLibraryCopy } from "@/lib/api";
+import { libraryLang, withLibraryCandidates } from '@/lib/library';
+import { useAuth } from './AuthProvider';
 import { playbackSources, extendPlaybackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
 import { EpisodeSourceSelectorModal } from './EpisodeSourceSelectorModal';
@@ -32,13 +34,32 @@ interface Props {
  onSelectEpisode?: (episode: number) => void;
 }
 
+const LIBRARY_LOOKUP_MS = 1500;
+const isTypeSupported = (mime: string) => typeof MediaSource !== 'undefined' && typeof MediaSource.isTypeSupported === 'function' && MediaSource.isTypeSupported(mime);
+
+/** Rank pending fallbacks without disturbing attempted ones; pending library copies keep their place before the first same-language torrent. */
+function mergeSources(list: EpisodeSource[], discovered: EpisodeSource[], active: number, copies: LibraryCopy[], base: Partial<EpisodeSource>): EpisodeSource[] {
+ const fixed = list.slice(0, active + 1);
+ const used = new Set(fixed.map(s => s.info_hash));
+ const extended = extendPlaybackSources([...fixed, ...list.slice(fixed.length).filter(s => !s.library)], discovered, active);
+ const tail = withLibraryCandidates(extended.slice(fixed.length), copies.filter(c => !used.has(c.stream_id)), isTypeSupported, base);
+ return [...fixed, ...tail];
+}
+
 export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
   const { t } = useI18n();
  const engine = usePlaybackEngine();
  const pausedRef = useRef(false);
  const [fallbackSession]=useState(()=>randomId());
  const session=diagnosticSession||fallbackSession;
+ const { user } = useAuth();
  const [candidates, setCandidates] = useState(() => playbackSources(sources));
+ // The first attempt waits for the library lookup, at most LIBRARY_LOOKUP_MS; a later answer is ignored.
+ const [libraryReady, setLibraryReady] = useState(!seasonId);
+ const libraryReadyRef = useRef(!seasonId);
+ const libraryCopiesRef = useRef<LibraryCopy[]>([]);
+ const registeredRef = useRef(new Set<string>());
+ const libraryBase = useMemo(() => ({ title: props.animeTitle, episode_number: props.episodeNumber }), [props.animeTitle, props.episodeNumber]);
  const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:randomId() });
  const attemptRef = useRef(attempt);
  attemptRef.current = attempt;
@@ -50,7 +71,20 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  const positionRef = useRef(props.initialTime || 0);
  const source = candidates[attempt.index];
  const diagnostic=useMemo(()=>({playback_session_id:session,attempt_id:attempt.id,anime_id:animeId?String(animeId):undefined,season_id:seasonId?String(seasonId):undefined,episode:String(props.episodeNumber),infohash:source?.info_hash}),[session,attempt.id,animeId,seasonId,props.episodeNumber,source?.info_hash]);
- useEffect(()=>{setCandidates(list=>extendPlaybackSources(list,sources,attemptRef.current.index));},[sources]);
+ useEffect(()=>{const active=libraryReadyRef.current?attemptRef.current.index:-1;setCandidates(list=>mergeSources(list,sources,active,libraryCopiesRef.current,libraryBase));},[sources,libraryBase]);
+ useEffect(()=>{
+  if(!seasonId)return;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>{libraryReadyRef.current=true;controller.abort();setLibraryReady(true);},LIBRARY_LOOKUP_MS);
+  void getLibraryCopies(seasonId,props.episodeNumber,controller.signal).then(copies=>{
+   if(libraryReadyRef.current||controller.signal.aborted)return;
+   libraryCopiesRef.current=copies;
+   setCandidates(list=>mergeSources(list,[],-1,copies,libraryBase));
+   libraryReadyRef.current=true;
+   setLibraryReady(true);
+  }).finally(()=>clearTimeout(timer));
+  return()=>{clearTimeout(timer);controller.abort();};
+ },[seasonId,props.episodeNumber,libraryBase]);
  useEffect(()=>()=>discoveryController.current?.abort(),[]);
  useEffect(()=>{
   if (!partial || !animeId || !seasonId || discoveryState!=='idle' || (attempt.index===0 && source)) return;
@@ -58,11 +92,12 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
   diagnosticEvent(diagnostic,'playback.discovery_started',{discovery:'full'});
   void getSeasonSources(animeId,seasonId,props.episodeNumber,controller.signal,session,'full').then(data=>{
    if(controller.signal.aborted)return;
-   setCandidates(list=>extendPlaybackSources(list,data.sources,attemptRef.current.index));
+   const active=attemptRef.current.index;
+   setCandidates(list=>mergeSources(list,data.sources,active,libraryCopiesRef.current,libraryBase));
    setDiscoveryState('done');
    diagnosticEvent(diagnostic,'playback.discovery_completed',{source_count:data.sources.length,partial:Boolean(data.partial)});
   }).catch(()=>{if(!controller.signal.aborted){setDiscoveryState('failed');diagnosticEvent(diagnostic,'playback.discovery_failed');}});
- },[partial,animeId,seasonId,discoveryState,attempt.index,source,props.episodeNumber,session,diagnostic]);
+ },[partial,animeId,seasonId,discoveryState,attempt.index,source,props.episodeNumber,session,diagnostic,libraryBase]);
  useEffect(()=>{diagnosticEvent(diagnostic,source?'playback.attempt':'playback.exhausted',{source_count:candidates.length,partial:Boolean(partial)});},[diagnostic,source,candidates.length,partial]);
  useEffect(()=>{
   const error=(event:ErrorEvent)=>diagnosticEvent(diagnostic,'browser.error',{reason:event.message,error_code:'javascript_error'});
@@ -80,7 +115,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  // unconfirmed French audio must never reject an otherwise playable source.
  // Warm the next candidates' metadata in the background: a failing source then hands over to a ready one.
  useEffect(()=>{
-  const upcoming=candidates.slice(attempt.index+1,attempt.index+3);
+  const upcoming=candidates.slice(attempt.index+1,attempt.index+3).filter(next=>!next.library);
   if(!upcoming.length)return;
   const controller=new AbortController();
   const timer=setTimeout(()=>{
@@ -88,6 +123,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
   },500);
   return()=>{clearTimeout(timer);controller.abort();};
  },[candidates,attempt.index]);
+ if (!libraryReady) return <div role="status" className="fixed inset-0 z-50 bg-black/90" />;
  if (!source && partial && animeId && seasonId && (discoveryState==='idle'||discoveryState==='loading')) return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
  if (!source) return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6">
   <div role="alert" className="max-w-lg space-y-4 text-center text-zinc-100">
@@ -111,12 +147,21 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    setTried([]);
    setAttempt({index,position:positionRef.current,reason:'',id:randomId()});
   }} />;
+ const onFileResolved=(infoHash:string,fileIndex:number)=>{
+  const played=candidates.find(candidate=>candidate.info_hash===infoHash);
+  const lang=played&&!played.library?libraryLang(played):null;
+  if(!user||!lang||!seasonId||!animeId||!played)return;
+  const key=`${seasonId}:${props.episodeNumber}:${lang}:${infoHash}:${fileIndex}`;
+  if(registeredRef.current.has(key))return;
+  registeredRef.current.add(key);
+  void registerLibraryCopy(seasonId,props.episodeNumber,lang,{info_hash:infoHash,file_index:fileIndex,release_name:played.title,anime_id:animeId,title:props.animeTitle});
+ };
  return <VideoPlayerModal key={engine === 'hls' ? 'hls-player' : attempt.id} {...props}
   initialPaused={pausedRef.current} onPlaybackIntent={playing=>{pausedRef.current=!playing;}}
   onChangeSource={()=>setChoosingSource(true)} sourcePicker={picker}
   onProgress={(position,duration)=>{positionRef.current=position;props.onProgress?.(position,duration);}}
   failover={tried.length?({tried,current:sourceLabel(source)} satisfies FailoverInfo):undefined}
-  debugAttempt={{index:attempt.index,count:candidates.length,tried:tried.map(entry=>entry.label)}} item={source} initialTime={attempt.position} onPlaybackFailure={failed} diagnostic={diagnostic}
+  onFileResolved={onFileResolved} debugAttempt={{index:attempt.index,count:candidates.length,tried:tried.map(entry=>entry.label)}} item={source} initialTime={attempt.position} onPlaybackFailure={failed} diagnostic={diagnostic}
 
  />;
 }
