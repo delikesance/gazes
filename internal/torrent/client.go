@@ -427,13 +427,7 @@ func (e *ClientEngine) evictIdle() {
 		if t.Info() == nil {
 			continue
 		}
-		active := false
-		if scheduler := e.schedulers[infoHash]; scheduler != nil {
-			scheduler.mu.Lock()
-			active = len(scheduler.windows) > 0
-			scheduler.mu.Unlock()
-		}
-		entries = append(entries, cacheEntry{infoHash: infoHash, bytes: t.BytesCompleted(), lastUsed: e.lastUsed[infoHash], active: active, pinned: len(e.pinned[infoHash]) > 0})
+		entries = append(entries, cacheEntry{infoHash: infoHash, bytes: t.BytesCompleted(), lastUsed: e.lastUsed[infoHash], active: e.activeLocked(infoHash), pinned: e.isPinnedLocked(infoHash)})
 	}
 	e.mu.RUnlock()
 	for _, infoHash := range pickEvictions(entries, e.cfg.CacheMaxBytes, e.cfg.CacheIdleTTL, time.Now()) {
@@ -441,8 +435,28 @@ func (e *ClientEngine) evictIdle() {
 	}
 }
 
+// activeLocked reports whether a reader holds a priority window. Caller holds e.mu.
+func (e *ClientEngine) activeLocked(infoHash string) bool {
+	scheduler := e.schedulers[infoHash]
+	if scheduler == nil {
+		return false
+	}
+	scheduler.mu.Lock()
+	defer scheduler.mu.Unlock()
+	return len(scheduler.windows) > 0
+}
+
+func (e *ClientEngine) isPinnedLocked(infoHash string) bool {
+	return len(e.pinned[infoHash]) > 0
+}
+
 func (e *ClientEngine) dropTorrent(infoHash string) {
 	e.mu.Lock()
+	// Revalidate: a download or reader may have claimed the torrent since the eviction snapshot.
+	if e.isPinnedLocked(infoHash) || e.activeLocked(infoHash) {
+		e.mu.Unlock()
+		return
+	}
 	t := e.torrents[infoHash]
 	delete(e.torrents, infoHash)
 	delete(e.prevStats, infoHash)
