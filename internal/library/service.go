@@ -162,12 +162,12 @@ func logChange(old, cur *Entry) {
 		ref = old
 	}
 	attrs := func(state State) []any {
-		a := []any{"season_id", ref.SeasonID, "episode", ref.Episode, "lang", ref.Lang, "disk_id", ref.DiskID,
-			"state", string(state), "duration_ms", int64(0)}
+		var ms int64
 		if old != nil && cur != nil {
-			a[9] = cur.UpdatedAt.Sub(old.UpdatedAt).Milliseconds()
+			ms = cur.UpdatedAt.Sub(old.UpdatedAt).Milliseconds()
 		}
-		return a
+		return []any{"season_id", ref.SeasonID, "episode", ref.Episode, "lang", ref.Lang, "disk_id", ref.DiskID,
+			"state", string(state), "duration_ms", ms}
 	}
 	switch {
 	case cur == nil:

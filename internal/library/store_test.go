@@ -1,6 +1,7 @@
 package library
 
 import (
+	"bytes"
 	"errors"
 	"regexp"
 	"sync"
@@ -273,5 +274,25 @@ func TestOnChangeSeesCreateUpdateDeleteInOrder(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("callbacks = %v, want %v", got, want)
 		}
+	}
+}
+
+func TestSecretIsCachedAndNotRewritten(t *testing.T) {
+	s, _ := openTest(t)
+	first, err := s.Secret()
+	if err != nil || len(first) != 32 {
+		t.Fatalf("secret: %v %v", len(first), err)
+	}
+	// Remove the persisted row behind the store's back: a cached Secret must not touch the table again.
+	if _, err := s.db.Exec(`DELETE FROM meta WHERE key = 'secret'`); err != nil {
+		t.Fatal(err)
+	}
+	again, err := s.Secret()
+	if err != nil || !bytes.Equal(first, again) {
+		t.Fatalf("secret changed: %v", err)
+	}
+	var n int
+	if err := s.db.QueryRow(`SELECT count(*) FROM meta WHERE key = 'secret'`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("Secret wrote to the index again (rows=%d err=%v)", n, err)
 	}
 }
