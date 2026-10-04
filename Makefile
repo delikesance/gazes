@@ -11,7 +11,7 @@ GO_TAGS ?= nosqlite
 
 .PHONY: help deps build build-backend build-web dev-backend dev-web start-web \
 	test test-backend test-race test-web lint lint-backend lint-web typecheck check \
-	secrets redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-check dev-test dev-build
+	secrets redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-check dev-test dev-build library-install-host library-label-disk
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -125,3 +125,10 @@ dev-check: ## Run lint, type checks, and tests in development containers
 
 dev-build: ## Build production images using Docker
 	$(DOCKER_COMPOSE) build backend web
+
+library-install-host: ## Install the AV1 library host setup: /mnt/gazes, udev rule, mount units (sudo)
+	sudo deploy/library/install-host.sh
+
+library-label-disk: ## Label a disk for the library: make library-label-disk DEV=/dev/sdX1 LABEL=GAZES-1 (sudo)
+	@test -n "$(DEV)" -a -n "$(LABEL)" || { echo "usage: make library-label-disk DEV=/dev/sdX1 LABEL=GAZES-1"; exit 2; }
+	sudo deploy/library/label-disk.sh "$(DEV)" "$(LABEL)"

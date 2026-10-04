@@ -1,0 +1,2 @@
+# Mount every filesystem labelled GAZES* under /mnt/gazes/<label> (see gazes-library-mount@.service).
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="GAZES*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="gazes-library-mount@%E{ID_FS_LABEL}.service"
