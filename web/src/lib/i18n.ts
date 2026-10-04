@@ -133,7 +133,7 @@ for (const [fr, en] of pairs) {const value = {fr,en};dictionary.set(fr,value);di
 export function translate(locale: Locale, key: string, params: Record<string, string | number> = {}): string {
   if (/^(Failed to (fetch|load)|failed to (load|get)|Unexpected token)/i.test(key)) key = "Impossible de charger les données.";
   let result = dictionary.get(key)?.[locale] || key;
-  if (locale === "en") result = result.replace(/^Saison (\d+)$/, "Season $1").replace(/^Épisode (\d+)$/, "Episode $1");
+  if (locale === "en") result = result.replace(/^Saison (\d+)(?: · Partie (\d+)| · Parties (\d+) et (\d+))?(?= — |$)/, (_, n, part, a, b) => `Season ${n}${part ? ` · Part ${part}` : a ? ` · Parts ${a} & ${b}` : ""}`).replace(/^Épisode (\d+)$/, "Episode $1");
   if (locale === "fr") result = result.replace(/^Season (\d+)$/, "Saison $1").replace(/^Episode (\d+)$/, "Épisode $1");
   return result.replace(/\{(\w+)\}/g, (match, name) => String(params[name] ?? match));
 }

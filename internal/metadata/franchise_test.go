@@ -171,6 +171,47 @@ func TestRenamedSequelsUseTheirOwnReleaseSeason(t *testing.T) {
 	if f.Seasons[1].SeasonNumber != 2 || f.Seasons[1].ReleaseSeasonNumber != 1 {
 		t.Fatalf("display/release numbering: %+v", f.Seasons[1])
 	}
+	if f.Seasons[0].SeasonName != "Saison 1" || f.Seasons[1].SeasonName != "Saison 2 — Naruto Shippuden" {
+		t.Fatalf("labels: %q, %q", f.Seasons[0].SeasonName, f.Seasons[1].SeasonName)
+	}
+}
+
+func TestMainSeasonLabelsAreDistinctAndShort(t *testing.T) {
+	s := NewAnimeCatalogService(nil)
+	type row struct {
+		id           int
+		title, alias string
+		start, label string
+		season       int
+	}
+	rows := []row{
+		{101280, "That Time I Got Reincarnated as a Slime", "Tensei Shitara Slime Datta Ken", "2018-10-02", "Saison 1", 1},
+		{108511, "That Time I Got Reincarnated as a Slime Season 2", "Tensei Shitara Slime Datta Ken 2nd Season", "2021-01-12", "Saison 2 · Partie 1", 2},
+		{116742, "That Time I Got Reincarnated as a Slime Season 2 Part 2", "Tensei Shitara Slime Datta Ken 2nd Season Part 2", "2021-07-06", "Saison 2 · Partie 2", 2},
+		{156822, "That Time I Got Reincarnated as a Slime Season 3", "Tensei Shitara Slime Datta Ken 3rd Season", "2024-04-05", "Saison 3", 3},
+		{182205, "That Time I Got Reincarnated as a Slime Season 4", "Tensei Shitara Slime Datta Ken 4th Season Part 1 & 2", "2026-04-01", "Saison 4 · Parties 1 et 2", 4},
+		{217331, "Tensei Shitara Slime Datta Ken 4th Season Part 3", "Tensura 4 Part 3", "2026-10-01", "Saison 4 · Partie 3", 4},
+	}
+	for i, r := range rows {
+		item := &AnimeCatalogItem{ID: r.id, DisplayTitle: r.title, Aliases: []string{"", r.alias}, Format: "TV", StartDate: r.start}
+		if i > 0 {
+			item.Relations = append(item.Relations, AnimeRelation{ID: rows[i-1].id, RelationType: "PREQUEL"})
+		}
+		if i < len(rows)-1 {
+			item.Relations = append(item.Relations, AnimeRelation{ID: rows[i+1].id, RelationType: "SEQUEL"})
+		}
+		s.detailC.Put(context.Background(), strconv.Itoa(r.id), item, time.Hour)
+	}
+	f, err := s.GetFranchise(context.Background(), 101280)
+	if err != nil || len(f.Seasons) != len(rows) {
+		t.Fatalf("%+v %v", f, err)
+	}
+	for i, r := range rows {
+		got := f.Seasons[i]
+		if got.ID != r.id || got.SeasonName != r.label || got.SeasonNumber != r.season {
+			t.Errorf("%d: got %q (season %d), want %q (season %d)", r.id, got.SeasonName, got.SeasonNumber, r.label, r.season)
+		}
+	}
 }
 
 func TestEpisodeSchedulePreservesConfirmedDates(t *testing.T) {

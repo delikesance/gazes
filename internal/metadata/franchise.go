@@ -6,10 +6,13 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gazes/gazes/internal/kv"
 )
+
+var regexpPartNumbers = regexp.MustCompile(`(?i)\b(?:part|partie|cour)\s*(\d+)(?:\s*(?:&|and|et)\s*(\d+))?\b`)
 
 var regexpSeasonNumber = regexp.MustCompile(`(?i)\b(?:season|saison|s)\s*(\d+)\b|\b(\d+)(?:st|nd|rd|th)\s+season`)
 
@@ -192,11 +195,11 @@ func (s *AnimeCatalogService) buildFranchise(ctx context.Context, id int) (*Fran
 					n = number
 				}
 			}
-			entry.SeasonName = fmt.Sprintf("Saison %d — %s", entry.SeasonNumber, entry.Title)
 		} else {
 			entry.SeasonName = entry.Title
 		}
 	}
+	labelMainSeasons(seasons, canonical)
 	for i := range seasons {
 		seasons[i].ReleaseSeasonNumber = ReleaseSeasonNumber(seasons[i].Title, canonical.DisplayTitle, seasons[i].SeasonNumber)
 	}
@@ -227,4 +230,59 @@ func (s *AnimeCatalogService) buildFranchise(ctx context.Context, id int) (*Fran
 		}
 	}
 	return f, nil
+}
+
+// labelMainSeasons gives each main entry a short label that stays distinct when split parts
+// share a SeasonNumber, and keeps the title only for renamed continuations.
+func labelMainSeasons(seasons []AnimeSeason, canonical *AnimeCatalogItem) {
+	titles := func(title string, aliases []string) []string {
+		all := []string{title}
+		for _, alias := range aliases {
+			if alias != "" {
+				all = append(all, alias)
+			}
+		}
+		return all
+	}
+	canonicalTitles := map[string]bool{}
+	for _, title := range titles(canonical.DisplayTitle, canonical.Aliases) {
+		canonicalTitles[strings.ToLower(CleanFranchiseTitle(title))] = true
+	}
+	perSeason := map[int]int{}
+	for _, entry := range seasons {
+		if entry.Group == "main" {
+			perSeason[entry.SeasonNumber]++
+		}
+	}
+	position := map[int]int{}
+	for i := range seasons {
+		entry := &seasons[i]
+		if entry.Group != "main" {
+			continue
+		}
+		position[entry.SeasonNumber]++
+		label := fmt.Sprintf("Saison %d", entry.SeasonNumber)
+		entryTitles := titles(entry.Title, entry.Aliases)
+		if perSeason[entry.SeasonNumber] > 1 {
+			part := fmt.Sprintf(" · Partie %d", position[entry.SeasonNumber])
+			for _, title := range entryTitles {
+				if match := regexpPartNumbers.FindStringSubmatch(title); match != nil {
+					part = " · Partie " + match[1]
+					if match[2] != "" {
+						part = fmt.Sprintf(" · Parties %s et %s", match[1], match[2])
+					}
+					break
+				}
+			}
+			label += part
+		}
+		known := false
+		for _, title := range entryTitles {
+			known = known || canonicalTitles[strings.ToLower(CleanFranchiseTitle(title))]
+		}
+		if !known {
+			label += " — " + entry.Title
+		}
+		entry.SeasonName = label
+	}
 }
