@@ -25,13 +25,15 @@ function Header({ query = "", initialGenre = "", onSubmit }: { query?: string; i
   const genre=picked??initialGenre;
   const [filterOpen,setFilterOpen]=useState(false);
   const searchButton=useRef<HTMLButtonElement>(null);
-  const closeSearch=()=>{setFilterOpen(false);setSearchOpen(false);searchButton.current?.focus();};
+  // Every way of closing the search (X, Escape, blur, submit) must also reset the filter panel and the picked genre.
+  const resetSearch=()=>{setSearchOpen(false);setFilterOpen(false);setGenre(null);};
+  const closeSearch=()=>{resetSearch();searchButton.current?.focus();};
   return <header className={`catalog-toolbar catalog-header page-inset${searchOpen?" search-open":""}`} aria-label={t("Navigation principale")}>
     <Link href="/" className="site-wordmark" aria-label={t("Gazes, accueil")}>gazes<span>.</span></Link>
     <div ref={breadcrumbSlot} id="header-breadcrumb" className="header-breadcrumb-slot" />
     <div className="header-actions">
       <button ref={searchButton} type="button" className="header-search-toggle" aria-label={t("Rechercher")} aria-expanded={searchOpen} aria-controls="header-search-form" onClick={()=>setSearchOpen(true)}><Search size={18} aria-hidden="true" /></button>
-      {searchOpen&&<form id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)setSearchOpen(false);}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen)setFilterOpen(false);else closeSearch();}}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setSearchOpen(false);}}>
+      {searchOpen&&<form id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen)setFilterOpen(false);else closeSearch();}}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))resetSearch();}}>
         <Search size={18} aria-hidden="true" />
         <input autoFocus name="q" aria-label={t("Rechercher un anime")} defaultValue={query} placeholder={t("Rechercher un anime…")} />
         <input type="hidden" name="genre" value={genre} />
@@ -59,16 +61,10 @@ export function SiteHeaderFallback() { return <Header />; }
 
 export function SiteHeader() {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [genre, setGenre] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setQuery(params.get("q") || "");
-      setGenre(params.get("genre") || "");
-    }
-  }, []);
+  // Read from the URL on every navigation, so the search box always reflects the page being shown.
+  const params = useSearchParams();
+  const query = params.get("q") || "";
+  const genre = params.get("genre") || "";
 
   return <Header query={query} initialGenre={genre} onSubmit={event => {
     event.preventDefault();
