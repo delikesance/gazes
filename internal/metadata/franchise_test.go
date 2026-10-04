@@ -75,6 +75,22 @@ func TestEpisodeListIgnoresOtherSeasonsProviderEpisodes(t *testing.T) {
 	}
 }
 
+func TestEpisodeListRebasesAbsoluteProviderNumbering(t *testing.T) {
+	m := aniListMediaItem{ID: 1, Episodes: 3, Status: "FINISHED"}
+	for _, title := range []string{"Episode 10.5 - Special", "Episode 10 - Prologue", "Episode 11 - One", "Episode 12 - Two", "Episode 13 - Three"} {
+		m.StreamingEpisodes = append(m.StreamingEpisodes, struct {
+			Title     string `json:"title"`
+			Thumbnail string `json:"thumbnail"`
+			URL       string `json:"url"`
+			Site      string `json:"site"`
+		}{Title: title})
+	}
+	item := formatCatalogItem(&m, true)
+	if len(item.EpisodeList) != 3 || item.EpisodeList[0].Title != "Episode 11 - One" || item.EpisodeList[2].Title != "Episode 13 - Three" {
+		t.Fatalf("absolute numbering not rebased onto 1..3: %+v", item.EpisodeList)
+	}
+}
+
 func TestSplitPartsKeepCanonicalSeason(t *testing.T) {
 	s := NewAnimeCatalogService(nil)
 	a := &AnimeCatalogItem{ID: 1, DisplayTitle: "Example Season 1", Format: "TV", StartDate: "2020-01-01", Relations: []AnimeRelation{{ID: 2, RelationType: "SEQUEL"}}}
