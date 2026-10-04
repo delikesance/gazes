@@ -65,6 +65,7 @@ type AnimeCatalogItem struct {
 	StartDate         string          `json:"start_date,omitempty"`
 	Aliases           []string        `json:"aliases,omitempty"`
 	ID                int             `json:"id"`
+	MalID             int             `json:"mal_id,omitempty"`
 	MediaTitle        string          `json:"media_title,omitempty"`
 	MediaID           int             `json:"media_id,omitempty"`
 	MediaPosterImage  string          `json:"media_poster_image,omitempty"`
@@ -115,6 +116,9 @@ type AnimeCatalogService struct {
 	detailC    *kv.Cache[AnimeCatalogItem]
 	franchiseC *kv.Cache[Franchise]
 	scheduleC  *kv.Cache[ScheduleResponse]
+	aniskipC   *kv.Cache[[]SkipSegment]
+
+	aniskipBaseURL string
 }
 
 // NewAnimeCatalogService creates a catalog service with process-local caches; call SetRedis to
@@ -123,7 +127,7 @@ func NewAnimeCatalogService(client *http.Client) *AnimeCatalogService {
 	if client == nil {
 		client = &http.Client{Timeout: 8 * time.Second}
 	}
-	s := &AnimeCatalogService{anilist: newAnilistClient(client, nil)}
+	s := &AnimeCatalogService{anilist: newAnilistClient(client, nil), aniskipBaseURL: defaultAniskipBaseURL}
 	s.initCaches(nil)
 	return s
 }
@@ -139,6 +143,7 @@ func (s *AnimeCatalogService) initCaches(c *kv.Client) {
 	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail:v2", kv.CacheOptions{L1Max: 512})
 	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v2", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
 	s.scheduleC = kv.NewCache[ScheduleResponse](c, "schedule", kv.CacheOptions{L1Max: 64})
+	s.aniskipC = kv.NewCache[[]SkipSegment](c, "aniskip", kv.CacheOptions{L1Max: 512})
 }
 
 const trendingQuery = `
@@ -237,6 +242,7 @@ const animeDetailWithEpisodesQuery = `
 query ($id: Int) {
   Media(id: $id, type: ANIME) {
     id
+    idMal
     title {
       english
       romaji
@@ -509,6 +515,7 @@ func deriveSeasonLabel(title string, format string, seasonIndex int) string {
 }
 
 type aniListMediaItem struct {
+	IDMal     int      `json:"idMal"`
 	Synonyms  []string `json:"synonyms"`
 	StartDate struct {
 		Year  int `json:"year"`
@@ -618,6 +625,7 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 		StartDate:         fmt.Sprintf("%04d-%02d-%02d", m.StartDate.Year, m.StartDate.Month, m.StartDate.Day),
 		Aliases:           append([]string{m.Title.English, m.Title.Romaji, m.Title.Native}, m.Synonyms...),
 		ID:                m.ID,
+		MalID:             m.IDMal,
 		TitleEnglish:      m.Title.English,
 		TitleRomaji:       m.Title.Romaji,
 		TitleNative:       m.Title.Native,
