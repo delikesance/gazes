@@ -34,17 +34,25 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
   // On a search results page the bar stays open; elsewhere it opens on demand.
   const onSearchPage=Boolean(query||initialGenre||initialExclude);
   const searchVisible=searchOpen||onSearchPage;
+  const formRef=useRef<HTMLFormElement>(null);
   const searchButton=useRef<HTMLButtonElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);
   // Every way of closing the search (X, Escape, blur, submit) must also reset the filter panel and the picked genre.
   const resetSearch=()=>{setSearchOpen(false);setFilterOpen(false);setPicked(null);};
   const closeSearch=()=>{resetSearch();searchButton.current?.focus();};
+  // Tapping outside closes the search and the filters. Pointer position, not focus: Safari never focuses a tapped button.
+  useEffect(()=>{
+    if(!searchVisible)return;
+    const onPointerDown=(event:PointerEvent)=>{if(formRef.current&&!formRef.current.contains(event.target as Node)&&!searchButton.current?.contains(event.target as Node))resetSearch();};
+    document.addEventListener("pointerdown",onPointerDown);
+    return()=>document.removeEventListener("pointerdown",onPointerDown);
+  });
   return <header className={`catalog-toolbar catalog-header page-inset${searchVisible?" search-open":""}`} aria-label={t("Navigation principale")}>
     <Link href="/" className="site-wordmark" aria-label={t("Gazes, accueil")}>gazes<span>.</span></Link>
     <div ref={breadcrumbSlot} id="header-breadcrumb" className="header-breadcrumb-slot" />
     <div className="header-actions">
       <button ref={searchButton} type="button" className="header-search-toggle" aria-label={t("Rechercher")} aria-expanded={searchVisible} aria-controls="header-search-form" onClick={()=>setSearchOpen(true)}><Search size={18} aria-hidden="true" /></button>
-      {searchVisible&&<form id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen){setFilterOpen(false);filterButton.current?.focus();}else closeSearch();}}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))resetSearch();}}>
+      {searchVisible&&<form ref={formRef} id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen){setFilterOpen(false);filterButton.current?.focus();}else closeSearch();}}} onBlur={event=>{if(event.relatedTarget&&!event.currentTarget.contains(event.relatedTarget as Node))resetSearch();}}>
         <Search size={18} aria-hidden="true" />
         <input autoFocus={searchOpen} name="q" aria-label={t("Rechercher un anime")} defaultValue={query} placeholder={t("Rechercher un anime…")} />
         <input type="hidden" name="genres" value={include.join(",")} />
