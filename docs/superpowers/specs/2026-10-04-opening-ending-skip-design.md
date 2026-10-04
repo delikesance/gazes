@@ -72,7 +72,9 @@ SkipSegments []SkipSegment `json:"skip_segments,omitempty"`
 ```
 
 Les deux chemins de lecture (HLS via `internal/playback/manager.go`, lecteur classique via
-`internal/api/torrent_handlers.go`) passent par `ProbeReader` : aucun autre point d'intégration backend.
+`internal/api/torrent_handlers.go`) passent par `ProbeReader`. Le pipeline de remux
+(`internal/stream/pipeline_impl.go`), qui sonde à chaque requête de flux et n'utilise que les codecs, ne lit pas
+les chapitres.
 
 ## 2. Détection
 
@@ -101,7 +103,8 @@ Préparation : `End` manquant (0) du dernier chapitre → `duration` ; chapitres
 
 Un titre qui correspond aux deux listes est ignoré. Un segment issu d'un titre doit durer entre 20 et 180 s.
 Si plusieurs chapitres d'un même type correspondent, on garde le premier pour l'opening et le dernier pour
-l'ending.
+l'ending ; pour l'opening, un mot-clé fort (tous sauf `intro` et `introduction`) l'emporte sur `intro` /
+`introduction`, souvent utilisés pour le cold open.
 
 Étape 2 — durée et position, uniquement pour les types non trouvés à l'étape 1 et uniquement parmi les
 chapitres dont le titre ne correspond à aucune des deux listes :
