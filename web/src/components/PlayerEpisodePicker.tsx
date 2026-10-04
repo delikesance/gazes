@@ -61,7 +61,7 @@ export function PlayerEpisodePicker({ episodes, currentEpisode, seasonId, onSele
               <span className="player-episode-thumb relative block aspect-video w-full overflow-hidden bg-zinc-800" style={{ borderRadius: "var(--radius-poster)" }}>
                 {thumb && !failed.has(thumb) && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setFailed(prev => new Set(prev).add(thumb))} />
+                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setFailed(prev => new Set(prev).add(thumb))} ref={(img) => { if (img && img.complete && img.naturalWidth === 0) setFailed(prev => new Set(prev).add(thumb)); }} />
                 )}
                 <span className="player-chip absolute left-2 top-2" style={{ background: "rgba(9,9,11,.6)" }}>EP {episode.episode_number}</span>
                 {current && <span className="player-chip player-chip--solid absolute right-2 top-2">{t("En cours de lecture")}</span>}
