@@ -98,7 +98,7 @@ button:disabled { cursor: default; opacity: .35; }
 .poster-card { position: relative; display: block; overflow: hidden; aspect-ratio: 460 / 650; border-radius: var(--radius-poster); isolation: isolate; background: #18181b; }
 .poster-rail .poster-card { flex: 0 0 clamp(145px, 12.4vw, 185px); scroll-snap-align: start; scroll-margin-inline: var(--page-gutter); }
 .poster-card .poster-art { width: 100%; height: 100%; border: 0; }
-.poster-card img { transition: transform .3s ease; }
+.poster-card img { }
 .poster-card:hover img { transform: scale(1.045); }
 .poster-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.64); padding: 14px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; opacity: 0; transition: opacity .2s; }
 .poster-card:hover .poster-overlay, .poster-card:focus-visible .poster-overlay { opacity: 1; }
@@ -484,9 +484,8 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .history-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 28px 16px; }
 .history-card { display: flex; flex-direction: column; gap: 12px; }
 .history-poster { position: relative; display: block; aspect-ratio: 460 / 650; border-radius: var(--radius-poster); overflow: hidden; background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--border); }
-.history-poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
+.history-poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .history-poster .history-poster-gray { filter: grayscale(1) brightness(.75); }
-.history-card:hover .history-poster img { transform: scale(1.045); }
 .history-play { position: absolute; right: 12px; bottom: 12px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--clay-bg); color: var(--clay-fg); transition: transform .2s ease; }
 .history-card:hover .history-play { transform: scale(1.08); }
 .history-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 8px; }
