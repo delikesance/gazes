@@ -72,7 +72,7 @@ func TestFreeDeletesLeastRecentlyAccessedFirst(t *testing.T) {
 	d := e.pool.disks[e.disk]
 	d.Reserve = 6000
 	e.pool.disks[e.disk] = d
-	freed, err := e.j.Free(e.disk)
+	freed, err := e.j.Free(e.disk, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,6 +90,26 @@ func TestFreeDeletesLeastRecentlyAccessedFirst(t *testing.T) {
 	}
 }
 
+func TestFreeMakesRoomForANeedAboveTheReserve(t *testing.T) {
+	e := newJanitorEnv(t, nil)
+	day := 24 * time.Hour
+	f1 := e.add(t, 1, StateOriginal, 3000, 10*day)
+	f2 := e.add(t, 2, StateAV1, 3000, 5*day)
+	f3 := e.add(t, 3, StateAV1, 3800, 2*day)
+	// 10000 capacity, 9800 used: 200 free is just above the 100 reserve, so the periodic call has nothing to do.
+	if freed, err := e.j.Free(e.disk, 0); err != nil || freed != 0 {
+		t.Fatalf("need 0: freed=%d err=%v", freed, err)
+	}
+	// A 1000 byte download needs 900 more bytes: only the least recently used copy has to go.
+	freed, err := e.j.Free(e.disk, 1000)
+	if err != nil || freed != 3000 {
+		t.Fatalf("need 1000: freed=%d err=%v", freed, err)
+	}
+	if exists(f1) || !exists(f2) || !exists(f3) {
+		t.Fatalf("wrong survivors: %v %v %v", exists(f1), exists(f2), exists(f3))
+	}
+}
+
 func TestFreeSkipsProtectedCopies(t *testing.T) {
 	reading := Key{1, 1, "vf"}
 	e := newJanitorEnv(t, func(k Key) bool { return k == reading })
@@ -100,7 +120,7 @@ func TestFreeSkipsProtectedCopies(t *testing.T) {
 	d := e.pool.disks[e.disk]
 	d.Reserve = 5000
 	e.pool.disks[e.disk] = d
-	freed, err := e.j.Free(e.disk)
+	freed, err := e.j.Free(e.disk, 0)
 	if err != nil || freed != 0 {
 		t.Fatalf("freed=%d err=%v", freed, err)
 	}
@@ -117,7 +137,7 @@ func TestFreeDropsEntryWhenFileAlreadyMissing(t *testing.T) {
 	d := e.pool.disks[e.disk]
 	d.Reserve = 8000 // free 7000 after the removal: first candidate is the missing one, still not enough
 	e.pool.disks[e.disk] = d
-	if _, err := e.j.Free(e.disk); err != nil {
+	if _, err := e.j.Free(e.disk, 0); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.store.Get(Key{1, 1, "vf"}); err != ErrNotFound {
@@ -218,7 +238,7 @@ func TestReconcileAndFreeSkipDiskWithoutMarker(t *testing.T) {
 	if err != nil || rep != (ReconcileReport{}) {
 		t.Fatalf("rep=%+v err=%v", rep, err)
 	}
-	if freed, err := e.j.Free(e.disk); err != nil || freed != 0 {
+	if freed, err := e.j.Free(e.disk, 0); err != nil || freed != 0 {
 		t.Fatalf("freed=%d err=%v", freed, err)
 	}
 	if !exists(orphan) {
@@ -262,7 +282,7 @@ func TestFreeRechecksCandidateBeforeDeleting(t *testing.T) {
 			d.Reserve = 5000
 			e.pool.disks[e.disk] = d
 			e.j.beforeEvict = func(k Key) { mutate(e.j, k) }
-			freed, err := e.j.Free(e.disk)
+			freed, err := e.j.Free(e.disk, 0)
 			if err != nil || freed != 0 || !exists(f1) {
 				t.Fatalf("freed=%d err=%v exists=%v", freed, err, exists(f1))
 			}

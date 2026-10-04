@@ -75,6 +75,19 @@ func TestRegisterRetriesAfterFreeingSpace(t *testing.T) {
 	}
 }
 
+func TestRegisterEvictsWhenFreeSpaceIsOnlyJustAboveTheReserve(t *testing.T) {
+	env := newJanitorEnv(t, nil)
+	old := env.add(t, 8, StateAV1, 4000, 48*time.Hour)
+	keep := env.add(t, 9, StateAV1, 5800, 24*time.Hour) // free 200 > reserve 100, but the new file needs 2000
+	s := newServiceTest(t, env, &fakeFetcher{data: make([]byte, 2000)}, func() time.Time { return janitorNow })
+	if _, created, err := s.Register(7, svcReq(1)); err != nil || !created {
+		t.Fatalf("register: created=%v err=%v", created, err)
+	}
+	if exists(old) || !exists(keep) {
+		t.Fatalf("survivors: old=%v keep=%v", exists(old), exists(keep))
+	}
+}
+
 func TestRegisterNoSpaceWhenNothingEvictable(t *testing.T) {
 	env := newJanitorEnv(t, nil)
 	env.add(t, 9, StateAV1, 9950, 10*time.Minute) // protected: accessed less than an hour ago

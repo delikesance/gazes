@@ -66,6 +66,12 @@ func NewAcquirer(store *Store, pool *Pool, f Fetcher, p Prober, clock func() tim
 		interval: pollInterval, reservations: map[Key]Reservation{}, last: map[Key]progress{}}
 }
 
+// needSpaceError is ErrNoSpace that also says how many bytes the download needed.
+type needSpaceError struct{ need int64 }
+
+func (e needSpaceError) Error() string { return ErrNoSpace.Error() }
+func (e needSpaceError) Unwrap() error { return ErrNoSpace }
+
 // Start begins caching req. It returns the entry and true when a new copy was created. An existing
 // copy (in any state, including UNAVAILABLE) is only touched.
 func (a *Acquirer) Start(req Request) (Entry, bool, error) {
@@ -94,6 +100,9 @@ func (a *Acquirer) Start(req Request) (Entry, bool, error) {
 		return Entry{}, false, err
 	}
 	res, err := a.pool.Reserve(length)
+	if errors.Is(err, ErrNoSpace) {
+		return Entry{}, false, needSpaceError{need: length}
+	}
 	if err != nil {
 		return Entry{}, false, err
 	}
