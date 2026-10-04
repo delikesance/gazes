@@ -23,7 +23,7 @@
 
 ## Review Focus
 
-1. Torrent-backed reader stalls while the chapter reader seeks to a SeekHead target at the end of the file → reading gives up after 5 s and playback metadata is still returned (Task 3 test with a blocking `ReadContext`).
+1. Torrent-backed reader stalls while the chapter reader seeks to a SeekHead target at the end of the file → reading gives up after 1 s and playback metadata is still returned (Task 3 test with a blocking `ReadContext`).
 2. A release whose chapters are "Part A / Part B / Preview" or similar with a ~90 s chapter mid-episode → no false opening/ending (Task 2 table rows).
 3. AniSkip returns timings for another encode of the same episode → rejected by the 3 s duration tolerance (Task 4 test).
 4. HLS session whose `timeline_origin` ≠ 0 → button appears at the right moment (Task 7 verification of the timeline the player compares against).
@@ -122,12 +122,12 @@
   ```go
   func attachChapters(ctx context.Context, logger *slog.Logger, r io.Reader, meta *VideoMetadata)
   ```
-  called by `ProbeReader` right before returning a successful `meta`. No-op if `r` is not an `io.ReadSeeker`; otherwise seek 0, read chapters with a 5 s timeout, seek 0 again; errors logged at Debug and ignored; sets `Chapters` and `SkipSegments = DetectSkipSegments(Chapters, meta.DurationSec)`.
+  called by `ProbeReader` right before returning a successful `meta`. No-op if `r` is not an `io.ReadSeeker`; otherwise seek 0, read chapters with a 1 s timeout, seek 0 again; errors logged at Debug and ignored; sets `Chapters` and `SkipSegments = DetectSkipSegments(Chapters, meta.DurationSec)`.
 
 - [ ] **Step 1: Failing tests**
   - `TestAttachChaptersFillsSegments`: synthetic MKV (titled Opening/Ending) in a `bytes.Reader`, meta with DurationSec 1420 → Chapters len as built, SkipSegments opening+ending; reader position afterwards is 0.
   - `TestAttachChaptersNonSeekable`: `io.Reader` only → meta unchanged.
-  - `TestAttachChaptersGivesUpOnStall`: reader whose `ReadContext` blocks until ctx is done when reading past the header (SeekHead target at end) → returns within ~5 s (use a test hook: make the timeout a package var `chapterReadTimeout` and set it to 50 ms in the test), meta has no chapters, no panic.
+  - `TestAttachChaptersGivesUpOnStall`: reader whose `ReadContext` blocks until ctx is done when reading past the header (SeekHead target at end) → returns within ~1 s (use a test hook: make the timeout a package var `chapterReadTimeout` and set it to 50 ms in the test), meta has no chapters, no panic.
   - `TestAttachChaptersCorrupt`: truncated Chapters → meta has no chapters.
 - [ ] **Step 2: Run, verify fail** — `go test ./internal/metadata/ -run AttachChapters`.
 - [ ] **Step 3: Implement** fields + `attachChapters` + call in `ProbeReader` (both early-return success paths).
