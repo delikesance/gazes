@@ -253,9 +253,22 @@ export function episodePreviewUrl(seasonId: number, episode: number): string {
   return `${getApiBase()}/catalog/seasons/${seasonId}/episodes/${episode}/preview`;
 }
 
-/** Asks the backend to cut the preview from the file being played. Fire and forget. */
-export function requestEpisodePreview(seasonId: number, episode: number, infoHash: string, fileIndex: number, duration: number): void {
-  if (!Number.isFinite(duration) || duration < 120) return;
+/**
+ * Asks the backend to cut the preview from the file being played, then waits for it to appear.
+ * Resolves true when this call got a frame generated, false when one already existed or none came.
+ */
+export async function requestEpisodePreview(seasonId: number, episode: number, infoHash: string, fileIndex: number, duration: number, alive: () => boolean = () => true): Promise<boolean> {
+  if (!Number.isFinite(duration) || duration < 120) return false;
+  const url = episodePreviewUrl(seasonId, episode);
   const query = new URLSearchParams({ ih: infoHash, file_idx: String(fileIndex), duration: String(Math.round(duration)) });
-  void fetch(`${episodePreviewUrl(seasonId, episode)}?${query}`, { method: "POST", keepalive: true }).catch(() => {});
+  try {
+    const started = await fetch(`${url}?${query}`, { method: "POST", keepalive: true });
+    if (started.status !== 202) return false;
+    for (let attempt = 0; attempt < 15 && alive(); attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      if (!alive()) return false;
+      if ((await fetch(url, { cache: "no-store" })).ok) return true;
+    }
+  } catch { /* the preview is a nicety: stay silent */ }
+  return false;
 }

@@ -43,6 +43,7 @@ import {
   Settings,
   List,
   Sun,
+  Image as ImageIcon,
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -646,6 +647,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   // Both engines end up here: once the file's duration is known, have the backend cut the episode's preview frame.
   const previewRequested = useRef("");
+  const previewAlive = useRef(true);
+  const [previewSaved, setPreviewSaved] = useState(false);
+  useEffect(() => { previewAlive.current = true; return () => { previewAlive.current = false; }; }, []);
   useEffect(() => {
     const seasonId = Number(diagnostic?.season_id);
     if (!(seasonId > 0) || !episodeNumber || !loadData || selectedFileIdx < 0 || !videoMeta?.duration_sec) return;
@@ -653,7 +657,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     const key = `${seasonId}:${episodeNumber}:${loadData.info_hash}:${selectedFileIdx}`;
     if (previewRequested.current === key) return;
     previewRequested.current = key;
-    requestEpisodePreview(seasonId, episodeNumber, loadData.info_hash, selectedFileIdx, videoMeta.duration_sec);
+    void requestEpisodePreview(seasonId, episodeNumber, loadData.info_hash, selectedFileIdx, videoMeta.duration_sec, () => previewAlive.current).then(created => {
+      if (!created || !previewAlive.current) return;
+      setPreviewSaved(true);
+      setTimeout(() => { if (previewAlive.current) setPreviewSaved(false); }, 4000);
+    });
   }, [videoMeta, diagnostic?.season_id, episodeNumber, loadData, selectedFileIdx, episodes]);
 
   const handleSubtitleTrackSelect = (trackIdx: number | null) => {
@@ -774,6 +782,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         </button>
         <div className="player-frost player-pill player-episode-pill min-w-0">
           {episodeNumber && <span className="player-chip player-chip--solid">EP {episodeNumber}</span>}
+          {previewSaved && <span role="status" className="player-chip player-chip--solid player-chip--preview"><ImageIcon size={13} aria-hidden="true" /><Check size={13} aria-hidden="true" />{t("Aperçu enregistré")}</span>}
           <h2 className="min-w-0 truncate text-[13px] font-medium" title={animeTitle || item.title}>
             {animeTitle || item.anime_details?.display_title || item.title}
           </h2>
