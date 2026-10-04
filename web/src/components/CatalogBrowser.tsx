@@ -1,4 +1,5 @@
 "use client";
+import { listProgress } from "@/lib/watch-progress";
 import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
@@ -11,7 +12,7 @@ import { SeasonalGrid } from "./SeasonalGrid";
 import { AccountCta } from "./AccountCta";
 import { ReleaseCalendar } from "./ReleaseCalendar";
 import type { CatalogResponse } from "@/types/api";
-import { getCatalogPopular, getCatalogSeasonal, searchCatalog } from "@/lib/api";
+import { getCatalogPopular, getCatalogForYou, getCatalogSeasonal, searchCatalog } from "@/lib/api";
 
 interface CatalogBrowserProps {
   initialData?: CatalogResponse | null;
@@ -20,6 +21,17 @@ interface CatalogBrowserProps {
   initialGenre?: string;
   initialTab?: string;
   initialPage?: number;
+}
+
+/** Anime ids the viewer is watching, most recent first: the seeds of the suggestions feed. */
+function watchedSeeds(): number[] {
+  const ids: number[] = [];
+  for (const item of listProgress()) {
+    const id = item.animeId || item.season;
+    if (id > 0 && !ids.includes(id)) ids.push(id);
+    if (ids.length === 5) break;
+  }
+  return ids;
 }
 
 export function CatalogBrowser({
@@ -45,7 +57,8 @@ export function CatalogBrowser({
   const [featuredUnavailable, setFeaturedUnavailable] = useState(false);
   const discovery = !q && !genre && page === 1;
   // The default discovery tab is the release calendar, which loads its own schedule.
-  const needsData = !(discovery && tab !== "popular");
+  const isSuggestions = tab === "suggestions" || tab === "popular";
+  const needsData = !(discovery && !isSuggestions);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -68,7 +81,7 @@ export function CatalogBrowser({
     let active = true;
     setLoading(true);
     setError("");
-    const request = q || genre ? searchCatalog(q, genre, page, 24) : tab === "popular" ? getCatalogPopular(page, 24) : getCatalogSeasonal(page, 24);
+    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), page, 24) : getCatalogSeasonal(page, 24);
     request.then(result => {
       if (active) {
         setData(result);
@@ -85,7 +98,7 @@ export function CatalogBrowser({
     return () => {
       active = false;
     };
-  }, [q, genre, tab, page, retry, needsData]);
+  }, [q, genre, tab, page, retry, needsData, isSuggestions]);
 
   useEffect(() => {
     if (!discovery) return;
@@ -104,7 +117,7 @@ export function CatalogBrowser({
   const featured = discovery ? (popular?.items || []).filter(anime =>
     anime.status !== "NOT_YET_RELEASED" && (anime.banner_image || anime.media_poster_image || anime.poster_image)) : [];
   const heroLoading = discovery && !popular && !featuredUnavailable;
-  const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && tab !== "popular"} />);
+  const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && !isSuggestions} />);
 
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
@@ -112,12 +125,12 @@ export function CatalogBrowser({
     {discovery && !error && <section className="season-discovery" aria-label={t("Catalogue")}>
       <div className="catalog-tabs-row page-inset">
         <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
-          <button type="button" aria-pressed={tab !== "popular"} onClick={() => update({ tab: "", page: "1" }, false)}>{t("Calendrier")}</button>
-          <button type="button" aria-pressed={tab === "popular"} onClick={() => update({ tab: "popular", page: "1" }, false)}>{t("Les incontournables")}</button>
+          <button type="button" aria-pressed={!isSuggestions} onClick={() => update({ tab: "", page: "1" }, false)}>{t("Calendrier")}</button>
+          <button type="button" aria-pressed={isSuggestions} onClick={() => update({ tab: "suggestions", page: "1" }, false)}>{t("Suggestions")}</button>
         </div>
       </div>
-      {tab === "popular" ? (data && data.items && data.items.length > 0 && <>
-        <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("Catalogue")}</span><h2 id="season-heading" className="serif">{t("Les incontournables")}</h2></div></div>
+      {isSuggestions ? (data && data.items && data.items.length > 0 && <>
+        <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("Suggestions")}</span><h2 id="season-heading" className="serif">{t("Pour vous")}</h2></div></div>
         <SeasonalGrid count={data.items.length}>{cards}</SeasonalGrid>
       </>) : <ReleaseCalendar />}
     </section>}

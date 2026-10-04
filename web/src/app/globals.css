@@ -642,7 +642,7 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 @media (max-width: 900px) { .hero-poster { margin-right: 0; } }
 @media (max-width: 360px) { .anime-hero h1 { font-size: 34px; } }
 
-/* Section tabs (Calendrier / Les incontournables): underlined text tabs, so they read as navigation and not as another set of pill buttons. */
+/* Section tabs (Calendrier / Suggestions): underlined text tabs, so they read as navigation and not as another set of pill buttons. */
 .catalog-tabs-row { margin-top: 28px; }
 .catalog-tabs-row .catalog-tabs { display: flex; gap: 32px; padding: 0; border-radius: 0; background: none; box-shadow: none; border-bottom: 1px solid var(--border); }
 .catalog-tabs-row .catalog-tabs button { height: 46px; padding: 0; margin-bottom: -1px; border-radius: 0; border-bottom: 2px solid transparent; background: none; color: var(--design-muted); font-size: 15px; font-weight: 500; }

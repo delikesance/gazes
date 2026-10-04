@@ -45,7 +45,7 @@ const pairs: [string, string][] = [
  ["Gazes n’héberge pas de vidéos de façon permanente. Les flux proviennent de sources externes.","Gazes does not permanently host videos. Streams come from external sources."],
  ["Gazes — Découvrez votre prochain anime","Gazes — Discover your next anime"],
  ["Découvrez les animes du moment, explorez leurs saisons et regardez vos épisodes sur Gazes.","Discover current anime, explore their seasons and watch your episodes on Gazes."],
- ["Cette saison","This season"],["Les incontournables","All-time favorites"],["Hiver","Winter"],["Printemps","Spring"],["Été","Summer"],["Automne","Autumn"],
+ ["Cette saison","This season"],["Les incontournables","All-time favorites"],["Suggestions","Suggestions"],["Pour vous","For you"],["Hiver","Winter"],["Printemps","Spring"],["Été","Summer"],["Automne","Autumn"],
  ["Animes à découvrir","Discover anime"],["À la une","Featured anime"],["Aucun anime trouvé.","No anime found."],
  ["Source actuelle","Current source"],["Recherche partielle : certaines sources peuvent manquer.","Partial search: some sources may be missing."],
  

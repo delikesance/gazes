@@ -78,6 +78,33 @@ func (s *Server) HandleCatalogPopular(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(res)
 }
 
+// HandleCatalogForYou serves the "suggestions" feed: recommendations from the anime ids a viewer
+// watched (?ids=1,2,3, most recent first) blended with trending and popular titles.
+func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
+	page, perPage := 1, 24
+	if p, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && p > 0 {
+		page = p
+	}
+	if pp, err := strconv.Atoi(r.URL.Query().Get("per_page")); err == nil && pp > 0 {
+		perPage = pp
+	}
+	seeds := []int{}
+	for _, raw := range strings.Split(r.URL.Query().Get("ids"), ",") {
+		if id, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil && id > 0 {
+			seeds = append(seeds, id)
+		}
+	}
+	res, err := s.catalogService.GetForYou(r.Context(), seeds, page, perPage)
+	if err != nil {
+		diagnostics.Logger(r.Context(), s.logger).Error("failed to get suggestions", "err", err)
+		http.Error(w, `{"error": "failed to get suggestions"}`, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(res)
+}
+
 // HandleCatalogSearch handles searching the anime catalog by title and/or genre.
 func (s *Server) HandleCatalogSearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")

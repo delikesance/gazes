@@ -958,6 +958,11 @@ func (s *AnimeCatalogService) doGraphQLPageQuery(ctx context.Context, query stri
 	if len(parsed.Errors) > 0 {
 		return nil, fmt.Errorf("anilist: %s", parsed.Errors[0].Message)
 	}
+	return s.formatPageResponse(ctx, &parsed, variables)
+}
+
+// formatPageResponse turns raw AniList media into catalog items, resolving franchises.
+func (s *AnimeCatalogService) formatPageResponse(ctx context.Context, parsed *aniListPageResponse, variables map[string]interface{}) (*CatalogResponse, error) {
 	// Resolve canonical continuity IDs in parallel with a bounded deadline.
 	// Never merge unrelated works merely because their titles share a prefix.
 	formattedItems := make([]AnimeCatalogItem, len(parsed.Data.Page.Media))
