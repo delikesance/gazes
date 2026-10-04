@@ -292,3 +292,34 @@ func TestFreeRechecksCandidateBeforeDeleting(t *testing.T) {
 		})
 	}
 }
+
+// An unreadable directory (the root-owned lost+found of an ext4 disk) must not abort the reconcile of the
+// rest of the disk.
+func TestReconcileSkipsUnreadableDirs(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permissions do not apply to root")
+	}
+	e := newJanitorEnv(t, nil)
+	for _, name := range []string{"lost+found", "5"} {
+		dir := filepath.Join(e.root, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		os.WriteFile(filepath.Join(dir, "1-vf.mkv"), []byte("x"), 0o644)
+		if err := os.Chmod(dir, 0); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(dir, 0o755) })
+	}
+	orphan := filepath.Join(e.root, "9", "9-vf.mkv")
+	os.MkdirAll(filepath.Dir(orphan), 0o755)
+	os.WriteFile(orphan, []byte("x"), 0o644)
+
+	rep, err := e.j.Reconcile()
+	if err != nil {
+		t.Fatalf("Reconcile aborted on unreadable dir: %v", err)
+	}
+	if rep.OrphanFiles != 1 || exists(orphan) {
+		t.Fatalf("orphan not removed, report = %+v", rep)
+	}
+}
