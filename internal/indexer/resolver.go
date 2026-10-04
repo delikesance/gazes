@@ -679,6 +679,12 @@ func (r *EpisodeResolver) ResolvePlaybackSources(ctx context.Context, identity E
 	return r.resolveSeasonSources(ctx, identity, true)
 }
 
+const (
+	// A handful of seeded matches is enough for playback and failover; the rest of the discovery is skipped.
+	enoughSources = 3
+	enoughSeeders = 3
+)
+
 func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity EpisodeIdentity, playback bool) (*EpisodeSourcesResponse, error) {
 	if len(identity.Titles) == 0 || identity.EpisodeNumber <= 0 {
 		return nil, fmt.Errorf("invalid episode search arguments")
@@ -696,6 +702,26 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 	var wg sync.WaitGroup
 	phaseParent := searchParent
 	searched := map[string]bool{}
+	// stopWhenEnough ends the exhaustive generic phase as soon as a few seeded matches
+	// exist: most of its ~20 query variants return nothing new and each costs a provider slot.
+	stopWhenEnough := false
+	enough := func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		good := 0
+		for _, item := range items {
+			if item.Seeders < enoughSeeders {
+				continue
+			}
+			if matched, _, _ := matcher.Match(item.Title); matched {
+				good++
+				if good >= enoughSources {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	runSearch := func(opts SearchOptions) {
 		searchCtx, cancel := context.WithTimeout(phaseParent, 8*time.Second)
 		defer cancel()
@@ -776,6 +802,12 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 						mu.Unlock()
 						return
 					}
+					if stopWhenEnough && enough() {
+						mu.Lock()
+						truncated = true
+						mu.Unlock()
+						return
+					}
 					runSearch(option)
 				}
 			}()
@@ -809,6 +841,8 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 	}
 	if !ready {
 		runGroup(frenchOptions)
+		wg.Wait()
+		stopWhenEnough = true
 		runGroup(generic)
 	}
 
