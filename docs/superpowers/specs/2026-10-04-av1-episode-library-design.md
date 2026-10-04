@@ -239,7 +239,7 @@ Les écritures concurrentes avec le serveur passent par SQLite (WAL, transaction
   - plage horaire et pause/reprise (horloge et signal injectés).
 - **Intégration**
   - encodage AV1 réel d'une vidéo de test générée (5 s, 2 pistes audio dont une AC3, sous-titres ASS avec police jointe) ; vérification des pistes et de la lecture ;
-  - routes `/stream` et HLS avec `library=` : `206 Partial Content`, `Content-Range`, `Accept-Ranges: bytes` ;
+  - routes `/stream` et HLS avec `ih=<stream_id>` : `206 Partial Content`, `Content-Range`, `Accept-Ranges: bytes` ;
   - `Acquirer` avec un faux moteur torrent : téléchargement complet, épinglage, copie, abandon sur blocage ;
   - pool simulé : dossiers temporaires avec ou sans repère, ajout et retrait pendant l'exécution.
 - **Frontend (`web/scripts/*.test.mjs`)**
