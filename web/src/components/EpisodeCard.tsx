@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { episodePreviewUrl } from "@/lib/api";
 import type { EpisodeInfo } from "@/types/api";
 
 /** Release titles often look like "Episode 7 - The Small Blade - The Battle for Trost (3)": keep the episode name and the arc apart. */
@@ -12,16 +13,18 @@ export function splitEpisodeTitle(raw: string): { title: string | null; subtitle
  return { title: parts[0], subtitle: parts.length > 1 ? parts.slice(1).join(" · ") : null };
 }
 
-export function EpisodeCard({episode, href, current = false}: {episode: EpisodeInfo; href: string; current?: boolean}) {
+export function EpisodeCard({episode, href, current = false, seasonId}: {episode: EpisodeInfo; href: string; current?: boolean; seasonId?: number}) {
  const {t, locale}=useI18n();
  const [failedImage, setFailedImage]=useState<string|null>(null);
- const hasPreview=!!episode.thumbnail && failedImage!==episode.thumbnail;
+ // Without a provider still, show the frame cut from the file when the episode was first played (404 until then).
+ const previewSrc=episode.thumbnail||(seasonId&&!episode.upcoming?episodePreviewUrl(seasonId,episode.episode_number):undefined);
+ const hasPreview=!!previewSrc && failedImage!==previewSrc;
  const {title, subtitle}=splitEpisodeTitle(episode.title);
  const content=<>
   <span className="episode-number">{episode.episode_number}</span>
   {hasPreview&&<div className="episode-preview">
    {/* eslint-disable-next-line @next/next/no-img-element */}
-   <img src={episode.thumbnail} alt="" loading="lazy" onError={()=>setFailedImage(episode.thumbnail!)} />
+   <img src={previewSrc} alt="" loading="lazy" onError={()=>setFailedImage(previewSrc!)} />
   </div>}
   <div className="episode-copy"><div>
    <h2>{title||`${t("Épisode")} ${episode.episode_number}`}</h2>

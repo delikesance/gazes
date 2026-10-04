@@ -247,3 +247,15 @@ export async function getCatalogSeasonal(page = 1, perPage = 24): Promise<Catalo
  if (!response.ok) throw httpError("Impossible de charger les sorties de cette saison.", "CAT", response);
  return response.json();
 }
+
+/** Frame cut from the middle of the episode once someone has played it; 404 until then. */
+export function episodePreviewUrl(seasonId: number, episode: number): string {
+  return `${getApiBase()}/catalog/seasons/${seasonId}/episodes/${episode}/preview`;
+}
+
+/** Asks the backend to cut the preview from the file being played. Fire and forget. */
+export function requestEpisodePreview(seasonId: number, episode: number, infoHash: string, fileIndex: number, duration: number): void {
+  if (!Number.isFinite(duration) || duration < 120) return;
+  const query = new URLSearchParams({ ih: infoHash, file_idx: String(fileIndex), duration: String(Math.round(duration)) });
+  void fetch(`${episodePreviewUrl(seasonId, episode)}?${query}`, { method: "POST", keepalive: true }).catch(() => {});
+}

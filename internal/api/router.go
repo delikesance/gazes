@@ -37,6 +37,8 @@ type Server struct {
 	kv              *kv.Client
 	sourceCache     *sourceCache
 	sourceCacheOnce sync.Once
+	previewStore    *previewStore
+	previewOnce     sync.Once
 	playback        *playback.Manager
 	playbackOnce    sync.Once
 	subtitles       subtitleJobs
@@ -170,6 +172,8 @@ func (s *Server) setupRoutes() {
 			cat.Get("/anime/{id}/franchise", s.HandleFranchise)
 			cat.Get("/anime/{id}/seasons/{season}", s.HandleSeason)
 			cat.Get("/anime/{id}/seasons/{season}/episodes/{ep}/sources", s.HandleSeasonSources)
+			cat.Get("/seasons/{season}/episodes/{ep}/preview", s.HandleEpisodePreview)
+			cat.Post("/seasons/{season}/episodes/{ep}/preview", s.HandleEpisodePreviewCreate)
 			cat.Get("/anime/{id}", s.HandleCatalogAnimeDetail)
 			cat.Get("/anime/{id}/episodes/{ep}/sources", s.HandleEpisodeSources)
 		})
