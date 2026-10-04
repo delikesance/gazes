@@ -2,9 +2,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Clock, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronDown, Clock, Download, LogOut, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "./AuthProvider";
+import { eraseMyWatchLog, exportMyData } from "@/lib/my-data";
 
 /** Header account area: sign-in/up buttons when signed out, avatar menu when signed in. */
 export function AccountMenu() {
@@ -54,6 +55,17 @@ export function AccountMenu() {
             {user.email && <div>{user.email}</div>}
           </div>
           <Link href="/history" role="menuitem" className="account-row"><Clock size={16} aria-hidden="true" />{t("Historique")}</Link>
+          <Link href="/privacy" role="menuitem" className="account-row"><ShieldCheck size={16} aria-hidden="true" />{t("Confidentialité")}</Link>
+          <button type="button" role="menuitem" className="account-row" onClick={async () => { setOpen(false); try { await exportMyData(user.pseudo); } catch { window.alert(t("Impossible d’exporter vos données pour le moment.")); } }}>
+            <Download size={16} aria-hidden="true" />{t("Exporter mes données")}
+          </button>
+          <button type="button" role="menuitem" className="account-row account-danger" onClick={async () => {
+            setOpen(false);
+            if (!window.confirm(t("Effacer votre journal de visionnage et vos « pas intéressé » ? Vos suggestions repartiront de zéro. Cette action est définitive."))) return;
+            try { await eraseMyWatchLog(); } catch { window.alert(t("Impossible d’effacer vos données pour le moment.")); }
+          }}>
+            <Trash2 size={16} aria-hidden="true" />{t("Effacer mon journal")}
+          </button>
           <div className="account-sep" />
           <button type="button" role="menuitem" className="account-row account-danger" onClick={async () => { setOpen(false); await logout(); router.refresh(); }}>
             <LogOut size={16} aria-hidden="true" />{t("Se déconnecter")}

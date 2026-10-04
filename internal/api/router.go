@@ -153,6 +153,7 @@ func (s *Server) setupRoutes() {
 			api.Put("/me/progress", s.auth.PutProgress)
 			api.Get("/me/history", s.auth.GetHistory)
 			api.Put("/me/history", s.auth.PutHistory)
+			api.Delete("/me/history", s.auth.DeleteHistory)
 			api.Get("/me/hidden", s.auth.GetHidden)
 			api.Put("/me/hidden", s.auth.PutHidden)
 		}

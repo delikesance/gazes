@@ -542,3 +542,21 @@ func (s *Service) HiddenFor(r *http.Request) []int64 {
 	ids, _ := s.store.ListHidden(u.ID)
 	return ids
 }
+
+// DeleteHistory erases the account's watch log and "not interested" list.
+func (s *Service) DeleteHistory(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		fail(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !s.sameOrigin(r) {
+		fail(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if err := s.store.DeleteWatchData(u.ID); err != nil {
+		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
+}

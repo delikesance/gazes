@@ -319,3 +319,20 @@ func (s *Store) ListHidden(userID int64) ([]int64, error) {
 	}
 	return out, rows.Err()
 }
+
+// DeleteWatchData erases a user's watch sessions and hidden anime. The account and the resume
+// points (progress) are left alone.
+func (s *Store) DeleteWatchData(userID int64) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM watch_sessions WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hidden_anime WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

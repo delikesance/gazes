@@ -458,3 +458,38 @@ func TestHiddenAnimeAddRemoveAndValidation(t *testing.T) {
 		t.Fatalf("anonymous must be refused, got %d", rr.Code)
 	}
 }
+
+func TestDeleteHistoryErasesLogAndHiddenButKeepsProgress(t *testing.T) {
+	s := newTestService(t)
+	c := sessionCookie(s.post(t, s.Register, "register", map[string]string{"email": "d@example.com", "password": "longenough", "pseudo": "eraser"}))
+	send := func(method string, handler http.HandlerFunc, payload any) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest(method, "/me/x", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(c)
+		rr := httptest.NewRecorder()
+		handler(rr, req)
+		return rr
+	}
+	now := time.Now().Unix()
+	send("PUT", s.PutHistory, map[string]any{"sessions": []WatchSession{{ID: "a", SeasonID: 1, Episode: 1, StartedAt: now - 10, UpdatedAt: now, WatchedSeconds: 60}}})
+	send("PUT", s.PutHidden, map[string]any{"add": []int64{5}})
+	send("PUT", s.PutProgress, map[string]any{"progress": []Progress{{SeasonID: 1, Episode: 1, Position: 60, UpdatedAt: now}}})
+	if rr := send("DELETE", s.DeleteHistory, nil); rr.Code != http.StatusOK {
+		t.Fatalf("delete: %d", rr.Code)
+	}
+	var sessions struct{ Sessions []WatchSession }
+	var hidden struct{ IDs []int64 }
+	var progress struct{ Progress []Progress }
+	_ = json.Unmarshal(send("GET", s.GetHistory, nil).Body.Bytes(), &sessions)
+	_ = json.Unmarshal(send("GET", s.GetHidden, nil).Body.Bytes(), &hidden)
+	_ = json.Unmarshal(send("GET", s.GetProgress, nil).Body.Bytes(), &progress)
+	if len(sessions.Sessions) != 0 || len(hidden.IDs) != 0 || len(progress.Progress) != 1 {
+		t.Fatalf("log and hidden must go, resume points stay: %d %d %d", len(sessions.Sessions), len(hidden.IDs), len(progress.Progress))
+	}
+	anon := httptest.NewRecorder()
+	s.DeleteHistory(anon, httptest.NewRequest("DELETE", "/me/history", nil))
+	if anon.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous must be refused, got %d", anon.Code)
+	}
+}
