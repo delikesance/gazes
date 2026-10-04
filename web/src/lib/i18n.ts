@@ -125,7 +125,7 @@ const pairs: [string, string][] = [
  ["Diffuser","Stream"],["Toutes les équipes","All Groups"],["Rechercher une release…","Search release..."],
  ["Rechercher un anime (ex. Frieren, Dandadan, One Piece)…","Search anime (e.g. Frieren, Dandadan, One Piece)..."],
  ["Moteur BitTorrent","Swarm Engine"],["Releases","Releases"],
- ["À propos de la saison","About this season"],["Année","Year"],["Statut","Status"],["En cours","Ongoing"],["Depuis le début","From the start"],["Les saisons","Seasons"],["Retour à la série","Back to the series"],["Dans cette série","In this series"],["{count} saisons","{count} seasons"],["{count} saison","{count} season"],["En cours de visionnage","In progress"],
+ ["À propos de la saison","About this season"],["Année","Year"],["Statut","Status"],["En cours","Ongoing"],["Depuis le début","From the start"],["Les saisons","Seasons"],["Retour à la série","Back to the series"],["Dans cette série","In this series"],["{count} saisons","{count} seasons"],["{count} saison","{count} season"],["En cours de visionnage","In progress"],["Aperçu enregistré","Preview saved"],
 ];
 const dictionary = new Map<string, { fr: string; en: string }>();
 for (const [fr, en] of pairs) {const value = {fr,en};dictionary.set(fr,value);dictionary.set(en,value);}
