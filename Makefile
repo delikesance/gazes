@@ -41,10 +41,11 @@ deps: ## Download Go modules and install locked frontend dependencies
 
 build: build-backend build-web ## Build the backend binaries and frontend
 
-build-backend: ## Build server and diagnostic CLI into bin/
+build-backend: ## Build server and CLIs into bin/
 	@mkdir -p bin
 	$(GO) build -tags=$(GO_TAGS) -trimpath -o bin/gazes-server ./cmd/server
 	$(GO) build -tags=$(GO_TAGS) -trimpath -o bin/gazes-logs ./cmd/logs
+	$(GO) build -tags=$(GO_TAGS) -trimpath -o bin/gazes-library ./cmd/library
 
 build-web: ## Build the frontend with webpack and subtitle assets
 	$(PNPM) --dir web run build --webpack
