@@ -36,7 +36,23 @@ type SearchOptions struct {
 	Page     int
 	SortBy   string
 	Order    string
+	// Scope restricts which providers MultiProvider queries; the zero value asks them all.
+	Scope ProviderScope
 }
+
+// ProviderScope selects the providers a MultiProvider search is fanned out to. Rate-paced providers
+// (see PacedProvider) can only serve a few requests per resolve, so the resolver sends them a small
+// prioritized subset (ScopePaced) and keeps every other query away from them (ScopeUnpaced).
+type ProviderScope int
+
+const (
+	// ScopeAll queries every provider (default).
+	ScopeAll ProviderScope = iota
+	// ScopeUnpaced skips rate-paced providers.
+	ScopeUnpaced
+	// ScopePaced queries only rate-paced providers.
+	ScopePaced
+)
 
 // Provider defines the interface for torrent indexers.
 type Provider interface {

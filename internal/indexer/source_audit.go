@@ -51,6 +51,25 @@ func NewAuditProvider(provider Provider) *AuditProvider {
 	return &AuditProvider{Provider: provider, items: map[string]TorrentItem{}}
 }
 
+// PacedLimits, Paced and Pacing forward the wrapped MultiProvider's pacing: embedding only the
+// Provider interface would hide them from the resolver's type assertion.
+func (p *AuditProvider) PacedLimits() []Pacing {
+	if src, ok := p.Provider.(interface{ PacedLimits() []Pacing }); ok {
+		return src.PacedLimits()
+	}
+	return nil
+}
+func (p *AuditProvider) Paced(name string) bool {
+	src, ok := p.Provider.(interface{ Paced(string) bool })
+	return ok && src.Paced(name)
+}
+func (p *AuditProvider) Pacing(name string) Pacing {
+	if src, ok := p.Provider.(interface{ Pacing(string) Pacing }); ok {
+		return src.Pacing(name)
+	}
+	return Pacing{}
+}
+
 func (p *AuditProvider) Search(ctx context.Context, opts SearchOptions) ([]TorrentItem, error) {
 	start := time.Now()
 	items, err := p.Provider.Search(ctx, opts)

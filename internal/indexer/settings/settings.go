@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 type Gateway struct {
@@ -21,6 +22,34 @@ type Gateway struct {
 	// IndexerOnly gateways front private trackers: their results are a VF fallback
 	// and their magnets ask the backend to fetch the .torrent (see torznab.SourcePrefix).
 	IndexerOnly bool `json:"indexerOnly,omitempty"`
+	// MaxConcurrent and MinIntervalMs pace calls to the gateway (see indexer.Pacing). Both zero
+	// means "use the built-in default for this gateway name" (defaultPacing); a negative
+	// MinIntervalMs switches pacing off, even for a gateway that has a default.
+	MaxConcurrent int `json:"maxConcurrent,omitempty"`
+	MinIntervalMs int `json:"minIntervalMs,omitempty"`
+}
+
+// defaultPacing is the pacing of gateways that need one and have no explicit configuration.
+// C411 is reached through Prowlarr, whose C411 definition enforces requestDelay 4.1 s: concurrent
+// calls queue inside Prowlarr and time out on our side, so it gets one request at a time, 4.1 s
+// apart. The gateway is identified by its (lower-cased) name "c411", the name the Prowlarr
+// bootstrap (deploy/prowlarr-bootstrap.py) gives it in indexers.json.
+func defaultPacing(name string) indexer.Pacing {
+	if name == "c411" {
+		return indexer.Pacing{MaxConcurrent: 1, MinInterval: 4100 * time.Millisecond}
+	}
+	return indexer.Pacing{}
+}
+
+// pacing resolves a gateway's pacing: explicit configuration wins over the name-based default.
+func (g Gateway) pacing() indexer.Pacing {
+	if g.MaxConcurrent == 0 && g.MinIntervalMs == 0 {
+		return defaultPacing(g.Name)
+	}
+	if g.MinIntervalMs < 0 {
+		return indexer.Pacing{}
+	}
+	return indexer.Pacing{MaxConcurrent: min(max(g.MaxConcurrent, 0), 16), MinInterval: time.Duration(min(g.MinIntervalMs, 60_000)) * time.Millisecond}
 }
 
 var providerName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
@@ -32,6 +61,7 @@ func gatewayProvider(gateway Gateway) (indexer.Provider, error) {
 		return nil, errors.New("invalid private indexer endpoint")
 	}
 	client.IndexerOnly = gateway.IndexerOnly
+	client.Pace = gateway.pacing()
 	return client, nil
 }
 

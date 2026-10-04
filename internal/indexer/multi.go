@@ -29,15 +29,32 @@ type cachedResult struct {
 }
 type providerState struct {
 	provider Provider
-	slots    chan struct{}
-	mu       sync.Mutex
-	cache    map[string]cachedResult
-	pending  map[string]chan struct{}
-	retry    time.Time
-	// With Redis, results and the cooldown are shared by every instance (see SetRedis).
-	rcache *kv.Cache[idxResult]
+	// slots bounds in-flight calls: 2 by default, Pacing.MaxConcurrent (1 when only an interval is set) for paced providers.
+	slots chan struct{}
+	pace  Pacing
+	// paceMu guards nextStart, the earliest start of the next call (MinInterval after the previous start).
+	paceMu    sync.Mutex
+	nextStart time.Time
+	// callTimeout bounds the provider's own answer. It starts once the pacing slot is held, so queueing never eats it.
+	callTimeout time.Duration
+	// maxQueueWait caps a paced call's wait for its slot (see callFor).
+	maxQueueWait time.Duration
+	mu           sync.Mutex
+	cache        map[string]cachedResult
+	pending      map[string]*flight
+	// gov is the circuit breaker (see kv.Governor.Admit): in-process by default, shared across
+	// instances once SetRedis is called.
 	gov    *kv.Governor
+	rcache *kv.Cache[idxResult]
 }
+
+// flight is one in-progress upstream call that identical concurrent queries wait on.
+type flight struct {
+	done chan struct{}
+	err  error
+}
+
+var errCoolingDown = errors.New("provider cooling down")
 
 // idxResult is what the shared cache stores for one provider query.
 type idxResult struct {
@@ -47,15 +64,60 @@ type idxResult struct {
 // MultiProvider keeps provider latency, parallelism and memory bounded independently.
 type MultiProvider struct{ states []*providerState }
 
+// NewMultiProvider wraps the providers. A provider implementing PacedProvider is called
+// one request at a time (or Pacing.MaxConcurrent) with Pacing.MinInterval between call starts.
 func NewMultiProvider(providers ...Provider) *MultiProvider {
 	m := &MultiProvider{}
 	for _, p := range providers {
-		m.states = append(m.states, &providerState{provider: p, slots: make(chan struct{}, 2), cache: map[string]cachedResult{}, pending: map[string]chan struct{}{}})
+		capacity := 2
+		var pace Pacing
+		if pp, ok := p.(PacedProvider); ok {
+			pace = pp.Pacing()
+		}
+		if pace.MaxConcurrent > 0 {
+			capacity = pace.MaxConcurrent
+		} else if pace.MinInterval > 0 {
+			capacity = 1
+		}
+		m.states = append(m.states, &providerState{provider: p, slots: make(chan struct{}, capacity), pace: pace, callTimeout: 4 * time.Second, maxQueueWait: maxQueueWait,
+			cache: map[string]cachedResult{}, pending: map[string]*flight{}, gov: kv.NewLocalGovernor("idx:" + p.Name())})
 	}
 	return m
 }
 
-// SetRedis shares provider results, single-flight and the 429/error cooldown across instances,
+// Paced reports whether the named provider is rate-paced (its calls are serialized or spaced, so
+// a burst of queries is served slowly). The resolver uses it to budget how many queries it sends.
+func (m *MultiProvider) Paced(name string) bool {
+	for _, s := range m.states {
+		if s.provider.Name() == name {
+			return !s.pace.IsZero()
+		}
+	}
+	return false
+}
+
+// PacedLimits lists the pacing of every rate-paced provider (empty when none is paced).
+func (m *MultiProvider) PacedLimits() []Pacing {
+	var out []Pacing
+	for _, s := range m.states {
+		if !s.pace.IsZero() {
+			out = append(out, s.pace)
+		}
+	}
+	return out
+}
+
+// Pacing returns the pacing of the named provider (zero when unpaced or unknown).
+func (m *MultiProvider) Pacing(name string) Pacing {
+	for _, s := range m.states {
+		if s.provider.Name() == name {
+			return s.pace
+		}
+	}
+	return Pacing{}
+}
+
+// SetRedis shares provider results, single-flight and the circuit breaker (kv.HealthPolicy) across instances,
 // so several backends do not multiply the load on the trackers.
 func (m *MultiProvider) SetRedis(c *kv.Client) {
 	for _, s := range m.states {
@@ -77,9 +139,20 @@ func (m *MultiProvider) run(ctx context.Context, o SearchOptions, latest bool) (
 		name  string
 		err   error
 	}
-	ch := make(chan result, len(m.states))
-	remaining := map[string]int{}
+	active := make([]*providerState, 0, len(m.states))
 	for _, s := range m.states {
+		paced := !s.pace.IsZero()
+		if (o.Scope == ScopeUnpaced && paced) || (o.Scope == ScopePaced && !paced) {
+			continue
+		}
+		active = append(active, s)
+	}
+	if len(active) == 0 {
+		return nil, nil
+	}
+	ch := make(chan result, len(active))
+	remaining := map[string]int{}
+	for _, s := range active {
 		remaining[s.provider.Name()]++
 		go func(s *providerState) {
 			items, err := s.search(ctx, o, latest)
@@ -91,7 +164,7 @@ func (m *MultiProvider) run(ctx context.Context, o SearchOptions, latest bool) (
 	causes := map[string]string{}
 	successes := 0
 collect:
-	for range m.states {
+	for range active {
 		select {
 		case <-ctx.Done():
 			// A slow provider must not erase sources already returned by healthy ones.
@@ -177,51 +250,25 @@ func (s *providerState) search(ctx context.Context, o SearchOptions, latest bool
 			diagnostics.Log(ctx, slog.LevelDebug, "provider.cache_hit", "provider", s.provider.Name(), "count", len(items))
 			return items, nil
 		}
-		if time.Now().Before(s.retry) {
-			s.mu.Unlock()
-			diagnostics.Log(ctx, slog.LevelDebug, "provider.cooldown", "provider", s.provider.Name())
-			return nil, fmt.Errorf("provider cooling down")
-		}
-		if wait, ok := s.pending[key]; ok {
+		if f, ok := s.pending[key]; ok {
 			s.mu.Unlock()
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-wait:
+			case <-f.done:
 				diagnostics.Log(ctx, slog.LevelDebug, "provider.coalesced", "provider", s.provider.Name())
+				// An identical query shares the leader's failure instead of hitting the upstream again
+				// (which would also count the same outage several times); the leader giving up does not count.
+				if f.err != nil && !errors.Is(f.err, context.Canceled) && !errors.Is(f.err, context.DeadlineExceeded) {
+					return nil, f.err
+				}
 				continue
 			}
 		}
-		done := make(chan struct{})
-		s.pending[key] = done
+		f := &flight{done: make(chan struct{})}
+		s.pending[key] = f
 		s.mu.Unlock()
-		var items []TorrentItem
-		var err error
-		attempted := false
-		// Waiting is bounded by the resolver deadline, not the network budget.
-		// Otherwise a healthy provider can receive an already-expiring request.
-		var callCtx context.Context
-		cancel := func() {}
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		case s.slots <- struct{}{}:
-			if ctx.Err() != nil {
-				<-s.slots
-				err = ctx.Err()
-				break
-			}
-			callCtx, cancel = context.WithTimeout(ctx, 4*time.Second)
-			attempted = true
-			diagnostics.Log(ctx, slog.LevelDebug, "provider.slot_acquired", "provider", s.provider.Name(), "wait_ms", time.Since(started).Milliseconds())
-			if latest {
-				items, err = s.provider.GetLatest(callCtx, o.Category, o.Page)
-			} else {
-				items, err = s.provider.Search(callCtx, o)
-			}
-			<-s.slots
-		}
-		cancel()
+		items, err := s.call(ctx, o, latest, started)
 		s.mu.Lock()
 		if err == nil {
 			for k, c := range s.cache {
@@ -240,14 +287,207 @@ func (s *providerState) search(ctx context.Context, o SearchOptions, latest bool
 				ttl = 15 * time.Second
 			}
 			s.cache[key] = cachedResult{append([]TorrentItem(nil), items...), time.Now().Add(ttl)}
-		} else if ctx.Err() == nil && attempted {
-			s.retry = time.Now().Add(30 * time.Second)
 		}
+		f.err = err
 		delete(s.pending, key)
-		close(done)
+		close(f.done)
 		s.mu.Unlock()
 		return items, err
 	}
+}
+
+// maxQueueWait bounds how long a paced provider's call may wait for its slot and pacing interval.
+// Past it the resolver that asked is long gone, and sending the query late would only delay the
+// next resolve's own queries.
+const maxQueueWait = 8 * time.Second
+
+var errBusy = errors.New("provider busy")
+
+// claim records a pacing-clock reservation so it can be handed back if the request never goes out.
+type claim struct {
+	prev, at time.Time
+	set      bool
+}
+
+// acquire takes a call slot and, for a paced provider, waits until MinInterval has passed since the
+// previous call started, then claims the next interval. ctx bounds the whole wait; a caller that
+// gives up releases the slot without moving the pacing clock. With nowait (background refreshes) it
+// returns errBusy instead of waiting for the slot or the interval. The caller must release() the claim.
+func (s *providerState) acquire(ctx context.Context, nowait bool) (claim, error) {
+	if nowait {
+		select {
+		case s.slots <- struct{}{}:
+		default:
+			return claim{}, errBusy
+		}
+	} else {
+		select {
+		case <-ctx.Done():
+			return claim{}, ctx.Err()
+		case s.slots <- struct{}{}:
+		}
+	}
+	if ctx.Err() != nil {
+		<-s.slots
+		return claim{}, ctx.Err()
+	}
+	for s.pace.MinInterval > 0 {
+		s.paceMu.Lock()
+		now := time.Now()
+		wait := s.nextStart.Sub(now)
+		if wait <= 0 {
+			c := claim{prev: s.nextStart, at: now.Add(s.pace.MinInterval), set: true}
+			s.nextStart = c.at
+			s.paceMu.Unlock()
+			return c, nil
+		}
+		s.paceMu.Unlock()
+		if nowait {
+			<-s.slots
+			return claim{}, errBusy
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			<-s.slots
+			return claim{}, ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return claim{}, nil
+}
+
+// release frees the slot. A claim whose request never went out (circuit opened meanwhile, caller left)
+// gives its interval back, unless someone else has claimed the clock since.
+func (s *providerState) release(c claim, sent bool) {
+	if c.set && !sent {
+		s.paceMu.Lock()
+		if s.nextStart.Equal(c.at) {
+			s.nextStart = c.prev
+		}
+		s.paceMu.Unlock()
+	}
+	<-s.slots
+}
+
+// call performs one upstream request for the caller whose context is ctx.
+func (s *providerState) call(ctx context.Context, o SearchOptions, latest bool, started time.Time) ([]TorrentItem, error) {
+	return s.callFor(ctx, ctx, o, latest, started)
+}
+
+// callFor performs one upstream request under the circuit breaker and the pacing limits. ctx runs
+// the request (on the shared path it is detached from the caller); caller is who is waiting for it.
+// Waiting for a slot is bounded by ctx; the provider's own timeout (callTimeout) starts only once the
+// slot is held. For a paced provider the wait also ends when caller gives up or after maxQueueWait,
+// so an abandoned query is never sent late, and a background refresh (kv.Background) never waits at
+// all. The outcome is always reported to the breaker and logged, because on the shared path nothing
+// else would show what tripped a cooldown.
+func (s *providerState) callFor(caller, ctx context.Context, o SearchOptions, latest bool, started time.Time) ([]TorrentItem, error) {
+	name := s.provider.Name()
+	paced := !s.pace.IsZero()
+	// Reports must survive the cancellation of the call's own context.
+	report := context.WithoutCancel(ctx)
+	adm := s.gov.Admit(report)
+	if !adm.Allowed {
+		diagnostics.Log(caller, slog.LevelDebug, "provider.cooldown", "provider", name, "remaining_ms", adm.Remaining.Milliseconds())
+		return nil, errCoolingDown
+	}
+	waitCtx := ctx
+	if paced {
+		var cancelQueue, cancelCaller context.CancelFunc
+		waitCtx, cancelQueue = context.WithTimeout(ctx, s.maxQueueWait)
+		defer cancelQueue()
+		waitCtx, cancelCaller = context.WithCancel(waitCtx)
+		defer cancelCaller()
+		if caller != ctx {
+			defer context.AfterFunc(caller, cancelCaller)()
+		}
+	}
+	c, err := s.acquire(waitCtx, paced && kv.IsBackground(ctx))
+	if err != nil {
+		s.gov.Neutral(report, adm.Probe)
+		return nil, err
+	}
+	sent := false
+	defer func() { s.release(c, sent) }()
+	if paced {
+		// Calls that queued behind a failing one must not follow it into an open circuit.
+		if remaining := s.gov.Cooldown(report); remaining > 0 && !adm.Probe {
+			diagnostics.Log(caller, slog.LevelDebug, "provider.cooldown", "provider", name, "remaining_ms", remaining.Milliseconds())
+			return nil, errCoolingDown
+		}
+		if waitCtx.Err() != nil { // the caller left between the claim and the send
+			s.gov.Neutral(report, adm.Probe)
+			return nil, waitCtx.Err()
+		}
+	}
+	sent = true
+	callCtx, cancel := context.WithTimeout(ctx, s.callTimeout)
+	defer cancel()
+	callStarted := time.Now()
+	diagnostics.Log(caller, slog.LevelDebug, "provider.slot_acquired", "provider", name, "wait_ms", callStarted.Sub(started).Milliseconds())
+	var items []TorrentItem
+	if latest {
+		items, err = s.provider.GetLatest(callCtx, o.Category, o.Page)
+	} else {
+		items, err = s.provider.Search(callCtx, o)
+	}
+	s.report(caller, report, err, ctx.Err() != nil, ctx.Err() == nil && callCtx.Err() != nil, adm.Probe, time.Since(callStarted), len(items))
+	return items, err
+}
+
+// report feeds one call's result to the circuit breaker and logs the outcome.
+//
+//	success (even with zero results)   -> closes the breaker, resets the backoff
+//	caller cancelled / gave up         -> neutral: says nothing about the provider
+//	our own call timeout               -> neutral for a paced provider (its queue and delay are
+//	                                      expected to be slow); for an unpaced one a soft failure,
+//	                                      so a tracker that blackholes requests still opens the circuit
+//	HTTP 429, 5xx, 401/403             -> open at once (Retry-After honoured)
+//	anything else                      -> opens after kv.HealthPolicy.Threshold failures in the window
+func (s *providerState) report(logCtx, ctx context.Context, err error, callerGone, ownTimeout, probe bool, took time.Duration, count int) {
+	attrs := []any{"provider", s.provider.Name(), "duration_ms", took.Milliseconds(), "count", count, "probe", probe}
+	if err == nil {
+		s.gov.Success(ctx)
+		diagnostics.Log(logCtx, slog.LevelDebug, "provider.outcome", append(attrs, "class", "ok")...)
+		return
+	}
+	class, status, immediate, retryAfter := classify(err)
+	paced := !s.pace.IsZero()
+	neutral := callerGone || errors.Is(err, context.Canceled) || (ownTimeout && paced)
+	if class == "error" && (ownTimeout || errors.Is(err, context.DeadlineExceeded) || callerGone) {
+		class = "timeout"
+	}
+	attrs = append(attrs, "class", class, "err", err)
+	if status != 0 {
+		attrs = append(attrs, "status", status)
+	}
+	if neutral {
+		s.gov.Neutral(ctx, probe)
+		diagnostics.Log(logCtx, slog.LevelWarn, "provider.outcome", append(attrs, "penalized", false)...)
+		return
+	}
+	cooldown := s.gov.Failure(ctx, immediate, retryAfter)
+	diagnostics.Log(logCtx, slog.LevelWarn, "provider.outcome", append(attrs, "penalized", cooldown > 0, "cooldown_ms", cooldown.Milliseconds())...)
+}
+
+// classify maps a provider error to a class, its HTTP status (0 when none) and whether it opens the
+// circuit immediately, with the upstream's Retry-After.
+func classify(err error) (class string, status int, immediate bool, retryAfter time.Duration) {
+	var he *HTTPError
+	if !errors.As(err, &he) {
+		return "error", 0, false, 0
+	}
+	switch {
+	case he.Status == 429:
+		return "http_429", he.Status, true, he.RetryAfter
+	case he.Status >= 500:
+		return "http_5xx", he.Status, true, he.RetryAfter
+	case he.Status == 401 || he.Status == 403:
+		return "auth", he.Status, true, he.RetryAfter
+	}
+	return "http_4xx", he.Status, false, 0
 }
 
 // searchShared is search() on Redis: one fetch per query across the whole fleet, results kept for
@@ -269,30 +509,8 @@ func (s *providerState) searchShared(ctx context.Context, o SearchOptions, lates
 		},
 	}
 	res, err := s.rcache.Get(ctx, key, policy, func(fetchCtx context.Context) (*idxResult, error) {
-		if s.gov.Cooldown(fetchCtx) > 0 {
-			diagnostics.Log(ctx, slog.LevelDebug, "provider.cooldown", "provider", s.provider.Name())
-			return nil, fmt.Errorf("provider cooling down")
-		}
-		select {
-		case <-fetchCtx.Done():
-			return nil, fetchCtx.Err()
-		case s.slots <- struct{}{}:
-		}
-		defer func() { <-s.slots }()
-		callCtx, cancel := context.WithTimeout(fetchCtx, 4*time.Second)
-		defer cancel()
-		diagnostics.Log(ctx, slog.LevelDebug, "provider.slot_acquired", "provider", s.provider.Name(), "wait_ms", time.Since(started).Milliseconds())
-		var items []TorrentItem
-		var err error
-		if latest {
-			items, err = s.provider.GetLatest(callCtx, o.Category, o.Page)
-		} else {
-			items, err = s.provider.Search(callCtx, o)
-		}
+		items, err := s.callFor(ctx, fetchCtx, o, latest, started)
 		if err != nil {
-			if fetchCtx.Err() == nil {
-				s.gov.Penalize(fetchCtx, 30*time.Second) // every instance backs off together
-			}
 			return nil, err
 		}
 		return &idxResult{Items: items}, nil

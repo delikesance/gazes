@@ -33,7 +33,12 @@ type Governor struct {
 	// Memory-only mode (nil client): the cooldown is local to the process, there is no token bucket.
 	mu           sync.Mutex
 	localBlocked time.Time
+	local        healthState // circuit breaker, see health.go
+	health       HealthPolicy
 }
+
+// NewLocalGovernor is a Governor without Redis: its circuit breaker and cooldown are per process.
+func NewLocalGovernor(name string) *Governor { return &Governor{name: name} }
 
 // NewGovernor allows perMinute sustained calls with bursts up to burst. Waits longer than maxWait
 // are returned as a LimitedError instead of blocking the request.
@@ -42,6 +47,12 @@ func (c *Client) NewGovernor(name string, perMinute, burst int, maxWait time.Dur
 }
 
 type backgroundKey struct{}
+
+// IsBackground reports whether ctx was marked with Background (work nobody is waiting on).
+func IsBackground(ctx context.Context) bool {
+	bg, _ := ctx.Value(backgroundKey{}).(bool)
+	return bg
+}
 
 // Background marks ctx as work nobody is waiting on (cache warming, bulk enrichment). Its calls
 // leave half the burst untouched, so a visitor's request still finds a token right away.
@@ -78,7 +89,7 @@ func (g *Governor) key(suffix string) string { return keyVersion + "gov:" + g.na
 // Acquire takes one token, waiting up to maxWait for it. It fails fast with a LimitedError while a
 // cooldown is active. Redis errors let the call through: the limiter must not become an outage.
 func (g *Governor) Acquire(ctx context.Context) error {
-	if d := g.Cooldown(ctx); d > 0 {
+	if d := g.flatCooldown(ctx); d > 0 {
 		if g.c != nil {
 			g.c.stats.rateLimited.Add(1)
 		}
@@ -129,7 +140,7 @@ func (g *Governor) Penalize(ctx context.Context, d time.Duration) {
 	if g.c == nil {
 		return
 	}
-	if cur := g.Cooldown(ctx); cur >= d {
+	if cur := g.flatCooldown(ctx); cur >= d {
 		return
 	}
 	if err := g.c.rdb.Set(ctx, g.key("cooldown"), 1, d).Err(); err != nil {
@@ -137,8 +148,13 @@ func (g *Governor) Penalize(ctx context.Context, d time.Duration) {
 	}
 }
 
-// Cooldown returns the remaining shared cooldown (0 when none).
+// Cooldown returns the remaining shared cooldown (0 when none): the longer of the flat Penalize
+// cooldown and the circuit breaker's open time. It never takes a half-open probe.
 func (g *Governor) Cooldown(ctx context.Context) time.Duration {
+	return max(g.flatCooldown(ctx), g.healthCooldown(ctx))
+}
+
+func (g *Governor) flatCooldown(ctx context.Context) time.Duration {
 	g.mu.Lock()
 	local := max(0, time.Until(g.localBlocked))
 	g.mu.Unlock()

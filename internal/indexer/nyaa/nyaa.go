@@ -141,7 +141,7 @@ func (c *Client) fetchAndParse(ctx context.Context, reqURL string) ([]indexer.To
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("nyaa returned status %d", resp.StatusCode)
+		return nil, indexer.NewHTTPError(c.Name(), resp)
 	}
 
 	reader := bufio.NewReader(io.LimitReader(resp.Body, 4<<20))
