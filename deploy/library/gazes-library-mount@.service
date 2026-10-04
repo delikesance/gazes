@@ -1,0 +1,10 @@
+[Unit]
+Description=Mount the Gazes library disk labelled %i
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# %i is the label itself (not %I): mount-disk.sh re-validates it before use.
+ExecStart=/usr/local/lib/gazes-library/mount-disk.sh "%i"
+# Lazy so a yanked disk is detached at once; "-" so a failure never fails the unit.
+ExecStop=-/usr/bin/umount -l "/mnt/gazes/%i"

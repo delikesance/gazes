@@ -72,6 +72,8 @@ interface VideoPlayerModalProps {
   onSelectEpisode?: (episode: number) => void;
   failover?: FailoverInfo;
   debugAttempt?: DebugAttempt;
+  /** Called once, when a torrent file (not a library copy) first plays. */
+  onFileResolved?: (infoHash: string, fileIndex: number) => void;
 }
 
 const AMBILIGHT_KEY = "gazes-ambilight";
@@ -117,6 +119,7 @@ function formatTime(seconds: number): string {
 
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   item,
+  onFileResolved,
   onClose,
   animeTitle,
   episodeNumber,
@@ -190,6 +193,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const resumePlaybackRef = useRef(!initialPaused);
   const failureReportedRef = useRef(false);
   const hasStartedRef = useRef(false);
+  const fileResolvedRef = useRef(false);
+  const onFileResolvedRef = useRef(onFileResolved);
+  useEffect(() => { onFileResolvedRef.current = onFileResolved; }, [onFileResolved]);
   const lastProgressRef = useRef({ time: 0, at: 0 });
   const subtitleSelectionRef = useRef(false);
   const audioSelectionRef = useRef(false);
@@ -337,7 +343,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   // Metadata phase: wait as long as the swarm is alive (a connected peer or incoming bytes).
   useEffect(() => {
-    if (!onPlaybackFailure || !item || !loading) return;
+    if (!onPlaybackFailure || !item || !loading || (item as EpisodeSource).library) return;
     const startedAt = Date.now();
     let lastActivity = startedAt;
     let lastBytes = 0;
@@ -372,7 +378,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       const buffered = video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0;
       if (buffered > lastBuffered) lastActivity = now;
       lastBuffered = buffered;
-      if (item && ++tick % 2 === 0) {
+      if (item && !(item as EpisodeSource).library && ++tick % 2 === 0) {
         getTorrentStats(item.info_hash, diagnostic).then((s) => {
           if (lastBytes >= 0 && s.completed_bytes > lastBytes) lastActivity = Date.now();
           lastBytes = s.completed_bytes;
@@ -472,6 +478,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     resumePlaybackRef.current = !initialPaused;
     failureReportedRef.current = false;
     hasStartedRef.current = false;
+    fileResolvedRef.current = false;
     setPlaybackError(null);
     subtitleSelectionRef.current = false;
     audioSelectionRef.current = false;
@@ -482,6 +489,20 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setNeedsFileSelection(false);
     setFileSearch("");
     currentTimeRef.current = 0;
+
+    const library = "library" in item ? (item as EpisodeSource).library : undefined;
+    if (library) {
+      // Library copies are plain files on the server: no swarm, no file matching.
+      setLoadData({ info_hash: library.stream_id, files: [{ index: 0, path: "episode.mkv", length: 0, is_video: true, mime_type: "video/x-matroska" }], main_video_index: 0 });
+      setSelectedFileIdx(0);
+      setNeedsFileSelection(false);
+      setLoading(false);
+      return () => {
+        isMounted = false;
+        diagnosticEvent(diagnostic,"playback.abandoned",{position:playbackOffset+currentTimeRef.current});
+        controller.abort();
+      };
+    }
 
     loadTorrent(item.magnet_uri, {metadataOnly: true, signal:controller.signal,diagnostic})
       .then((data) => {
@@ -520,7 +541,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   // 2. Poll Live Swarm Stats
   useEffect(() => {
-    if (!loadData || !loadData.info_hash) return;
+    if (!loadData || !loadData.info_hash || (item && "library" in item && (item as EpisodeSource).library)) return;
 
     const fetchStats = () => {
       getTorrentStats(loadData.info_hash,diagnostic)
@@ -942,7 +963,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   onPause={(event) => { if (event.currentTarget === videoRef.current) setIsPlaying(false); }}
                   onWaiting={(event) => { if (event.currentTarget === videoRef.current) {setIsBuffering(true);diagnosticEvent(diagnostic,"playback.buffering",{position:playbackOffset+event.currentTarget.currentTime,ready_state:event.currentTarget.readyState});} }}
                   onProgress={() => updateBuffered()}
-                  onPlaying={(event) => { if (event.currentTarget === videoRef.current) { setIsBuffering(false); setStarted(true); } }}
+                  onPlaying={(event) => { if (event.currentTarget === videoRef.current) {
+                    setIsBuffering(false); setStarted(true);
+                    if (!fileResolvedRef.current && loadData && selectedFileIdx >= 0 && !(item && "library" in item && (item as EpisodeSource).library)) {
+                      fileResolvedRef.current = true;
+                      onFileResolvedRef.current?.(loadData.info_hash, selectedFileIdx);
+                    }
+                  } }}
                   onCanPlay={(event) => {
                     if (hlsMode) return;
                     const video = event.currentTarget;

@@ -493,3 +493,26 @@ func TestDeleteHistoryErasesLogAndHiddenButKeepsProgress(t *testing.T) {
 		t.Fatalf("anonymous must be refused, got %d", anon.Code)
 	}
 }
+
+func TestCurrentUserReadsSessionCookie(t *testing.T) {
+	s := newTestService(t)
+	reg := s.post(t, s.Register, "register", map[string]string{"email": "ada@example.com", "password": "correct horse", "pseudo": "ada"})
+	c := sessionCookie(reg)
+	if c == nil {
+		t.Fatalf("register: %d %s", reg.Code, reg.Body)
+	}
+	anon := httptest.NewRequest("GET", "/", nil)
+	if s.CurrentUser(anon) != nil {
+		t.Fatal("anonymous request has a user")
+	}
+	req := httptest.NewRequest("GET", "/", nil)
+	req.AddCookie(c)
+	if u := s.CurrentUser(req); u == nil || u.Pseudo != "ada" || u.ID == 0 {
+		t.Fatalf("user: %+v", u)
+	}
+	bad := httptest.NewRequest("GET", "/", nil)
+	bad.AddCookie(&http.Cookie{Name: cookieName, Value: "forged"})
+	if s.CurrentUser(bad) != nil {
+		t.Fatal("forged cookie accepted")
+	}
+}

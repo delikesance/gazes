@@ -83,6 +83,8 @@ services:
       ACCOUNTS_INDEX_KEY: "${ACCOUNTS_INDEX_KEY:-}"
       ACCOUNTS_PEPPER: "${ACCOUNTS_PEPPER:-}"
       ALTCHA_HMAC_KEY: "${ALTCHA_HMAC_KEY:-}"
+      LIBRARY_POOL_DIR: /app/library-pool
+      LIBRARY_INDEX_DIR: /app/library-index
     # Inbound peer connections (TCP + uTP/DHT). Forward the same port on your router for the best swarm reach.
     ports:
       - "${TORRENT_PORT:-42069}:${TORRENT_PORT:-42069}/tcp"
@@ -93,6 +95,17 @@ services:
       - torrent-data:/app/data
       - torrent-cache:/app/cache
       - accounts:/app/accounts
+      - library-index:/app/library-index
+      # AV1 library pool: disks labelled GAZES* are mounted below /mnt/gazes by the host (make library-install-host).
+      # rshared lets disks plugged in later appear without recreating the container. No `:z` relabel: the Docker
+      # daemon runs without SELinux support. If Docker SELinux is ever enabled, the pool needs container_file_t
+      # (mount option context=system_u:object_r:container_file_t:s0 for exfat/ntfs/vfat, chcon -R -t container_file_t for ext4).
+      - type: bind
+        source: /mnt/gazes
+        target: /app/library-pool
+        bind:
+          propagation: rshared
+          create_host_path: true
     networks: [default, gazes-shared]
     depends_on:
       prowlarr-configure:
@@ -155,5 +168,6 @@ volumes:
   torrent-data:
   torrent-cache:
   accounts:
+  library-index:
   caddy-data:
   caddy-config:

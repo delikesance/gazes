@@ -14,6 +14,7 @@ type cacheEntry struct {
 	bytes    int64
 	lastUsed time.Time
 	active   bool // a reader still holds a priority window
+	pinned   bool // a library download holds at least one file of this torrent
 }
 
 // pickEvictions returns the least recently used idle torrents to drop until the
@@ -24,7 +25,7 @@ func pickEvictions(entries []cacheEntry, max int64, idle time.Duration, now time
 	candidates := make([]cacheEntry, 0, len(entries))
 	for _, entry := range entries {
 		total += entry.bytes
-		if !entry.active && entry.bytes > 0 && now.Sub(entry.lastUsed) >= idle {
+		if !entry.active && !entry.pinned && entry.bytes > 0 && now.Sub(entry.lastUsed) >= idle {
 			candidates = append(candidates, entry)
 		}
 	}
