@@ -98,6 +98,7 @@ func (a *Acquirer) Start(req Request) (Entry, bool, error) {
 		return Entry{}, false, err
 	}
 	if err := a.fetch.DownloadFile(req.InfoHash, req.FileIndex); err != nil {
+		a.fetch.ReleaseFile(req.InfoHash, req.FileIndex)
 		a.pool.Release(res)
 		return Entry{}, false, err
 	}
@@ -215,9 +216,13 @@ func (a *Acquirer) noteError(k Key, err error) {
 
 // abandon drops a stalled download.
 func (a *Acquirer) abandon(e Entry) {
+	if err := a.store.Delete(e.Key); err != nil {
+		// keep the pin, reservation and tracking so the next tick retries the abandon.
+		a.noteError(e.Key, fmt.Errorf("abandon: %w", err))
+		return
+	}
 	a.fetch.ReleaseFile(e.InfoHash, e.FileIndex)
 	a.releaseReservation(e.Key)
-	_ = a.store.Delete(e.Key)
 }
 
 func (a *Acquirer) releaseReservation(k Key) {
