@@ -73,3 +73,21 @@ func TestGatewayPartialMergeAndFrenchRanking(t *testing.T) {
 		t.Fatalf("VF preference or deduplication lost: %+v", result.Sources)
 	}
 }
+
+func TestIndexerOnlyMagnetAsksBackendForTheTorrent(t *testing.T) {
+	h := strings.Repeat("b", 40)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<rss xmlns:torznab="http://torznab.com/schemas/2015/feed"><channel><item><title>Slime S01 VFF</title><enclosure url="http://gateway/download?apikey=secret" length="1"/><torznab:attr name="infohash" value="` + h + `"/><torznab:attr name="magneturl" value="magnet:?xt=urn:btih:` + h + `&amp;tr=https://private.example/announce/passkey"/></item></channel></rss>`))
+	}))
+	defer srv.Close()
+	c, _ := New("c411", srv.URL, "secret")
+	c.IndexerOnly = true
+	items, err := c.Search(context.Background(), indexer.SearchOptions{Query: "Slime"})
+	if err != nil || len(items) != 1 || !items[0].IndexerOnly {
+		t.Fatalf("%+v %v", items, err)
+	}
+	m := items[0].MagnetURI
+	if !strings.Contains(m, "xs=gazes%3Ac411") || strings.Contains(m, "passkey") || strings.Contains(m, "secret") || strings.Contains(m, "tr=") {
+		t.Fatalf("magnet must name the provider and carry no tracker or credential: %s", m)
+	}
+}

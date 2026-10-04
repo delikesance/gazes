@@ -97,6 +97,48 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(api.existing[:4], original)
         self.assertEqual(b.provision(api, "http://prowlarr:9696", "secret"), result)
 
+    def test_ext_is_routed_through_flaresolverr_once(self):
+        api = FakeAPI()
+        api.schemas.append({"implementation": "Cardigann", "definitionName": "ext", "fields": []})
+        calls = []
+        base = api.__call__
+        proxies, tags = [], []
+        def routed(path, payload=None, method=None):
+            calls.append(path)
+            if path == "tag":
+                if payload is None: return tags
+                tags.append(dict(payload, id=7)); return tags[-1]
+            if path == "indexerProxy": return proxies
+            if path == "indexerProxy/schema":
+                return [{"implementation": "FlareSolverr", "fields": [{"name": "host", "value": ""}]}]
+            if path == "indexerProxy?forceSave=true":
+                proxies.append(payload); return payload
+            return base(path, payload, method)
+        first = b.provision(routed, "http://prowlarr:9696", "secret", None, "http://flaresolverr:8191")
+        self.assertEqual({r["name"] for r in first}, {"anidex", "thepiratebay", "ext"})
+        self.assertEqual(proxies[0]["fields"][0]["value"], "http://flaresolverr:8191")
+        self.assertEqual(proxies[0]["tags"], [7])
+        ext = next(i for i in api.existing if i.get("definitionName") == "ext")
+        self.assertEqual(ext["tags"], [7])
+        b.provision(routed, "http://prowlarr:9696", "secret", None, "http://flaresolverr:8191")
+        self.assertEqual(len(proxies), 1)
+        self.assertEqual(len(tags), 1)
+
+    def test_account_tracker_needs_its_key_and_keeps_manual_setup(self):
+        api = FakeAPI()
+        api.schemas.append({"implementation": "Cardigann", "definitionName": "c411",
+                            "fields": [{"name": "apikey", "value": ""}]})
+        self.assertEqual({r["name"] for r in b.provision(api, "http://prowlarr:9696", "k")}, {"anidex", "thepiratebay"})
+        self.assertEqual(api.creates, 2)
+        result = b.provision(api, "http://prowlarr:9696", "k", None, None, {"c411": "tracker-secret"})
+        self.assertEqual({r["name"] for r in result}, {"anidex", "thepiratebay", "c411"})
+        created = next(i for i in api.existing if i.get("definitionName") == "c411")
+        self.assertEqual(created["fields"][0]["value"], "tracker-secret")
+        self.assertNotIn("tracker-secret", json.dumps(result))
+        self.assertEqual([r["name"] for r in result if r.get("indexerOnly")], ["c411"])
+        self.assertEqual(b.provision(api, "http://prowlarr:9696", "k", None, None, {"c411": "other"}), result)
+        self.assertEqual(api.creates, 3)
+
     def test_api_failure_does_not_leak_key(self):
         api = b.API("http://gateway", "sensitive-key")
         with patch.object(b.urllib.request, "urlopen", side_effect=OSError("sensitive-key")):

@@ -18,6 +18,9 @@ type Gateway struct {
 	Name     string `json:"name"`
 	Endpoint string `json:"endpoint"`
 	APIKey   string `json:"apiKey"`
+	// IndexerOnly gateways front private trackers: their results are a VF fallback
+	// and their magnets ask the backend to fetch the .torrent (see torznab.SourcePrefix).
+	IndexerOnly bool `json:"indexerOnly,omitempty"`
 }
 
 var providerName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
@@ -28,6 +31,7 @@ func gatewayProvider(gateway Gateway) (indexer.Provider, error) {
 	if err != nil {
 		return nil, errors.New("invalid private indexer endpoint")
 	}
+	client.IndexerOnly = gateway.IndexerOnly
 	return client, nil
 }
 
@@ -69,7 +73,7 @@ func Providers(getenv func(string) string) ([]indexer.Provider, error) {
 			continue
 		}
 		if endpoint != "" {
-			gateway = Gateway{s.name, endpoint, getenv(prefix + "_API_KEY")}
+			gateway = Gateway{Name: s.name, Endpoint: endpoint, APIKey: getenv(prefix + "_API_KEY")}
 			exists = true
 		}
 		if exists {

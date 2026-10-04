@@ -33,7 +33,9 @@ type Config struct {
 	SonarrSeriesMap  string `json:"-"`
 	RadarrURL        string `json:"radarr_url"`
 	RadarrAPIKey     string `json:"-"`
-	RadarrMovieMap   string `json:"-"`
+	// C411APIKey lets the backend fetch C411 .torrent files for the VF fallback.
+	C411APIKey     string `json:"-"`
+	RadarrMovieMap string `json:"-"`
 	// RedisURL is required: it holds the caches, upstream rate limits and auth state shared by every instance.
 	RedisURL       string `json:"-"`
 	RedisNamespace string `json:"redis_namespace"`
@@ -64,6 +66,7 @@ func Load() *Config {
 		SonarrSeriesMap:      getEnv("SONARR_SERIES_MAP", ""),
 		RadarrURL:            getEnv("RADARR_URL", ""),
 		RadarrAPIKey:         getEnvOrFile("RADARR_API_KEY", "RADARR_API_KEY_FILE"),
+		C411APIKey:           getEnvOrFile("C411_API_KEY", "C411_API_KEY_FILE"),
 		RadarrMovieMap:       getEnv("RADARR_MOVIE_MAP", ""),
 		RedisURL:             getEnv("REDIS_URL", ""),
 		RedisNamespace:       getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis

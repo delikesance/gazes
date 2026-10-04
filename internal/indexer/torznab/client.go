@@ -22,6 +22,8 @@ import (
 type Client struct {
 	NameValue, Endpoint, APIKey string
 	HTTPClient                  *http.Client
+	// IndexerOnly marks every result as discovery-only (see indexer.TorrentItem).
+	IndexerOnly bool
 }
 
 func New(name, endpoint, key string) (*Client, error) {
@@ -69,7 +71,10 @@ func (c *Client) Search(ctx context.Context, o indexer.SearchOptions) ([]indexer
 	}
 	items, err := Parse(io.LimitReader(res.Body, 4<<20), c.Name())
 	for i := range items {
-		if c.APIKey != "" && strings.Contains(items[i].MagnetURI, c.APIKey) {
+		items[i].IndexerOnly = c.IndexerOnly
+		if c.IndexerOnly {
+			items[i].MagnetURI = indexer.PrivateMagnet(items[i])
+		} else if c.APIKey != "" && strings.Contains(items[i].MagnetURI, c.APIKey) {
 			q := url.Values{"xt": {"urn:btih:" + items[i].InfoHash}, "dn": {items[i].Title}}
 			items[i].MagnetURI = "magnet:?" + q.Encode()
 		}

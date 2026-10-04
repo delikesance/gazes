@@ -73,6 +73,12 @@ func main() {
 	torrentCfg.ListenPort = cfg.TorrentPort
 	torrentCfg.CacheMaxBytes = cfg.TorrentCacheMaxBytes
 	torrentCfg.MetainfoDir = filepath.Join(cfg.CacheDir, "metainfo")
+	if cfg.C411APIKey != "" {
+		// C411 names a torrent by its infohash; its .torrent holds the private announce URL.
+		torrentCfg.MetainfoFetchers = map[string]torrent.MetainfoFetcher{
+			"c411": torrent.URLTemplateFetcher(nil, "https://c411.org/api?t=get&id={infohash}&apikey="+cfg.C411APIKey),
+		}
+	}
 	torrentEngine, err := torrent.NewClientEngine(torrentCfg, logger)
 	if err != nil {
 		logger.Error("failed to initialize bittorrent engine", "err", err)

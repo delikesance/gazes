@@ -11,7 +11,11 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 UID = 10001
-TARGETS = (("anidex", "Anidex"), ("thepiratebay", "Cardigann"))
+TARGETS = (("anidex", "Anidex"), ("thepiratebay", "Cardigann"), ("ext", "Cardigann"), ("torrent9", "Cardigann"))
+PROXIED = ("ext", "torrent9")
+# Account-based trackers: provisioned only when their key is present in the environment.
+CREDENTIALS = {"c411": "C411_API_KEY"}
+PROXY_TAG = "flaresolverr"
 
 
 def initialize(directory):
@@ -59,7 +63,33 @@ def matches(resource, name, implementation):
         implementation != "Cardigann" or resource.get("definitionName", "").lower() == name)
 
 
-def provision(api, base, key, pending_path=None):
+def ensure_proxy(api, url):
+    """Return the tag routing indexers through FlareSolverr, or None when it cannot be set up."""
+    if not url:
+        return None
+    tags = api("tag")
+    tag = next((t for t in tags if t.get("label") == PROXY_TAG), None)
+    if any(p.get("implementation") == "FlareSolverr" for p in api("indexerProxy")):
+        return tag["id"] if tag else None
+    schema = next((s for s in api("indexerProxy/schema") if s.get("implementation") == "FlareSolverr"), None)
+    if schema is None:
+        print("Prowlarr proxy definition absent: FlareSolverr", flush=True)
+        return None
+    if tag is None:
+        tag = api("tag", {"label": PROXY_TAG})
+    payload = copy.deepcopy(schema)
+    payload.pop("id", None)
+    payload.update(name="Gazes FlareSolverr", tags=[tag["id"]])
+    for field in payload.get("fields", []):
+        if field["name"] == "host":
+            field["value"] = url
+    api("indexerProxy?forceSave=true", payload)
+    return tag["id"]
+
+
+def provision(api, base, key, pending_path=None, flaresolverr=None, credentials=None):
+    credentials = credentials or {}
+    targets = TARGETS + tuple((n, "Cardigann") for n in credentials)
     schemas = api("indexer/schema")
     existing = api("indexer")
     profiles = api("appprofile")
@@ -67,9 +97,10 @@ def provision(api, base, key, pending_path=None):
     def save_pending():
         if pending_path:
             write_manifest(pending_path, sorted(pending))
+    proxy_tag = ensure_proxy(api, flaresolverr)
     result = []
     exported_ids = set()
-    for name, implementation in TARGETS:
+    for name, implementation in targets:
         found = next((r for r in existing if matches(r, name, implementation)), None)
         if found is None:
             schema = next((s for s in schemas if matches(s, name, implementation)), None)
@@ -82,8 +113,12 @@ def provision(api, base, key, pending_path=None):
             for field in payload.get("fields", []):
                 if field["name"] == "baseUrl" and not field.get("value"):
                     field["value"] = schema["indexerUrls"][0]
+                if field["name"] == "apikey" and name in credentials:
+                    field["value"] = credentials[name]
                 if field["name"] == "torrentBaseSettings.preferMagnetUrl":
                     field["value"] = True
+            if name in PROXIED and proxy_tag is not None:
+                payload["tags"] = [proxy_tag]
             if profiles:
                 payload["appProfileId"] = profiles[0]["id"]
             found = api("indexer?forceSave=true", payload)
@@ -106,10 +141,14 @@ def provision(api, base, key, pending_path=None):
     for resource in sorted(existing, key=lambda row: row["id"]):
         if resource["id"] in exported_ids or not resource.get("enable", False) or resource.get("protocol") != "torrent":
             continue
-        name = next((n for n in ("ext", "magnetdl") if matches(resource, n, "Cardigann") and n not in names),
+        name = next((n for n in ("ext", "torrent9", "c411", "magnetdl") if matches(resource, n, "Cardigann") and n not in names),
                     "prowlarr-" + str(resource["id"]))
         names.add(name)
         result.append({"name": name, "endpoint": base.rstrip("/") + "/" + str(resource["id"]) + "/api", "apiKey": key})
+    # Account trackers consume ratio: Gazes keeps them as a VF fallback (see indexerOnly).
+    for entry in result:
+        if entry["name"] in CREDENTIALS:
+            entry["indexerOnly"] = True
     return result
 
 
@@ -144,7 +183,8 @@ def main():
             if attempt == 59:
                 raise APIError("Prowlarr did not become ready") from None
             time.sleep(2)
-    providers = provision(api, base, key, "/shared/pending.json")
+    providers = provision(api, base, key, "/shared/pending.json", os.getenv("FLARESOLVERR_URL"),
+                           {n: os.environ[v] for n, v in CREDENTIALS.items() if os.getenv(v)})
     write_manifest(os.getenv("INDEXER_CONFIG_FILE", "/shared/indexers.json"), providers)
     print("Prowlarr configured: " + str(len(providers)) + " providers", flush=True)
 
