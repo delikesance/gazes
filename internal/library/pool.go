@@ -350,8 +350,13 @@ func (p *Pool) Under(diskID string) int64 {
 
 // Shortfall returns how many bytes must be freed on the disk so that need bytes can be reserved on it:
 // the larger of Under and need minus the space currently available for reservation (0 if fine or if the
-// disk is absent).
+// disk is absent). With need <= 0 (the periodic janitor pass) it is exactly Under: in-flight reservations
+// are not reduced as their bytes land, so counting them would report a shortfall while the real free
+// space is above the reserve.
 func (p *Pool) Shortfall(diskID string, need int64) int64 {
+	if need <= 0 {
+		return p.Under(diskID)
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	d, ok := p.disks[diskID]

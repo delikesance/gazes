@@ -67,7 +67,7 @@ const pairs: [string, string][] = [
  ["La liste des épisodes n’est pas encore disponible.","The episode list is not available yet."],
  ["La meilleure source est choisie automatiquement. Si elle ne démarre pas ou se bloque, la suivante est essayée.","The best source is selected automatically. If it fails to start or stalls, the next one is tried."],
  ["Certaines informations de saisons sont temporairement indisponibles.","Some season information is temporarily unavailable."],
- ["Toutes les tentatives de lecture ont échoué.","All playback attempts failed."],
+ ["Toutes les tentatives de lecture ont échoué.","All playback attempts failed."], ["La recherche de sources a échoué.","The source search failed."],
  ["La recherche de torrents est incomplète. Réessayez.","The torrent search is incomplete. Please try again."],
  ["Aucun torrent ne correspond à cet épisode.","No torrent matches this episode."],
  ["Les fournisseurs de torrents sont temporairement indisponibles.","Torrent providers are temporarily unavailable."],
