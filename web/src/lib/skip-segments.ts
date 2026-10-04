@@ -25,3 +25,8 @@ export function needsAniSkip(fromChapters: SkipSegment[]): boolean {
 export function skipAction(segment: SkipSegment, totalDuration: number, hasNextEpisode: boolean): 'seek' | 'next-episode' {
   return segment.kind === 'ending' && segment.end >= totalDuration - 5 && hasNextEpisode ? 'next-episode' : 'seek';
 }
+
+/** Moves segments by -offset (HLS timeline origin) without mutating the input. */
+export function shiftSegments(segments: SkipSegment[], offset: number): SkipSegment[] {
+  return segments.map((s) => ({ ...s, start: s.start - offset, end: s.end - offset }));
+}
