@@ -251,3 +251,27 @@ func TestResolveSeasonAndExtrasPack(t *testing.T) {
 		t.Fatalf("incorrect pack classification: %+v", source)
 	}
 }
+
+func TestGenericDiscoveryStopsOnceSeededMatchesExist(t *testing.T) {
+	var mu sync.Mutex
+	searches := 0
+	provider := sourceProvider{search: func(_ context.Context, opts indexer.SearchOptions) ([]indexer.TorrentItem, error) {
+		mu.Lock()
+		searches++
+		mu.Unlock()
+		return []indexer.TorrentItem{
+			{InfoHash: "a", Title: "[Group] Naruto - 01 [1080p]", Seeders: 50},
+			{InfoHash: "b", Title: "[Group] Naruto - 01 [720p]", Seeders: 30},
+			{InfoHash: "c", Title: "[Group] Naruto - 01 [480p]", Seeders: 10},
+		}, nil
+	}}
+	identity := indexer.EpisodeIdentity{Titles: []string{"Naruto"}, SeasonNumber: 1, EpisodeNumber: 1, AllowUnqualified: true}
+	result, err := indexer.NewEpisodeResolver(provider).ResolveSeasonSources(context.Background(), identity)
+	if err != nil || len(result.Sources) != 3 || !result.Partial {
+		t.Fatalf("%+v %v", result, err)
+	}
+	full := len(indexer.FrenchSearchOptions(identity)) + len(indexer.EpisodeSearchQueries(identity))
+	if searches >= full {
+		t.Fatalf("generic phase ran every query (%d searches, %d queued)", searches, full)
+	}
+}
