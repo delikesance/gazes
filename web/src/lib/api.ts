@@ -18,18 +18,23 @@ export function getApiBase(): string {
   return process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/api/v1` : "http://127.0.0.1:8090/api/v1";
 }
 
-/** The backend answers an upstream throttle with 503 + Retry-After: wait that long (at most 10 s) and retry once. */
+/**
+ * The backend answers an upstream (AniList) throttle with 503 + Retry-After. Keep the request pending
+ * through up to two cooldowns of at most 30 s each, so the page shows its loader instead of an error.
+ */
 async function fetchRetryingThrottle(url: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(url, init);
-  if (res.status !== 503) return res;
-  const wait = Number(res.headers.get("Retry-After"));
-  if (!Number.isFinite(wait) || wait <= 0 || wait > 10) return res;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, wait * 1000);
-    init?.signal?.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
-  });
-  if (init?.signal?.aborted) return res;
-  return fetch(url, init);
+  let res = await fetch(url, init);
+  for (let attempt = 0; attempt < 2 && res.status === 503; attempt++) {
+    const wait = Number(res.headers.get("Retry-After"));
+    if (!Number.isFinite(wait) || wait <= 0 || wait > 30) break;
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, wait * 1000);
+      init?.signal?.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
+    });
+    if (init?.signal?.aborted) break;
+    res = await fetch(url, init);
+  }
+  return res;
 }
 
 export async function getCatalogTrending(page: number = 1, perPage: number = 20): Promise<CatalogResponse> {
