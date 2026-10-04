@@ -39,6 +39,16 @@ export async function getCatalogPopular(page: number = 1, perPage: number = 20, 
   return res.json();
 }
 
+/** Suggestions: recommendations from the anime ids a viewer watched (most recent first), blended with trending titles. */
+export async function getCatalogForYou(seedIds: number[], page: number = 1, perPage: number = 24, signal?: AbortSignal): Promise<CatalogResponse> {
+  const ids = seedIds.length ? `&ids=${seedIds.join(",")}` : "";
+  const res = await fetch(`${getApiBase()}/catalog/foryou?page=${page}&per_page=${perPage}${ids}`, { signal });
+  if (!res.ok) {
+    throw httpError("Impossible de charger vos suggestions.", "CAT", res);
+  }
+  return res.json();
+}
+
 export async function searchCatalog(
   query: string = "",
   genre: string = "",

@@ -17,8 +17,8 @@ export default async function Home({
   try {
     if (q || genre) {
       initialData = await searchCatalog(q, genre, page, 24);
-    } else if (tab === "popular") {
-      initialData = await getCatalogPopular(page, 24);
+    } else if (tab === "suggestions" || tab === "popular") {
+      // Personalised from the viewer's local history: loaded in the browser.
     } else if (page > 1) {
       initialData = await getCatalogSeasonal(page, 24);
     }
