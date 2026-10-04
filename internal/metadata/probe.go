@@ -126,7 +126,7 @@ func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalByt
 }
 
 // chapterReadTimeout bounds the chapter read so a swarm stall never delays playback.
-var chapterReadTimeout = 5 * time.Second
+var chapterReadTimeout = time.Second
 
 // attachChapters reads Matroska chapters from the start of r and derives skip segments.
 // Failures are logged and ignored: detection is best-effort and must not block playback.
