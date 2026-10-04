@@ -1,21 +1,25 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { episodePreviewUrl } from "@/lib/api";
 import type { EpisodeInfo } from "@/types/api";
 import { Scribble } from "./ui/Scribble";
 
 interface PlayerEpisodePickerProps {
   episodes: EpisodeInfo[];
   fallbackThumbnail?: string;
+  /** Lets episodes without a provider still show the frame cut when they were first played. */
+  seasonId?: number;
   currentEpisode?: number;
   onSelect: (episode: number) => void;
   onClose: () => void;
 }
 
 /** Frosted rail of episodes that opens above the control dock. */
-export function PlayerEpisodePicker({ episodes, currentEpisode, onSelect, onClose }: PlayerEpisodePickerProps) {
+export function PlayerEpisodePicker({ episodes, currentEpisode, seasonId, onSelect, onClose }: PlayerEpisodePickerProps) {
   const { t } = useI18n();
+  const [failed, setFailed] = useState<Set<string>>(new Set());
   const railRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +47,7 @@ export function PlayerEpisodePicker({ episodes, currentEpisode, onSelect, onClos
       <div ref={railRef} className="relative -m-1 flex gap-4 overflow-x-auto p-1" style={{ scrollbarWidth: "none" }}>
         {episodes.map(episode => {
           const current = episode.episode_number === currentEpisode;
+          const thumb = episode.thumbnail || (seasonId && !episode.upcoming ? episodePreviewUrl(seasonId, episode.episode_number) : undefined);
           return (
             <button
               key={episode.episode_number}
@@ -54,9 +59,9 @@ export function PlayerEpisodePicker({ episodes, currentEpisode, onSelect, onClos
               className="player-episode flex w-[200px] shrink-0 flex-col gap-2 text-left disabled:opacity-40 sm:w-[212px]"
             >
               <span className="player-episode-thumb relative block aspect-video w-full overflow-hidden bg-zinc-800" style={{ borderRadius: "var(--radius-poster)" }}>
-                {episode.thumbnail && (
+                {thumb && !failed.has(thumb) && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={episode.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setFailed(prev => new Set(prev).add(thumb))} />
                 )}
                 <span className="player-chip absolute left-2 top-2" style={{ background: "rgba(9,9,11,.6)" }}>EP {episode.episode_number}</span>
                 {current && <span className="player-chip player-chip--solid absolute right-2 top-2">{t("En cours de lecture")}</span>}
