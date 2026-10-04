@@ -33,6 +33,16 @@ var (
 		"opening", "intro", "introduction", "ouverture",
 		"générique de début", "generique de debut", "opening song", "オープニング",
 	}
+	// strongOpeningKeywords are the opening keywords other than the vague "intro"/"introduction".
+	strongOpeningKeywords = func() []string {
+		var out []string
+		for _, k := range openingKeywords {
+			if k != "intro" && k != "introduction" {
+				out = append(out, k)
+			}
+		}
+		return out
+	}()
 	endingKeywords = []string{
 		"ed", "ed1", "ed2", "ed3", "ed4", "ed5", "ed6", "ed7", "ed8", "ed9",
 		"ending", "outro", "credits",
@@ -67,7 +77,7 @@ func DetectSkipSegments(chapters []Chapter, duration float64) []SkipSegment {
 	}
 
 	var opening, ending *SkipSegment
-	var openingTitled, endingTitled bool
+	var openingTitled, endingTitled, openingStrong bool
 
 	// Step 1: titles.
 	for _, c := range list {
@@ -80,10 +90,13 @@ func DetectSkipSegments(chapters []Chapter, duration float64) []SkipSegment {
 		}
 		seg := SkipSegment{Start: c.Start, End: c.End, Source: skipSourceChapters}
 		if c.isOP {
-			if opening == nil {
+			// A strong keyword beats "intro"/"introduction"; among equals the first wins.
+			strong := matchesKeyword(c.Title, strongOpeningKeywords)
+			if opening == nil || (strong && !openingStrong) {
 				seg.Kind = SkipKindOpening
 				opening = &seg
 				openingTitled = true
+				openingStrong = strong
 			}
 		} else {
 			seg.Kind = SkipKindEnding

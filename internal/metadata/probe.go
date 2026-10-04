@@ -97,8 +97,18 @@ func NewFFprobeAnalyzer(logger *slog.Logger) *FFprobeAnalyzer {
 	}
 }
 
-// ProbeReader inspects an on-the-fly stream using ffprobe to extract video, audio, and subtitle properties.
+// ProbeReader is ProbeStreams plus the chapter read that derives skip segments.
 func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalBytes int64) (*VideoMetadata, error) {
+	meta, err := a.ProbeStreams(ctx, r, totalBytes)
+	if err == nil && meta != nil && (meta.DurationSec > 0 || len(meta.AudioTracks) > 0) {
+		attachChapters(ctx, diagnostics.Logger(ctx, a.logger), r, meta)
+	}
+	return meta, err
+}
+
+// ProbeStreams inspects an on-the-fly stream using ffprobe to extract video, audio, and subtitle
+// properties. It never reads chapters, so callers that only need codecs stay off that path.
+func (a *FFprobeAnalyzer) ProbeStreams(ctx context.Context, r io.Reader, totalBytes int64) (*VideoMetadata, error) {
 	// Header sizes grow in steps: most files describe their tracks in the first 64 KB, while MKVs
 	// with many attached fonts (fansub batches) only list them after several MB. Each step is
 	// bounded and rewinds the reader; a slow swarm never triggers a whole-file scan.
@@ -118,7 +128,6 @@ func (a *FFprobeAnalyzer) ProbeReader(ctx context.Context, r io.Reader, totalByt
 		}
 		meta, err = a.probeReader(ctx, r, totalBytes, limit)
 		if err == nil && (meta.DurationSec > 0 || len(meta.AudioTracks) > 0) {
-			attachChapters(ctx, diagnostics.Logger(ctx, a.logger), r, meta)
 			return meta, nil
 		}
 	}

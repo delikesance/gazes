@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/url"
@@ -100,7 +101,7 @@ func (s *AnimeCatalogService) fetchSkipTimes(ctx context.Context, malID, episode
 		return nil, fmt.Errorf("aniskip: status %d", resp.StatusCode)
 	}
 	var parsed aniskipResponse
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&parsed); err != nil {
 		return nil, fmt.Errorf("aniskip: decode: %w", err)
 	}
 

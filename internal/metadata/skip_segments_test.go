@@ -41,6 +41,8 @@ func TestDetectSkipSegments(t *testing.T) {
 		{"titled 200s", []Chapter{ch(0, 200, "Opening"), ch(200, 700, "A"), ch(700, 1420, "B")}, 1420, nil},
 		{"opening after ending", []Chapter{ch(0, 100, "A"), ch(100, 190, "Ending"), ch(190, 1200, "B"), ch(1200, 1290, "Opening"), ch(1290, 1420, "C")}, 1420, nil},
 		{"last chapter without end", []Chapter{ch(0, 1330, "Main"), ch(1330, 0, "Ending")}, 1420, []SkipSegment{ed(1330, 1420)}},
+		{"strong keyword beats intro", []Chapter{ch(0, 90, "Intro"), ch(90, 180, "Opening"), ch(180, 700, "A"), ch(700, 1420, "B")}, 1420, []SkipSegment{op(90, 180)}},
+		{"intro alone counts", []Chapter{ch(0, 90, "Intro"), ch(90, 700, "A"), ch(700, 1420, "B")}, 1420, []SkipSegment{op(0, 90)}},
 		{"zero duration", titled("Opening", "Ending"), 0, nil},
 		{"titled opening + generic ending", []Chapter{ch(0, 100, "Opening"), ch(100, 1290, "A"), ch(1290, 1380, "Chapter 9"), ch(1380, 1420, "B")}, 1420, both3()},
 	}
