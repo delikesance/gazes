@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/gazes/gazes/internal/cache"
 	"github.com/gazes/gazes/internal/diagnostics"
@@ -235,6 +236,25 @@ func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string
 	}
 
 	return infoHash, fileInfos, nil
+}
+
+// Files lists the files of an already loaded torrent without adding it. The bool is false when the
+// torrent is not loaded or its metadata has not arrived yet.
+func (e *ClientEngine) Files(infoHash string) ([]FileInfo, bool) {
+	if _, err := hex.DecodeString(infoHash); err != nil || len(infoHash) != 40 {
+		return nil, false
+	}
+	t, ok := e.getTorrent(infoHash)
+	if !ok || t.Info() == nil {
+		return nil, false
+	}
+	files := t.Files()
+	out := make([]FileInfo, len(files))
+	for i, f := range files {
+		path := f.DisplayPath()
+		out[i] = FileInfo{Index: i, Path: path, Length: f.Length(), IsVideo: IsVideoFile(path), MimeType: DetectMimeType(path)}
+	}
+	return out, true
 }
 
 // GetFileStream returns a responsive sequential reader for streaming a specific file.
