@@ -799,15 +799,20 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 	// Generate / parse episode list
 	episodes := make([]EpisodeInfo, 0)
 	if len(m.StreamingEpisodes) > 0 {
+		parsed := make([]int, len(m.StreamingEpisodes))
 		for i, sep := range m.StreamingEpisodes {
-			epNum := i + 1
-			var parsedNum int
-			if n, err := fmt.Sscanf(sep.Title, "Episode %d", &parsedNum); err == nil && n == 1 && parsedNum > 0 {
-				epNum = parsedNum
+			parsed[i] = i + 1
+			var n int
+			if c, err := fmt.Sscanf(sep.Title, "Episode %d", &n); err == nil && c == 1 && n > 0 {
+				parsed[i] = n
 			}
+		}
+		offset := streamingEpisodeOffset(parsed, m.Episodes)
+		for i, sep := range m.StreamingEpisodes {
+			epNum := parsed[i] - offset
 			// AniList sometimes attaches another season's provider episodes (absolute numbering,
 			// e.g. 48.5-72 on a 12-episode entry): they are not episodes of this season.
-			if m.Episodes > 0 && epNum > m.Episodes {
+			if epNum < 1 || (m.Episodes > 0 && epNum > m.Episodes) {
 				continue
 			}
 
@@ -863,6 +868,32 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 
 	item.EpisodeList = episodes
 	return item
+}
+
+// streamingEpisodeOffset returns how much to subtract from provider episode numbers when the
+// provider numbers this season absolutely (e.g. 49-72 for a 24-episode season). Rebasing only
+// applies when every number lies beyond the season's total and the listing is about as long as the
+// season itself (one extra entry allowed for a ".5" special): a longer listing belongs to
+// several seasons at once and cannot be attributed to this one.
+func streamingEpisodeOffset(numbers []int, total int) int {
+	if total <= 0 || len(numbers) == 0 {
+		return 0
+	}
+	distinct := make(map[int]struct{}, len(numbers))
+	highest := 0
+	for _, n := range numbers {
+		if n <= total {
+			return 0
+		}
+		distinct[n] = struct{}{}
+		if n > highest {
+			highest = n
+		}
+	}
+	if len(distinct) > total+1 {
+		return 0
+	}
+	return highest - total
 }
 
 // GetTrending returns current trending anime.
