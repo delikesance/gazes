@@ -51,6 +51,30 @@ func TestEpisodeGapsAndDuplicateListings(t *testing.T) {
 	}
 }
 
+func TestEpisodeListIgnoresOtherSeasonsProviderEpisodes(t *testing.T) {
+	m := aniListMediaItem{ID: 1, Episodes: 3, Status: "FINISHED"}
+	for _, title := range []string{"Episode 2 - Real", "Episode 48.5 - Digression", "Episode 49 - Other season", "Episode 72 - Other season"} {
+		m.StreamingEpisodes = append(m.StreamingEpisodes, struct {
+			Title     string `json:"title"`
+			Thumbnail string `json:"thumbnail"`
+			URL       string `json:"url"`
+			Site      string `json:"site"`
+		}{Title: title})
+	}
+	item := formatCatalogItem(&m, true)
+	if len(item.EpisodeList) != 3 {
+		t.Fatalf("got %d episodes, want only 1..3", len(item.EpisodeList))
+	}
+	for i, ep := range item.EpisodeList {
+		if ep.EpisodeNumber != i+1 {
+			t.Fatalf("episode %d out of range or unsorted", ep.EpisodeNumber)
+		}
+	}
+	if item.EpisodeList[1].Title != "Episode 2 - Real" {
+		t.Fatal("in-range provider episode must be kept")
+	}
+}
+
 func TestSplitPartsKeepCanonicalSeason(t *testing.T) {
 	s := NewAnimeCatalogService(nil)
 	a := &AnimeCatalogItem{ID: 1, DisplayTitle: "Example Season 1", Format: "TV", StartDate: "2020-01-01", Relations: []AnimeRelation{{ID: 2, RelationType: "SEQUEL"}}}
