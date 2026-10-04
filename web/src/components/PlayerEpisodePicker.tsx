@@ -14,7 +14,7 @@ interface PlayerEpisodePickerProps {
 }
 
 /** Frosted rail of episodes that opens above the control dock. */
-export function PlayerEpisodePicker({ episodes, fallbackThumbnail, currentEpisode, onSelect, onClose }: PlayerEpisodePickerProps) {
+export function PlayerEpisodePicker({ episodes, currentEpisode, onSelect, onClose }: PlayerEpisodePickerProps) {
   const { t } = useI18n();
   const railRef = useRef<HTMLDivElement>(null);
 
@@ -54,9 +54,9 @@ export function PlayerEpisodePicker({ episodes, fallbackThumbnail, currentEpisod
               className="player-episode flex w-[200px] shrink-0 flex-col gap-2 text-left disabled:opacity-40 sm:w-[212px]"
             >
               <span className="player-episode-thumb relative block aspect-video w-full overflow-hidden bg-zinc-800" style={{ borderRadius: "var(--radius-poster)" }}>
-                {(episode.thumbnail || fallbackThumbnail) && (
+                {episode.thumbnail && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={episode.thumbnail || fallbackThumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  <img src={episode.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
                 )}
                 <span className="player-chip absolute left-2 top-2" style={{ background: "rgba(9,9,11,.6)" }}>EP {episode.episode_number}</span>
                 {current && <span className="player-chip player-chip--solid absolute right-2 top-2">{t("En cours de lecture")}</span>}
