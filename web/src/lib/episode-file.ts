@@ -1,7 +1,7 @@
 import type { EpisodeSource, FileInfo } from "../types/api";
 
 function normalized(value: string): string {
- return value.normalize('NFKD').replace(/(\p{Script=Latin})\p{M}+/gu,'$1').normalize('NFC').toLowerCase().replace(/uu/g,"u").replace(/\b(?:season|saison|part|cour)\s*\d+\b/gi," ").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+ return value.normalize('NFKD').replace(/(\p{Script=Latin})\p{M}+/gu,'$1').normalize('NFC').toLowerCase().replace(/['’`´]/g,"").replace(/uu/g,"u").replace(/\b(?:season|saison|part|cour)\s*\d+\b/gi," ").replace(/[^\p{L}\p{N}]+/gu," ").trim();
 }
 
 /** Avoid original-series files in mixed packs while accepting numbered-only filenames. */
@@ -10,7 +10,9 @@ function matchesSeries(path: string, source: EpisodeSource): boolean {
  // Catalog aliases use "3rd Season" while releases often use S03E01.
  // Compare the series title here; episodeCandidates checks the season separately.
  const seriesKey = (value: string) => normalized(value.replace(/\b\d+(?:st|nd|rd|th)\s+season\b/gi, " "));
- const keys = aliases.map(seriesKey).filter(Boolean);
+ // Releases often drop a catalog subtitle ("KAMUI ---He's behind you" -> "Kamui - S01E01").
+ const withHeads = aliases.flatMap(alias => [alias, alias.split(/\s*(?:-{2,}|[:：]|\s-\s)/)[0]]);
+ const keys = [...new Set(withHeads.map(seriesKey).filter(Boolean))];
  if (!keys.length) return true;
  const firstWords = keys.map(key=>key.split(" ")[0]).filter(word=>word.length>=3);
  for (const segment of path.replace(/\\/g,"/").split("/").reverse()) {
@@ -68,7 +70,7 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
   }
 
   // 2. Scene format: 1x02, 01x02
-  const scene = name.match(/\b0*(\d+)x0*(\d+)(?:v\d+)?\b/i);
+  const scene = name.replace(/\b\d{3,4}x\d{3,4}\b/gi," ").match(/\b0*(\d+)x0*(\d+)(?:v\d+)?\b/i);
   if (scene) {
     return Number(scene[1]) === seasonNum && (Number(scene[2]) === epNum || Number(scene[2]) === absNum);
   }
@@ -91,6 +93,8 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
     .replace(/^\s*\[[^\]]*\]/, " ") // leading release-group tag: a numeric group such as "[224]" is not an episode
     .replace(/\[[0-9A-Fa-f]{8}\]/g, " ")
 	    .replace(/\b(?:8|10|12)[ -]?bits?\b/gi, " ")
+    .replace(/\b\d{3,4}x\d{3,4}\b/gi, " ") // WxH resolution
+    .replace(/\b(?:ddp?|aac|e?ac3|opus|flac|dts(?: hd)?|truehd)\s*\d\s\d\b/gi, " ") // audio channels "DDP 2.0" (dots already spaced)
     .replace(/\b(10bit|8bit|12bit|x264|x265|h264|h265|hevc|avc|2160p|1080p|810p|720p|576p|480p|360p|4k|aac|flac|dts|ac3)\b/gi, " ");
 
   const candidates = [...cleanedName.matchAll(/(?:^|[\s\-\[(])0*(\d{1,4})(?:v\d+)?(?=$|[\s\[\(\)\]-])/gi)]

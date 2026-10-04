@@ -148,3 +148,16 @@ test('a numeric release-group tag is not mistaken for an episode number',()=>{
  const files=[file(0,'OPED/[224] Death Note - OP - 01 [BDRip.1080p.x265.FLAC].mkv'),file(1,'[224] Death Note - 05 [BDRip.1080p.x265.FLAC].mkv'),file(2,'[224] Death Note - 06 [BDRip.1080p.x265.FLAC].mkv')];
  assert.equal(episodeFile(files,{episode_number:6,season_number:1,anime_aliases:['Death Note']}),2);
 });
+
+test('KAMUI single-file releases match despite apostrophes and subtitle-less filenames',()=>{
+ const identity={episode_number:1,season_number:1,anime_aliases:["KAMUI ---He's behind you",'Ushiro no Shoumen Kamui-san'],excluded_titles:['Ushiro no Shoumen Kamui-san Mini Anime']};
+ for(const path of ['KAMUI.Hes.Behind.You.S01E01.REPACK.1080p.UNCENSORED.AMZN.WEB-DL.JPN.DDP2.0.H.264.MSubs-ToonsHub.mkv','[Judas] Kamui - S01E01.mkv','Ushiro no Shoumen Kamui-san - 01 (WEBRip D-Anime ver 1920x1080 x264 AAC RAW).mp4']) assert.equal(episodeFile([file(0,path)],identity),0,path);
+ assert.equal(episodeFile([file(0,'KAMUI.Hes.Behind.You.S01E02.mkv')],identity),null);
+});
+
+test('KAMUI batch and encoder releases select episode 1 without audio-channel or resolution tokens',()=>{
+ const identity={episode_number:1,season_number:1,anime_aliases:["KAMUI ---He's behind you",'Ushiro no Shoumen Kamui-san'],excluded_titles:[]};
+ const batch=[2,1,4].map((n,i)=>file(i,`[Hentai] Ushiro no Shoumen Kamui-san - 0${n}v2 [WEB 1080p DDP 2.0. H 264] (Uncensored).mkv`));
+ assert.equal(episodeFile(batch,identity),1);
+ for(const path of ['[shincaps] Ushiro no Shoumen Kamui-san - 01 (AT-X 1440x1080 MPEG2 AAC).ts','[LoliHouse] Ushiro no Shoumen Kamui-san - 01 [WebRip 1080p HEVC-10bit AAC SRTx2].mkv']) assert.equal(episodeFile([file(0,path)],identity),0,path);
+});
