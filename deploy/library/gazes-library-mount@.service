@@ -1,0 +1,11 @@
+[Unit]
+Description=Mount the Gazes library disk labelled %i
+After=gazes-library-shared.service
+Requires=gazes-library-shared.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# %i is the label itself (not %I): mount-disk.sh re-validates it before use.
+ExecStart=/usr/local/lib/gazes-library/mount-disk.sh "%i"
+ExecStop=/usr/bin/umount "/mnt/gazes/%i"

@@ -484,3 +484,20 @@ network once (`docker network create gazes-shared`), attach its backend to it wi
 `REDIS_URL=redis://:<same password>@gazes-redis:6379/0` and a distinct `REDIS_NAMESPACE`, exactly
 as `compose.yaml` does. The accounts database (SQLite) remains per stack: running several backends
 for one stack needs a shared accounts volume.
+
+## Bibliothèque AV1
+
+Gazes garde une copie locale des épisodes regardés (par saison, épisode et langue) sur des disques dédiés, puis la ré-encode en AV1 pour gagner de la place. Les erreurs de la bibliothèque n'empêchent jamais une lecture torrent.
+
+```bash
+# 1. Une fois, sur l'hôte : prépare /mnt/gazes, la règle udev et les unités systemd
+make library-install-host
+
+# 2. Étiqueter chaque disque (le nom doit commencer par GAZES) ; il est monté automatiquement sur /mnt/gazes/<étiquette>
+make library-label-disk DEV=/dev/sdX1 LABEL=GAZES-1
+
+# 3. Vérifier l'état
+docker compose exec backend gazes-library status
+```
+
+`/mnt/gazes` est monté dans le conteneur en `rshared` : un disque branché plus tard apparaît sans recréer le conteneur. Aucun `:z` n'est nécessaire tant que le démon Docker tourne sans SELinux ; s'il est activé un jour, le pool doit porter le type `container_file_t` (option de montage `context=system_u:object_r:container_file_t:s0` pour exfat/ntfs/vfat, `chcon -R -t container_file_t` pour ext4).
