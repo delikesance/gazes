@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeSkipSegments, activeSkipSegment, needsAniSkip, skipAction } from '../src/lib/skip-segments.ts';
+import { mergeSkipSegments, activeSkipSegment, needsAniSkip, skipAction, shiftSegments } from '../src/lib/skip-segments.ts';
 const seg=(kind,start,end,source='chapters')=>({kind,start,end,source});
 test('merge keeps chapter segments and lets AniSkip fill only missing kinds, sorted by start',()=>{
  const merged=mergeSkipSegments([seg('opening',60,150)],[seg('opening',70,160,'aniskip'),seg('ending',1300,1400,'aniskip')]);
@@ -24,4 +24,13 @@ test('only a closing ending with a next episode jumps to it',()=>{
  assert.equal(skipAction(end,1422,false),'seek');
  assert.equal(skipAction(seg('ending',1290,1380),1420,true),'seek');
  assert.equal(skipAction(seg('opening',1330,1420),1422,true),'seek');
+});
+test('shiftSegments subtracts the origin into new objects and leaves inputs alone',()=>{
+ const input=[seg('opening',120,210),seg('ending',1290,1380,'aniskip')];
+ const shifted=shiftSegments(input,0.08);
+ assert.deepEqual(shifted,[seg('opening',120-0.08,210-0.08),seg('ending',1290-0.08,1380-0.08,'aniskip')]);
+ assert.deepEqual(input,[seg('opening',120,210),seg('ending',1290,1380,'aniskip')]);
+ const same=shiftSegments(input,0);
+ assert.deepEqual(same,input);
+ assert.notEqual(same[0],input[0]);
 });

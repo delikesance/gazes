@@ -14,7 +14,7 @@ import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } fro
 import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
 import { episodeFile, episodeCandidates } from "@/lib/episode-file";
 import { HlsPlaybackController } from "@/lib/hls-playback";
-import { activeSkipSegment, mergeSkipSegments, needsAniSkip, skipAction, type SkipSegment } from "@/lib/skip-segments";
+import { activeSkipSegment, mergeSkipSegments, needsAniSkip, shiftSegments, skipAction, type SkipSegment } from "@/lib/skip-segments";
 import { SkipSegmentButton } from "./SkipSegmentButton";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
@@ -237,7 +237,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     ? `${skipSeasonId}:${episodeNumber}:${loadData.info_hash}:${selectedFileIdx}` : "";
   const skipOrigin = hlsMode ? subtitleOrigin : 0;
   const chapterSkips = React.useMemo(
-    () => (videoMeta?.skip_segments ?? []).map((s) => ({ ...s, start: s.start - skipOrigin, end: s.end - skipOrigin })),
+    () => shiftSegments(videoMeta?.skip_segments ?? [], skipOrigin),
     [videoMeta?.skip_segments, skipOrigin],
   );
   const wantsAniSkip = skipKey !== "" && needsAniSkip(chapterSkips);
@@ -267,6 +267,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     activeSkipRef.current = next;
     setActiveSkip(next);
   }, []);
+  // A paused viewer inside an opening must see the button once late AniSkip results arrive.
+  useEffect(() => {
+    updateActiveSkip(playbackOffset + currentTimeRef.current);
+  }, [skipSegments, playbackOffset, updateActiveSkip]);
   const shownSkip = activeSkip && skipSegments.includes(activeSkip) ? activeSkip : null;
   const shownSkipAction = shownSkip ? skipAction(shownSkip, totalDuration, !!onNextEpisode) : "seek";
 
@@ -598,7 +602,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           toggleMute();
           break;
         case "KeyS":
-          if (!shownSkip) break;
+          if (e.ctrlKey || e.metaKey || e.altKey || !shownSkip) break;
           e.preventDefault();
           runSkip();
           break;
