@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,6 +30,8 @@ type Janitor struct {
 	pool  *Pool
 	inUse func(Key) bool
 	clock func() time.Time
+
+	beforeEvict func(Key) // test hook: runs between listing a candidate and re-checking it
 }
 
 func NewJanitor(store *Store, pool *Pool, inUse func(Key) bool, clock func() time.Time) *Janitor {
@@ -44,7 +47,7 @@ func NewJanitor(store *Store, pool *Pool, inUse func(Key) bool, clock func() tim
 // Free deletes ORIGINAL/AV1 copies of the disk, least recently accessed first, until the disk is back above
 // its reserve. Copies being read, or accessed less than an hour ago, are kept. It returns the bytes freed.
 func (j *Janitor) Free(diskID string) (int64, error) {
-	if j.pool.Under(diskID) <= 0 {
+	if j.pool.Under(diskID) <= 0 || !j.diskVerified(diskID) {
 		return 0, nil
 	}
 	cands, err := j.store.List(Filter{States: []State{StateOriginal, StateAV1}, DiskID: diskID, OrderBy: "last_access_at"})
@@ -58,9 +61,19 @@ func (j *Janitor) Free(diskID string) (int64, error) {
 		if j.pool.Under(diskID) <= 0 {
 			break
 		}
-		if now.Sub(e.LastAccessAt) < protectWindow || j.inUse(e.Key) {
+		if !j.evictable(e, now) {
 			continue
 		}
+		if j.beforeEvict != nil {
+			j.beforeEvict(e.Key)
+		}
+		// Re-read the entry: it may have been touched, encoded or opened since the listing. A tiny window
+		// remains between this check and the removal (a reader can still open the file in between).
+		cur, err := j.store.Get(e.Key)
+		if err != nil || !j.evictable(cur, now) || cur.DiskID != diskID || cur.RelPath != e.RelPath {
+			continue
+		}
+		e = cur
 		path, err := j.pool.Path(e.DiskID, e.RelPath)
 		if err != nil {
 			continue // disk gone or unsafe path: leave the entry alone
@@ -85,9 +98,28 @@ func (j *Janitor) Free(diskID string) (int64, error) {
 	return freed, firstErr
 }
 
-func isTempName(name string) bool {
-	return strings.HasSuffix(name, ".tmp") || strings.HasSuffix(name, ".av1.tmp.mkv")
+func (j *Janitor) evictable(e Entry, now time.Time) bool {
+	return (e.State == StateOriginal || e.State == StateAV1) &&
+		now.Sub(e.LastAccessAt) >= protectWindow && !j.inUse(e.Key)
 }
+
+// diskVerified reports whether the disk is still the one the pool knows: its marker must be readable and
+// carry the expected id (an unmounted disk leaves an empty directory behind).
+func (j *Janitor) diskVerified(diskID string) bool {
+	for _, d := range j.pool.Disks() {
+		if d.ID == diskID {
+			id, err := readMarker(d.Path)
+			return err == nil && id == diskID
+		}
+	}
+	return false
+}
+
+// Names the library creates: final files and the acquirer's / encoder's temporary files.
+var (
+	finalNameRE = regexp.MustCompile(`^\d+/\d+-(vostfr|vf)\.mkv$`)
+	tempNameRE  = regexp.MustCompile(`^\d+/\d+-(vostfr|vf)\.(mkv\.tmp|av1\.tmp\.mkv)$`)
+)
 
 func keyRel(k Key) string { return fmt.Sprintf("%d/%d-%s.mkv", k.SeasonID, k.Episode, k.Lang) }
 
@@ -105,7 +137,12 @@ func (j *Janitor) Reconcile() (ReconcileReport, error) {
 	// Walk first, list entries second: an entry created while walking is then seen as known.
 	type found struct{ disk, rel, full string }
 	var files []found
-	disks := j.pool.Disks()
+	var disks []Disk
+	for _, d := range j.pool.Disks() {
+		if j.diskVerified(d.ID) {
+			disks = append(disks, d)
+		}
+	}
 	for _, d := range disks {
 		note(filepath.WalkDir(d.Path, func(p string, de fs.DirEntry, err error) error {
 			if err != nil {
@@ -155,30 +192,30 @@ func (j *Janitor) Reconcile() (ReconcileReport, error) {
 	for _, f := range files {
 		id := f.disk + "|" + f.rel
 		switch {
-		case isTempName(f.rel):
+		case tempNameRE.MatchString(f.rel):
 			if protected[id] {
 				continue
 			}
-			if err := os.Remove(f.full); err != nil {
+			if err := os.Remove(f.full); err != nil && !errors.Is(err, os.ErrNotExist) {
 				note(err)
 				continue
 			}
 			rep.TempFiles++
-		case known[id]:
-			continue
-		default:
-			if err := os.Remove(f.full); err != nil {
+		case finalNameRE.MatchString(f.rel) && !known[id]:
+			if err := os.Remove(f.full); err != nil && !errors.Is(err, os.ErrNotExist) {
 				note(err)
 				continue
 			}
 			rep.OrphanFiles++
+		default:
+			continue // known copy or a file the library does not own
 		}
 		dirs[filepath.Dir(f.full)] = true
 	}
 	for _, d := range disks {
 		for dir := range dirs {
 			if dir != d.Path && strings.HasPrefix(dir, d.Path+string(filepath.Separator)) {
-				os.Remove(dir) // only succeeds when empty
+				_ = os.Remove(dir) // only succeeds when empty
 			}
 		}
 	}
