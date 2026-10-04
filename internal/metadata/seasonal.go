@@ -3,7 +3,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/gazes/gazes/internal/kv"
 	"sort"
 	"strings"
 	"time"
@@ -29,7 +28,7 @@ func (s *AnimeCatalogService) GetCurrentSeason(ctx context.Context, page, perPag
 	}
 	season, year := catalogSeason(time.Now().UTC())
 	key := fmt.Sprintf("seasonal-%s-%d-%d-%d", season, year, page, perPage)
-	return s.catalogC.Get(ctx, key, kv.Policy[CatalogResponse]{TTL: 30 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
+	return s.catalogC.Get(ctx, key, catalogPolicy(30*time.Minute), func(ctx context.Context) (*CatalogResponse, error) {
 		result, err := s.doGraphQLPageQuery(ctx, seasonalQuery, map[string]interface{}{"page": page, "perPage": perPage, "season": season, "seasonYear": year})
 		if err != nil {
 			return nil, err

@@ -41,22 +41,32 @@ func (c *Client) NewGovernor(name string, perMinute, burst int, maxWait time.Dur
 	return &Governor{c: c, name: name, perMinute: perMinute, burst: burst, maxWait: maxWait}
 }
 
-// bucket: KEYS[1]=state hash; ARGV: rate per ms, burst. Redis TIME keeps every instance on one clock.
+type backgroundKey struct{}
+
+// Background marks ctx as work nobody is waiting on (cache warming, bulk enrichment). Its calls
+// leave half the burst untouched, so a visitor's request still finds a token right away.
+func Background(ctx context.Context) context.Context {
+	return context.WithValue(ctx, backgroundKey{}, true)
+}
+
+// bucket: KEYS[1]=state hash; ARGV: rate per ms, burst, tokens to leave. Redis TIME keeps every
+// instance on one clock.
 var bucketScript = redis.NewScript(`
 local t = redis.call('TIME')
 local now = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
 local rate = tonumber(ARGV[1])
 local burst = tonumber(ARGV[2])
+local need = 1 + tonumber(ARGV[3])
 local s = redis.call('HMGET', KEYS[1], 'tokens', 'ts')
 local tokens = tonumber(s[1])
 local ts = tonumber(s[2])
 if tokens == nil then tokens = burst; ts = now end
 tokens = math.min(burst, tokens + math.max(0, now - ts) * rate)
 local wait = 0
-if tokens >= 1 then
+if tokens >= need then
   tokens = tokens - 1
 else
-  wait = math.ceil((1 - tokens) / rate)
+  wait = math.ceil((need - tokens) / rate)
 end
 redis.call('HSET', KEYS[1], 'tokens', tostring(tokens), 'ts', tostring(now))
 redis.call('PEXPIRE', KEYS[1], 120000)
@@ -78,9 +88,13 @@ func (g *Governor) Acquire(ctx context.Context) error {
 		return nil
 	}
 	rate := float64(g.perMinute) / 60000.0
+	reserve := 0
+	if bg, _ := ctx.Value(backgroundKey{}).(bool); bg {
+		reserve = g.burst / 2
+	}
 	deadline := time.Now().Add(g.maxWait)
 	for {
-		wait, err := bucketScript.Run(ctx, g.c.rdb, []string{g.key("bucket")}, strconv.FormatFloat(rate, 'f', -1, 64), g.burst).Int64()
+		wait, err := bucketScript.Run(ctx, g.c.rdb, []string{g.key("bucket")}, strconv.FormatFloat(rate, 'f', -1, 64), g.burst, reserve).Int64()
 		if err != nil {
 			g.c.stats.errors.Add(1)
 			return nil

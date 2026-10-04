@@ -33,7 +33,7 @@ func (s *Server) startWarmer() {
 }
 
 func (s *Server) warmOnce(ctx context.Context) {
-	ctx = kv.WithRenewWithin(ctx, warmRenewWithin)
+	ctx = kv.Background(kv.WithRenewWithin(ctx, warmRenewWithin))
 	if _, err := s.catalogService.GetPopular(ctx, 1, 12); err != nil {
 		s.logger.Debug("cache.warm_failed", "what", "popular", "err", err)
 	}

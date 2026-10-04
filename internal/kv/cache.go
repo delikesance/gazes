@@ -107,6 +107,9 @@ func WithRenewWithin(ctx context.Context, d time.Duration) context.Context {
 //   - missing: fetched under a distributed lock, others wait for the result;
 //   - fetch fails: the stale value (if any) is returned instead of the error.
 func (ca *Cache[T]) Get(ctx context.Context, key string, p Policy[T], fetch func(context.Context) (*T, error)) (*T, error) {
+	if bg, _ := ctx.Value(backgroundKey{}).(bool); bg {
+		fetch = inBackground(fetch) // fetches run on a detached context
+	}
 	if ca.c == nil {
 		return ca.getLocal(ctx, key, p, fetch)
 	}
@@ -137,7 +140,13 @@ func (ca *Cache[T]) Get(ctx context.Context, key string, p Policy[T], fetch func
 		return entry.val, nil
 	}
 	ca.c.stats.misses.Add(1)
-	res := ca.flight.DoChan(rk, func() (any, error) { return ca.loadShared(rk, key, p, fetch, false) })
+	// A visitor must not join a background load: that one waits for the reserve and may fail on it.
+	flightKey := rk
+	bg, _ := ctx.Value(backgroundKey{}).(bool)
+	if bg {
+		flightKey = "bg:" + rk
+	}
+	res := ca.flight.DoChan(flightKey, func() (any, error) { return ca.loadShared(rk, key, p, fetch, false, bg) })
 	select {
 	case r := <-res:
 		if r.Err != nil {
@@ -186,6 +195,21 @@ func (ca *Cache[T]) Put(ctx context.Context, key string, v *T, ttl time.Duration
 	ca.l1.put(key, v, min(ca.opts.L1TTL, ttl))
 }
 
+// Peek returns the stored value for key, even a stale one, without ever fetching it.
+func (ca *Cache[T]) Peek(ctx context.Context, key string) (*T, bool) {
+	if v, ok := ca.l1.get(key); ok {
+		return v, true
+	}
+	if ca.c == nil {
+		return nil, false
+	}
+	e, ok := ca.read(ctx, ca.c.Up(ca.domain, key))
+	if !ok {
+		return nil, false
+	}
+	return e.val, true
+}
+
 // Invalidate drops a key from both levels.
 func (ca *Cache[T]) Invalidate(ctx context.Context, key string) {
 	ca.l1.drop(key)
@@ -195,8 +219,15 @@ func (ca *Cache[T]) Invalidate(ctx context.Context, key string) {
 	_ = ca.c.rdb.Del(ctx, ca.c.Up(ca.domain, key)).Err()
 }
 
+// inBackground runs fetch as Background work.
+func inBackground[T any](fetch func(context.Context) (*T, error)) func(context.Context) (*T, error) {
+	return func(ctx context.Context) (*T, error) { return fetch(Background(ctx)) }
+}
+
 // refresh renews a stale entry in the background, at most once per process and per backoff window.
+// Nobody waits on it, so its upstream calls leave the reserve to visitors.
 func (ca *Cache[T]) refresh(rk, key string, p Policy[T], fetch func(context.Context) (*T, error), force bool) {
+	fetch = inBackground(fetch)
 	ca.flight.DoChan("refresh:"+rk, func() (any, error) {
 		bg, cancel := context.WithTimeout(context.Background(), ca.opts.FetchTimeout)
 		defer cancel()
@@ -210,7 +241,7 @@ func (ca *Cache[T]) refresh(rk, key string, p Policy[T], fetch func(context.Cont
 			}
 		}
 		ca.c.stats.refreshes.Add(1)
-		if _, err := ca.loadShared(rk, key, p, fetch, force); err != nil {
+		if _, err := ca.loadShared(rk, key, p, fetch, force, true); err != nil {
 			_ = ca.c.rdb.Set(bg, rk+":nofetch", 1, refreshBackoff).Err()
 		}
 		return nil, nil
@@ -219,20 +250,27 @@ func (ca *Cache[T]) refresh(rk, key string, p Policy[T], fetch func(context.Cont
 
 // loadShared runs one fetch for rk across every instance: the lock holder fetches, the others poll
 // Redis for the result. Redis errors fall back to a plain local fetch.
-func (ca *Cache[T]) loadShared(rk, key string, p Policy[T], fetch func(context.Context) (*T, error), force bool) (*T, error) {
+//
+// A background load takes its own lock: it may wait for the reserve, and a visitor must not queue
+// behind it. The price is a duplicate fetch when a visitor asks for the same key meanwhile.
+func (ca *Cache[T]) loadShared(rk, key string, p Policy[T], fetch func(context.Context) (*T, error), force, background bool) (*T, error) {
+	lockKey := rk
+	if background {
+		lockKey += ":bg"
+	}
 	fctx, cancel := context.WithTimeout(context.Background(), ca.opts.FetchTimeout)
 	defer cancel()
 	deadline := time.Now().Add(ca.opts.WaitBudget)
 	delay := 50 * time.Millisecond
 	waited := false
 	for {
-		token, held, err := ca.c.lock(fctx, rk)
+		token, held, err := ca.c.lock(fctx, lockKey)
 		if err != nil { // Redis trouble: still serve the caller
 			ca.c.stats.errors.Add(1)
 			return fetch(fctx)
 		}
 		if held {
-			defer ca.c.unlock(rk, token)
+			defer ca.c.unlock(lockKey, token)
 			if e, ok := ca.read(fctx, rk); ok && e.fresh() && !force { // filled while we queued
 				return e.val, nil
 			}
