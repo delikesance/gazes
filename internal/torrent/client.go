@@ -113,6 +113,7 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 			go store.Prune(30 * 24 * time.Hour)
 		}
 	}
+	go engine.trackerStatusLoop()
 	if cfg.CacheMaxBytes > 0 {
 		go engine.evictionLoop()
 	}
