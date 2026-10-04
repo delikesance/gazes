@@ -161,3 +161,15 @@ test('KAMUI batch and encoder releases select episode 1 without audio-channel or
  assert.equal(episodeFile(batch,identity),1);
  for(const path of ['[shincaps] Ushiro no Shoumen Kamui-san - 01 (AT-X 1440x1080 MPEG2 AAC).ts','[LoliHouse] Ushiro no Shoumen Kamui-san - 01 [WebRip 1080p HEVC-10bit AAC SRTx2].mkv']) assert.equal(episodeFile([file(0,path)],identity),0,path);
 });
+
+test('CJK episode markers (第19话 / 第19集) are read, and other CJK episodes are rejected',()=>{
+ const rezero={episode_number:19,season_number:4,anime_aliases:['Re:Zero kara Hajimeru Isekai Seikatsu','Re:Zero − Starting Life in Another World']};
+ const doomdos='[Doomdos] Re:Zero kara Hajimeru Isekai Seikatsu Season 4 - 第19话 - [1080p BILIBILI COM WEB-DL].mkv';
+ assert.equal(episodeFile([file(0,doomdos)],rezero),0);
+ assert.equal(episodeFile([file(0,doomdos.replace('第19话','第１９話'))],rezero),0);
+ assert.equal(episodeFile([file(0,doomdos.replace('第19话','第18话'))],rezero),null);
+ const cn='【喵萌奶茶屋】★04月新番★[Re：从零开始的异世界生活 第四季][第19集][1080p][简日双语].mp4';
+ const cnSource={...rezero,anime_aliases:['Re:Zero','Re：从零开始的异世界生活']};
+ assert.equal(episodeFile([file(0,cn)],cnSource),0);
+ assert.equal(episodeFile([file(0,cn.replace('第19集','第18集'))],cnSource),null);
+});
