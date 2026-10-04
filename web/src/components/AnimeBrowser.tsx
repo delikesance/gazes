@@ -10,8 +10,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { AnimeCatalogItem, EpisodeSourcesResponse, Franchise } from "@/types/api";
-import { getFranchise, getSeason, getSeasonSources } from "@/lib/api";
+import { AnimeCatalogItem, EpisodeSourcesResponse, Franchise, LibraryCopy } from "@/types/api";
+import { getFranchise, getSeason, getSeasonSources, getLibraryCopies } from "@/lib/api";
+import { loadWatchData, lookupWithin } from "@/lib/library";
 import { SeriesPage } from "./SeriesPage";
 import { SeasonPage } from "./SeasonPage";
 import { WatchLoading } from "./WatchLoading";
@@ -21,7 +22,12 @@ interface Loaded {
   franchise: Franchise;
   season?: AnimeCatalogItem;
   sources?: EpisodeSourcesResponse;
+  /** Library copies already looked up for this episode; undefined when the player must look them up itself. */
+  libraryCopies?: LibraryCopy[];
 }
+
+const LIBRARY_LOOKUP_MS = 1500;
+const NO_SOURCES: never[] = [];
 
 interface AnimeBrowserProps {
   initialFranchise?: Franchise | null;
@@ -58,16 +64,27 @@ export function AnimeBrowser({
  useEffect(() => {
   if (!id) return;
   let active = true;
+  let redirected = false;
   async function load() {
    try {
-    const [franchise,season,sources]=await Promise.all([
-     getFranchise(id),
-     seasonId>0?getSeason(id,seasonId):Promise.resolve(undefined),
-     ep>0?getSeasonSources(id,seasonId,ep,undefined,session):Promise.resolve(undefined),
-    ]);
-    if (!active) return;
-    if (franchise.complete && franchise.id!==id) {router.replace(`/anime/${franchise.id}${seasonId?`/seasons/${seasonId}`:""}${ep?`/episodes/${ep}`:""}`);return;}
-    if (active) {setLoaded({key:requestKey,franchise,season,sources});setFailure(null);}
+    // The library lookup runs next to the source search (bounded by LIBRARY_LOOKUP_MS) so that a local copy
+    // can start playing without waiting for the indexers.
+    await loadWatchData({
+     franchise:getFranchise(id),
+     season:seasonId>0?getSeason(id,seasonId):Promise.resolve(undefined),
+     sources:ep>0?getSeasonSources(id,seasonId,ep,undefined,session):Promise.resolve(undefined),
+     copies:seasonId>0&&ep>0?lookupWithin(LIBRARY_LOOKUP_MS,signal=>getLibraryCopies(seasonId,ep,signal)).then(r=>r.copies):Promise.resolve([]),
+    },{
+     ready:({franchise,season,copies,sources})=>{
+      if (!active) return;
+      if (franchise.complete && franchise.id!==id) {redirected=true;router.replace(`/anime/${franchise.id}${seasonId?`/seasons/${seasonId}`:""}${ep?`/episodes/${ep}`:""}`);return;}
+      setLoaded({key:requestKey,franchise,season,sources,libraryCopies:copies});setFailure(null);
+     },
+     sources:sources=>{
+      if (!active||redirected) return;
+      setLoaded(prev=>prev&&prev.key===requestKey?{...prev,sources}:prev);
+     },
+    });
    } catch(err) { if (active) setFailure({key:requestKey,message:err instanceof Error?err.message:"Impossible de charger les données.",reference:(err as any)?.diagnosticReference,code:errorCode(err,"SRC")}); }
   }
   load();return()=>{active = false;};
@@ -81,7 +98,7 @@ export function AnimeBrowser({
 
  const resume=progress&&current?.season?.episode_list?.some((episode: any)=>episode.episode_number===progress.episode&&!episode.upcoming)?progress:null;
  if(ep>0) return <main className="watch-page">
-  {error?<div className="watch-message"><ErrorAlert message={error} code={code} reference={reference} onRetry={()=>setRetry(retry+1)} /><Link href={seasonURL}>{t("Voir les saisons")}</Link></div>:!current?<WatchLoading episode={ep} backHref={seasonURL} />:current.season&&current.sources?<Player pageMode key={`${key}:${retry}`} initialTime={resume?.episode===ep?resume.position:0} onProgress={(position:number,duration:number,tracks?:{audioLang?:string;subLang?:string})=>saveProgress(seasonId,ep,position,duration,{animeId:id,title:current.season?.display_title,genres:current.season?.genres,format:current.season?.format,...tracks})} sources={current.sources.sources} diagnosticSession={current.sources.playback_session_id||session} animeId={id} seasonId={seasonId} partial={current.sources.partial} onRetrySources={()=>setRetry(retry+1)} animeTitle={current.season.display_title} episodeNumber={ep} totalEpisodes={current.season.episodes} episodes={current.season.episode_list} fallbackThumbnail={current.season.banner_image||current.season.poster_image} onSelectEpisode={(n:number)=>router.replace(`${seasonURL}/episodes/${n}`)} onClose={()=>canGoBackInApp()?router.back():router.push(seasonURL)} onPrevEpisode={ep>1?()=>router.replace(`${seasonURL}/episodes/${ep-1}`):undefined} onNextEpisode={current.season.episode_list?.some((e: any)=>e.episode_number===ep+1&&!e.upcoming)?()=>router.replace(`${seasonURL}/episodes/${ep+1}`):undefined}/>:<WatchLoading episode={ep} backHref={seasonURL} />}
+  {error?<div className="watch-message"><ErrorAlert message={error} code={code} reference={reference} onRetry={()=>setRetry(retry+1)} /><Link href={seasonURL}>{t("Voir les saisons")}</Link></div>:!current?<WatchLoading episode={ep} backHref={seasonURL} />:current.season&&(current.sources||current.libraryCopies?.length)?<Player pageMode key={`${key}:${retry}`} initialTime={resume?.episode===ep?resume.position:0} onProgress={(position:number,duration:number,tracks?:{audioLang?:string;subLang?:string})=>saveProgress(seasonId,ep,position,duration,{animeId:id,title:current.season?.display_title,genres:current.season?.genres,format:current.season?.format,...tracks})} sources={current.sources?.sources??NO_SOURCES} sourcesPending={!current.sources} initialLibraryCopies={current.libraryCopies} diagnosticSession={current.sources?.playback_session_id||session} animeId={id} seasonId={seasonId} partial={current.sources?.partial} onRetrySources={()=>setRetry(retry+1)} animeTitle={current.season.display_title} episodeNumber={ep} totalEpisodes={current.season.episodes} episodes={current.season.episode_list} fallbackThumbnail={current.season.banner_image||current.season.poster_image} onSelectEpisode={(n:number)=>router.replace(`${seasonURL}/episodes/${n}`)} onClose={()=>canGoBackInApp()?router.back():router.push(seasonURL)} onPrevEpisode={ep>1?()=>router.replace(`${seasonURL}/episodes/${ep-1}`):undefined} onNextEpisode={current.season.episode_list?.some((e: any)=>e.episode_number===ep+1&&!e.upcoming)?()=>router.replace(`${seasonURL}/episodes/${ep+1}`):undefined}/>:<WatchLoading episode={ep} backHref={seasonURL} />}
  </main>;
  return <main className="detail-page">
   <HeaderBreadcrumb><nav aria-label={t("Fil d’Ariane")} className="detail-breadcrumb"><Link href="/">{t("Catalogue")}</Link>{seasonId>0?<><span aria-hidden="true">›</span><Link href={base} title={current?.franchise.title}>{current?.franchise.title||t("Anime")}</Link><span aria-hidden="true">›</span>{ep>0?<Link href={seasonURL}>{selected?.season_number?t(`Saison ${selected.season_number}`):t("Saison")}</Link>:<span className="breadcrumb-current" aria-current="page">{selected?.season_number?t(`Saison ${selected.season_number}`):t("Saison")}</span>}</>:<><span aria-hidden="true">›</span><span className="breadcrumb-current" aria-current="page">{current?.franchise.title||t("Anime")}</span></>}{ep>0&&<><span aria-hidden="true">›</span><span className="breadcrumb-current" aria-current="page">{t("Épisode")} {ep}</span></>}</nav></HeaderBreadcrumb>

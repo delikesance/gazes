@@ -65,3 +65,68 @@ test('lookupWithin resolves empty on timeout, on rejection and on a throwing loo
   assert.deepEqual(await lookupWithin(50, async () => { throw new Error('x'); }), { copies: [], timedOut: false });
   assert.deepEqual(await lookupWithin(50, () => { throw new Error('x'); }), { copies: [], timedOut: false });
 });
+
+import { loadWatchData, prewarmTargets } from '../src/lib/library.ts';
+
+const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+const tick = () => new Promise((r) => setTimeout(r, 5));
+
+function watch(parts) {
+  const events = [];
+  const done = loadWatchData(parts, {
+    ready: (d) => events.push(['ready', d]),
+    sources: (s) => events.push(['sources', s]),
+  });
+  return { events, done };
+}
+
+test('loadWatchData starts playback from a library copy without waiting for the sources', async () => {
+  const sources = deferred();
+  const c = copy('vf');
+  const { events, done } = watch({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: sources.promise, copies: Promise.resolve([c]) });
+  await tick();
+  assert.equal(events.length, 1);
+  assert.deepEqual(events[0], ['ready', { franchise: 'F', season: 'S', copies: [c], sources: undefined }]);
+  sources.resolve('SRC');
+  await done;
+  assert.deepEqual(events[1], ['sources', 'SRC']);
+});
+
+test('loadWatchData waits for the sources when there is no copy', async () => {
+  const sources = deferred();
+  const { events, done } = watch({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: sources.promise, copies: Promise.resolve([]) });
+  await tick();
+  assert.equal(events.length, 0);
+  sources.resolve('SRC');
+  await done;
+  assert.deepEqual(events, [['ready', { franchise: 'F', season: 'S', copies: [], sources: 'SRC' }]]);
+});
+
+test('loadWatchData reports a sources failure only when no copy can play', async () => {
+  const failing = () => { const d = deferred(); d.reject(new Error('sources down')); return d.promise; };
+  await assert.rejects(loadWatchData({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: failing(), copies: Promise.resolve([]) }, { ready() {}, sources() {} }), /sources down/);
+  const { events, done } = watch({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: failing(), copies: Promise.resolve([copy('vf')]) });
+  await done;
+  assert.deepEqual(events.map((e) => e[0]), ['ready']);
+  assert.equal(events[0][1].sources, undefined);
+});
+
+test('loadWatchData passes already available sources with the copies in one step', async () => {
+  const { events, done } = watch({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: Promise.resolve('SRC'), copies: Promise.resolve([copy('vf')]) });
+  await done;
+  assert.deepEqual(events, [['ready', { franchise: 'F', season: 'S', copies: [copy('vf')], sources: 'SRC' }]]);
+});
+
+test('loadWatchData still fails when the catalog fails', async () => {
+  const failing = Promise.reject(new Error('catalog'));
+  await assert.rejects(loadWatchData({ franchise: failing, season: Promise.resolve('S'), sources: Promise.resolve('x'), copies: Promise.resolve([]) }, { ready() {}, sources() {} }), /catalog/);
+});
+
+test('prewarmTargets skips torrent prewarming while a library copy plays', () => {
+  const lib = librarySource(copy('vf'), { title: 'T', episode_number: 1 });
+  const list = [lib, src('t1', 'VF'), src('t2', 'VF'), src('t3', 'VF')];
+  assert.deepEqual(prewarmTargets(list, 0), []);
+  assert.deepEqual(prewarmTargets(list, 1).map((s) => s.info_hash), ['t2', 't3']);
+  assert.deepEqual(prewarmTargets([src('t1', 'VF'), lib, src('t2', 'VF')], 0).map((s) => s.info_hash), ['t2']);
+  assert.deepEqual(prewarmTargets([], 0), []);
+});

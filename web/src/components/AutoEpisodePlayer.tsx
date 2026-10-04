@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EpisodeInfo, EpisodeSource, LibraryCopy } from '@/types/api';
 import { diagnosticEvent } from "@/lib/diagnostics";
 import { loadTorrent, getSeasonSources, getLibraryCopies, registerLibraryCopy } from "@/lib/api";
-import { libraryLang, lookupWithin, withLibraryCandidates } from '@/lib/library';
+import { libraryLang, lookupWithin, prewarmTargets, withLibraryCandidates } from '@/lib/library';
 import { useAuth } from './AuthProvider';
 import { playbackSources, extendPlaybackSources } from '@/lib/playback-sources';
 import { VideoPlayerModal } from './VideoPlayerModal';
@@ -15,6 +15,10 @@ import { usePlaybackEngine } from '@/lib/use-playback-engine';
 
 interface Props {
  sources: EpisodeSource[];
+ /** The source search has not answered yet: the library copies in initialLibraryCopies play meanwhile. */
+ sourcesPending?: boolean;
+ /** Copies the caller already looked up (possibly empty); the player then skips its own lookup. */
+ initialLibraryCopies?: LibraryCopy[];
  diagnosticSession?:string;
  animeId?:number;
  seasonId?:number;
@@ -46,20 +50,20 @@ function mergeSources(list: EpisodeSource[], discovered: EpisodeSource[], active
  return [...fixed, ...tail];
 }
 
-export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
+export function AutoEpisodePlayer({ sources, sourcesPending, initialLibraryCopies, diagnosticSession, animeId, seasonId, partial, onRetrySources, ...props }: Props) {
   const { t } = useI18n();
  const engine = usePlaybackEngine();
  const pausedRef = useRef(false);
  const [fallbackSession]=useState(()=>randomId());
  const session=diagnosticSession||fallbackSession;
  const { user } = useAuth();
- const [candidates, setCandidates] = useState(() => playbackSources(sources));
- // The first attempt waits for the library lookup, at most LIBRARY_LOOKUP_MS; a later answer is ignored.
- const [libraryReady, setLibraryReady] = useState(!seasonId);
- const libraryReadyRef = useRef(!seasonId);
- const libraryCopiesRef = useRef<LibraryCopy[]>([]);
- const registeredRef = useRef(new Set<string>());
  const libraryBase = useMemo(() => ({ title: props.animeTitle, episode_number: props.episodeNumber }), [props.animeTitle, props.episodeNumber]);
+ const [candidates, setCandidates] = useState(() => initialLibraryCopies ? mergeSources(playbackSources(sources), [], -1, initialLibraryCopies, libraryBase) : playbackSources(sources));
+ // Without initialLibraryCopies the first attempt waits for the library lookup, at most LIBRARY_LOOKUP_MS; a later answer is ignored.
+ const [libraryReady, setLibraryReady] = useState(!seasonId || !!initialLibraryCopies);
+ const libraryReadyRef = useRef(!seasonId || !!initialLibraryCopies);
+ const libraryCopiesRef = useRef<LibraryCopy[]>(initialLibraryCopies ?? []);
+ const registeredRef = useRef(new Set<string>());
  const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:randomId() });
  const attemptRef = useRef(attempt);
  attemptRef.current = attempt;
@@ -73,7 +77,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  const diagnostic=useMemo(()=>({playback_session_id:session,attempt_id:attempt.id,anime_id:animeId?String(animeId):undefined,season_id:seasonId?String(seasonId):undefined,episode:String(props.episodeNumber),infohash:source?.info_hash}),[session,attempt.id,animeId,seasonId,props.episodeNumber,source?.info_hash]);
  useEffect(()=>{const active=libraryReadyRef.current?attemptRef.current.index:-1;setCandidates(list=>mergeSources(list,sources,active,libraryCopiesRef.current,libraryBase));},[sources,libraryBase]);
  useEffect(()=>{
-  if(!seasonId)return;
+  if(!seasonId||initialLibraryCopies)return;
   let cancelled=false;
   void lookupWithin(LIBRARY_LOOKUP_MS,signal=>getLibraryCopies(seasonId,props.episodeNumber,signal)).then(({copies})=>{
    if(cancelled||libraryReadyRef.current)return;
@@ -85,7 +89,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
    libraryReadyRef.current=true;setLibraryReady(true);
   });
   return()=>{cancelled=true;};
- },[seasonId,props.episodeNumber,libraryBase]);
+ },[seasonId,props.episodeNumber,libraryBase,initialLibraryCopies]);
  useEffect(()=>()=>discoveryController.current?.abort(),[]);
  useEffect(()=>{
   if (!partial || !animeId || !seasonId || discoveryState!=='idle' || (attempt.index===0 && source)) return;
@@ -116,7 +120,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  // unconfirmed French audio must never reject an otherwise playable source.
  // Warm the next candidates' metadata in the background: a failing source then hands over to a ready one.
  useEffect(()=>{
-  const upcoming=candidates.slice(attempt.index+1,attempt.index+3).filter(next=>!next.library);
+  const upcoming=prewarmTargets(candidates,attempt.index);
   if(!upcoming.length)return;
   const controller=new AbortController();
   const timer=setTimeout(()=>{
@@ -126,6 +130,7 @@ export function AutoEpisodePlayer({ sources, diagnosticSession, animeId, seasonI
  },[candidates,attempt.index]);
  if (!libraryReady) return <div role="status" className="fixed inset-0 z-50 bg-black/90" />;
  if (!source && partial && animeId && seasonId && (discoveryState==='idle'||discoveryState==='loading')) return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
+ if (!source && sourcesPending) return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
  if (!source) return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6">
   <div role="alert" className="max-w-lg space-y-4 text-center text-zinc-100">
    <p>{t(candidates.length?"Toutes les tentatives de lecture ont échoué.":partial?"La recherche de torrents est incomplète. Réessayez.":"Aucun torrent ne correspond à cet épisode.")}</p>

@@ -83,3 +83,45 @@ export function lookupWithin(ms: number, lookup: (signal: AbortSignal) => Promis
     );
   });
 }
+
+export interface WatchData<F, Se, S> { franchise: F; season: Se | undefined; copies: LibraryCopy[]; sources: S | undefined }
+
+/**
+ * Gathers what the watch page needs without letting the (slow) source search delay a local replay.
+ * `copies` must be a bounded lookup (see lookupWithin). When the library has a copy, `ready` fires as soon as
+ * the catalog and the library answered, with `sources` undefined if the search is still pending; they then
+ * arrive through `hooks.sources`. A failing search is ignored while a copy exists. With no copy it behaves
+ * as before: `ready` waits for the sources and their failure is thrown.
+ */
+export async function loadWatchData<F, Se, S>(
+  parts: { franchise: Promise<F>; season: Promise<Se | undefined>; sources: Promise<S | undefined>; copies: Promise<LibraryCopy[]> },
+  hooks: { ready: (data: WatchData<F, Se, S>) => void; sources: (sources: S | undefined) => void },
+): Promise<void> {
+  type Outcome = { ok: true; value: S | undefined } | { ok: false; error: unknown };
+  let settled: Outcome | null = null;
+  const outcome: Promise<Outcome> = parts.sources.then(
+    (value): Outcome => (settled = { ok: true, value }),
+    (error): Outcome => (settled = { ok: false, error }),
+  );
+  const [franchise, season, copies] = await Promise.all([parts.franchise, parts.season, parts.copies.catch((): LibraryCopy[] => [])]);
+  const early = settled as Outcome | null;
+  if (copies.length === 0 || early) {
+    const o = early ?? await outcome;
+    if (!o.ok) {
+      if (copies.length === 0) throw o.error;
+      hooks.ready({ franchise, season, copies, sources: undefined });
+      return;
+    }
+    hooks.ready({ franchise, season, copies, sources: o.value });
+    return;
+  }
+  hooks.ready({ franchise, season, copies, sources: undefined });
+  const o = await outcome;
+  if (o.ok) hooks.sources(o.value);
+}
+
+/** Torrent sources worth warming up behind the one playing; none while a library copy plays (it needs no swarm). */
+export function prewarmTargets(candidates: EpisodeSource[], index: number): EpisodeSource[] {
+  if (candidates[index]?.library) return [];
+  return candidates.slice(index + 1, index + 3).filter((next) => !next.library);
+}
