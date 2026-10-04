@@ -39,37 +39,40 @@ type Config struct {
 	// RedisURL is required: it holds the caches, upstream rate limits and auth state shared by every instance.
 	RedisURL       string `json:"-"`
 	RedisNamespace string `json:"redis_namespace"`
+	// ResolverFastPhaseTimeout bounds the first (shared season-pack) round of a playback resolve.
+	ResolverFastPhaseTimeout time.Duration `json:"resolver_fast_phase_timeout"`
 }
 
 // Load loads configuration from environment variables with fallback defaults.
 func Load() *Config {
 	return &Config{
-		PlaybackEngine:       getEnv("PLAYBACK_ENGINE", "legacy"),
-		PlaybackMemoryBytes:  getEnvInt64("PLAYBACK_MEMORY_BYTES", 64<<20),
-		PlaybackDiskBytes:    getEnvInt64("PLAYBACK_DISK_BYTES", 1<<30),
-		AppEnv:               getEnv("APP_ENV", "development"),
-		Host:                 getEnv("HOST", "0.0.0.0"),
-		Port:                 getEnvInt("PORT", 8090),
-		DataDir:              getEnv("DATA_DIR", "./data"),
-		CacheDir:             getEnv("CACHE_DIR", "./cache"),
-		LogLevel:             getEnv("LOG_LEVEL", "debug"),
-		EnableCORS:           getEnvBool("ENABLE_CORS", true),
-		StreamTimeout:        getEnvDuration("STREAM_TIMEOUT", 30*time.Minute),
-		MaxMemoryCache:       getEnvInt64("MAX_MEMORY_CACHE_BYTES", 256*1024*1024), // 256MB default
-		TorrentPort:          getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
-		TorrentCacheMaxBytes: getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
-		AccountsDir:          getEnv("ACCOUNTS_DIR", "./accounts"),
-		TrustProxy:           getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
-		ArrAuthoritative:     getEnvBool("ARR_AUTHORITATIVE", false),
-		SonarrURL:            getEnv("SONARR_URL", ""),
-		SonarrAPIKey:         getEnvOrFile("SONARR_API_KEY", "SONARR_API_KEY_FILE"),
-		SonarrSeriesMap:      getEnv("SONARR_SERIES_MAP", ""),
-		RadarrURL:            getEnv("RADARR_URL", ""),
-		RadarrAPIKey:         getEnvOrFile("RADARR_API_KEY", "RADARR_API_KEY_FILE"),
-		C411APIKey:           getEnvOrFile("C411_API_KEY", "C411_API_KEY_FILE"),
-		RadarrMovieMap:       getEnv("RADARR_MOVIE_MAP", ""),
-		RedisURL:             getEnv("REDIS_URL", ""),
-		RedisNamespace:       getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
+		PlaybackEngine:           getEnv("PLAYBACK_ENGINE", "legacy"),
+		PlaybackMemoryBytes:      getEnvInt64("PLAYBACK_MEMORY_BYTES", 64<<20),
+		PlaybackDiskBytes:        getEnvInt64("PLAYBACK_DISK_BYTES", 1<<30),
+		AppEnv:                   getEnv("APP_ENV", "development"),
+		Host:                     getEnv("HOST", "0.0.0.0"),
+		Port:                     getEnvInt("PORT", 8090),
+		DataDir:                  getEnv("DATA_DIR", "./data"),
+		CacheDir:                 getEnv("CACHE_DIR", "./cache"),
+		LogLevel:                 getEnv("LOG_LEVEL", "debug"),
+		EnableCORS:               getEnvBool("ENABLE_CORS", true),
+		StreamTimeout:            getEnvDuration("STREAM_TIMEOUT", 30*time.Minute),
+		MaxMemoryCache:           getEnvInt64("MAX_MEMORY_CACHE_BYTES", 256*1024*1024), // 256MB default
+		TorrentPort:              getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
+		TorrentCacheMaxBytes:     getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
+		AccountsDir:              getEnv("ACCOUNTS_DIR", "./accounts"),
+		TrustProxy:               getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
+		ArrAuthoritative:         getEnvBool("ARR_AUTHORITATIVE", false),
+		SonarrURL:                getEnv("SONARR_URL", ""),
+		SonarrAPIKey:             getEnvOrFile("SONARR_API_KEY", "SONARR_API_KEY_FILE"),
+		SonarrSeriesMap:          getEnv("SONARR_SERIES_MAP", ""),
+		RadarrURL:                getEnv("RADARR_URL", ""),
+		RadarrAPIKey:             getEnvOrFile("RADARR_API_KEY", "RADARR_API_KEY_FILE"),
+		C411APIKey:               getEnvOrFile("C411_API_KEY", "C411_API_KEY_FILE"),
+		RadarrMovieMap:           getEnv("RADARR_MOVIE_MAP", ""),
+		RedisURL:                 getEnv("REDIS_URL", ""),
+		RedisNamespace:           getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
+		ResolverFastPhaseTimeout: getEnvDuration("RESOLVER_FAST_PHASE_TIMEOUT", 3*time.Second),
 	}
 }
 
