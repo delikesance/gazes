@@ -9,12 +9,6 @@ import { getSeason } from "@/lib/api";
 import { PageGrid } from "@/components/ui/PageGrid";
 import { Scribble } from "@/components/ui/Scribble";
 
-function clock(seconds: number): string {
-  const total = Math.floor(seconds), h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-}
-
 type Info = { title: string; poster?: string };
 const infoCache = new Map<number, Info>();
 
@@ -54,20 +48,25 @@ export default function HistoryPage() {
         <span className="eyebrow">{t("Historique")}</span>
         <h1 className="serif">{t("Reprendre la lecture")}</h1>
         {items && items.length === 0 && <p className="history-empty">{t("Rien à reprendre pour l’instant.")}</p>}
-        <ul className="history-list">
+        <ul className="history-grid">
           {(items || []).map((item) => {
             const meta = info[item.season] ?? infoCache.get(item.season);
             const title = item.title || meta?.title || t("Anime");
+            // Watched share of the episode; unknown (other device, older entry) shows the poster in full colour.
+            const watched = item.duration ? Math.min(100, Math.max(0, Math.round((item.position / item.duration) * 100))) : 100;
             return (
               <li key={item.season}>
-                <Link href={`/anime/${item.animeId || item.season}/seasons/${item.season}/episodes/${item.episode}`} className="history-row">
-                  <span className="history-thumb" aria-hidden="true">
+                <Link href={`/anime/${item.animeId || item.season}/seasons/${item.season}/episodes/${item.episode}`} className="history-card">
+                  <span className="history-poster" role="img" aria-label={`${title}, ${watched} %`}>
                     {meta?.poster && <img src={meta.poster} alt="" loading="lazy" />}
-                    <span className="history-play"><Play size={12} /></span>
+                    {meta?.poster && watched < 100 && <img className="history-poster-gray" src={meta.poster} alt="" aria-hidden="true" loading="lazy" style={{ clipPath: `inset(0 0 ${watched}% 0)` }} />}
+                    <span className="history-play"><Play size={18} fill="currentColor" /></span>
+                  </span>
+                  <span className="history-meta">
+                    <span className="history-episode">{t("Épisode")} {item.episode}</span>
+                    {item.updatedAt > 1e9 && <span className="history-date">{new Date(item.updatedAt * 1000).toLocaleDateString(locale)}</span>}
                   </span>
                   <span className="history-title">{title}</span>
-                  <span className="chip">{t("Épisode")} {item.episode} · {clock(item.position)}</span>
-                  {item.updatedAt > 1e9 && <span className="history-date">{new Date(item.updatedAt * 1000).toLocaleDateString(locale)}</span>}
                 </Link>
               </li>
             );

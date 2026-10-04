@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import { pullProgress, pushProgress, type RemoteProgress } from "./auth";
 
 export type WatchProgress = {episode:number; position:number};
-export type SavedProgress = WatchProgress & {season:number; animeId:number; title:string; updatedAt:number};
+export type SavedProgress = WatchProgress & {season:number; animeId:number; title:string; updatedAt:number; duration?:number};
 export type ProgressMeta = {animeId?:number; title?:string};
 
 const PREFIX = "gazes-progress:";
@@ -42,7 +42,7 @@ function readAll():SavedProgress[] {
    const season = Number(key.slice(PREFIX.length));
    const value = JSON.parse(localStorage.getItem(key) || "null");
    if (Number.isInteger(season) && value && Number.isInteger(value.episode) && value.episode > 0 && Number.isFinite(value.position) && value.position >= 5)
-    out.push({season, episode:value.episode, position:value.position, animeId:Number(value.animeId) || 0, title:String(value.title || ""), updatedAt:Number(value.updatedAt) || 1});
+    out.push({season, episode:value.episode, position:value.position, animeId:Number(value.animeId) || 0, title:String(value.title || ""), updatedAt:Number(value.updatedAt) || 1, duration:Number.isFinite(value.duration) && value.duration > 0 ? value.duration : undefined});
   }
  } catch {}
  return out.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -61,7 +61,7 @@ export function saveProgress(season:number, episode:number, position:number, dur
   const animeId = meta.animeId ?? previous?.animeId ?? 0;
   const title = (meta.title ?? previous?.title ?? "").slice(0, 200);
   if (complete) localStorage.removeItem(key);
-  else localStorage.setItem(key, JSON.stringify({episode, position:Math.floor(position), animeId, title, updatedAt}));
+  else localStorage.setItem(key, JSON.stringify({episode, position:Math.floor(position), animeId, title, updatedAt, duration:duration > 0 ? Math.floor(duration) : undefined}));
   queuePush({season_id:season, anime_id:animeId, title, episode, position:Math.floor(position), completed:complete, updated_at:updatedAt});
   lastSaved.set(season,stamp);
   window.dispatchEvent(new Event(changed));
