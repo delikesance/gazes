@@ -975,6 +975,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     <PlayerEpisodePicker
                       episodes={episodes}
                       fallbackThumbnail={fallbackThumbnail}
+                      seasonId={Number(diagnostic?.season_id) || undefined}
                       currentEpisode={episodeNumber}
                       onClose={() => setShowEpisodes(false)}
                       onSelect={(number) => { setShowEpisodes(false); if (number !== episodeNumber) onSelectEpisode(number); }}
