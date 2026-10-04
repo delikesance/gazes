@@ -1,5 +1,5 @@
 import { AnimeBrowser } from "@/components/AnimeBrowser";
-import { getFranchise, getSeason, getSeasonSources } from "@/lib/api";
+import { getFranchise, getSeason } from "@/lib/api";
 
 export default async function Page({
   params,
@@ -12,21 +12,15 @@ export default async function Page({
   const ep = Number(episodeNumber);
   let initialFranchise = null;
   let initialSeason = null;
-  let initialSources = null;
 
+  // Sources are resolved by the client (they can take seconds on a cold swarm);
+  // awaiting them here would hold the navigation on a blank screen.
   try {
     if (id) {
-      initialFranchise = await getFranchise(id);
-      if (sId) {
-        initialSeason = await getSeason(id, sId);
-        if (ep) {
-          // Fast timeout for SSR sources so the page shell renders instantly without blocking
-          initialSources = await Promise.race([
-            getSeasonSources(id, sId, ep),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
-          ]).catch(() => null);
-        }
-      }
+      [initialFranchise, initialSeason] = await Promise.all([
+        getFranchise(id),
+        sId ? getSeason(id, sId) : Promise.resolve(null),
+      ]);
     }
   } catch (e) {
     console.error("SSR getEpisode error:", e);
@@ -39,7 +33,6 @@ export default async function Page({
       episodeNumber={ep}
       initialFranchise={initialFranchise}
       initialSeason={initialSeason}
-      initialSources={initialSources}
     />
   );
 }
