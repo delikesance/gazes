@@ -278,6 +278,28 @@ func (p *Pool) Reserve(size int64) (Reservation, error) {
 	return Reservation{DiskID: best.ID, Path: best.Path, Size: size}, nil
 }
 
+// ReserveOn sets size bytes aside on one specific present disk, or fails with ErrNoSpace / ErrDiskAbsent.
+func (p *Pool) ReserveOn(diskID string, size int64) (Reservation, error) {
+	if size < 0 {
+		return Reservation{}, fmt.Errorf("library: negative reservation %d", size)
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	d, ok := p.disks[diskID]
+	if !ok {
+		return Reservation{}, ErrDiskAbsent
+	}
+	avail, ok := p.available(d)
+	if !ok {
+		return Reservation{}, ErrDiskAbsent
+	}
+	if avail < size {
+		return Reservation{}, ErrNoSpace
+	}
+	p.reserved[diskID] += size
+	return Reservation{DiskID: diskID, Path: d.Path, Size: size}, nil
+}
+
 // Release gives a reservation back. It is safe to call with a zero Reservation.
 func (p *Pool) Release(r Reservation) {
 	if r.DiskID == "" {
