@@ -144,8 +144,19 @@ func (j *Janitor) Reconcile() (ReconcileReport, error) {
 	for _, d := range disks {
 		note(filepath.WalkDir(d.Path, func(p string, de fs.DirEntry, err error) error {
 			if err != nil {
-				note(err)
+				if p == d.Path {
+					note(err) // the disk root itself is unreadable
+					return nil
+				}
+				// An unreadable entry (e.g. the root-owned lost+found of an ext4 disk) must not abort the
+				// reconcile of the rest of the disk.
+				if de != nil && de.IsDir() {
+					return fs.SkipDir
+				}
 				return nil
+			}
+			if de.IsDir() && filepath.Dir(p) == d.Path && de.Name() == "lost+found" {
+				return fs.SkipDir
 			}
 			if !de.Type().IsRegular() { // directories, symlinks, devices...
 				return nil
