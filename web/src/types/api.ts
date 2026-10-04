@@ -190,6 +190,9 @@ export interface SubtitleTrack {
   is_forced: boolean;
 }
 
+import type { SkipSegment } from '@/lib/skip-segments';
+export type { SkipSegment };
+
 export interface VideoMetadata {
 	probe_status?: 'complete' | 'timeout' | 'failed';
 	probe_error_code?: string;
@@ -204,6 +207,8 @@ export interface VideoMetadata {
   total_bytes: number;
   audio_tracks?: AudioTrack[];
   subtitle_tracks?: SubtitleTrack[];
+  chapters?: { start: number; end: number; title: string }[];
+  skip_segments?: SkipSegment[];
 }
 
 export interface LoadTorrentResponse {

@@ -7,6 +7,7 @@
     "build": "node scripts/subtitle-assets.mjs && next build",
     "start": "next start -p 4389",
     "lint": "eslint",
+    "test:skip": "node --test scripts/skip-segments.test.mjs",
     "test:files": "node scripts/episode-file.test.mjs",
     "test:seasons": "node scripts/season-flow.mjs",
     "test:player": "node scripts/subtitle-assets.mjs && node scripts/player-subtitles.test.mjs",

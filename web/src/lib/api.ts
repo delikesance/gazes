@@ -1,4 +1,5 @@
 import { httpError } from "@/lib/error-code";
+import type { SkipSegment } from "./skip-segments";
 import { diagnosticHeaders, diagnosticURL, type PlaybackDiagnostic } from "./diagnostics";
 import {
   SearchResponse,
@@ -271,4 +272,16 @@ export async function requestEpisodePreview(seasonId: number, episode: number, i
     }
   } catch { /* the preview is a nicety: stay silent */ }
   return false;
+}
+
+/** Opening/ending times for a season episode from the backend; any failure resolves to none. */
+export async function getSkipTimes(seasonId: number, episode: number, duration: number, signal?: AbortSignal): Promise<SkipSegment[]> {
+  try {
+    const query = new URLSearchParams({ duration: String(Math.round(duration)) });
+    const res = await fetch(`${getApiBase()}/catalog/seasons/${seasonId}/episodes/${episode}/skip-times?${query}`, { signal });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { segments?: SkipSegment[] };
+    return Array.isArray(body.segments) ? body.segments : [];
+  } catch { /* skipping is a nicety: stay silent */ }
+  return [];
 }
