@@ -51,9 +51,8 @@ func TestEpisodeGapsAndDuplicateListings(t *testing.T) {
 	}
 }
 
-func TestEpisodeListIgnoresOtherSeasonsProviderEpisodes(t *testing.T) {
-	m := aniListMediaItem{ID: 1, Episodes: 3, Status: "FINISHED"}
-	for _, title := range []string{"Episode 2 - Real", "Episode 48.5 - Digression", "Episode 49 - Other season", "Episode 72 - Other season"} {
+func withStreamingEpisodes(m aniListMediaItem, titles ...string) aniListMediaItem {
+	for _, title := range titles {
 		m.StreamingEpisodes = append(m.StreamingEpisodes, struct {
 			Title     string `json:"title"`
 			Thumbnail string `json:"thumbnail"`
@@ -61,33 +60,73 @@ func TestEpisodeListIgnoresOtherSeasonsProviderEpisodes(t *testing.T) {
 			Site      string `json:"site"`
 		}{Title: title})
 	}
+	return m
+}
+
+func TestEpisodeListSkipsFractionalProviderEpisodes(t *testing.T) {
+	m := withStreamingEpisodes(aniListMediaItem{ID: 1, Episodes: 3, Status: "FINISHED"}, "Episode 2 - Real", "Episode 2.5 - Recap")
 	item := formatCatalogItem(&m, true)
-	if len(item.EpisodeList) != 3 {
-		t.Fatalf("got %d episodes, want only 1..3", len(item.EpisodeList))
-	}
-	for i, ep := range item.EpisodeList {
-		if ep.EpisodeNumber != i+1 {
-			t.Fatalf("episode %d out of range or unsorted", ep.EpisodeNumber)
-		}
-	}
-	if item.EpisodeList[1].Title != "Episode 2 - Real" {
-		t.Fatal("in-range provider episode must be kept")
+	if len(item.EpisodeList) != 3 || item.EpisodeList[1].Title != "Episode 2 - Real" {
+		t.Fatalf("a .5 special must not replace episode 2: %+v", item.EpisodeList)
 	}
 }
 
-func TestEpisodeListRebasesAbsoluteProviderNumbering(t *testing.T) {
-	m := aniListMediaItem{ID: 1, Episodes: 3, Status: "FINISHED"}
-	for _, title := range []string{"Episode 10.5 - Special", "Episode 10 - Prologue", "Episode 11 - One", "Episode 12 - Two", "Episode 13 - Three"} {
-		m.StreamingEpisodes = append(m.StreamingEpisodes, struct {
-			Title     string `json:"title"`
-			Thumbnail string `json:"thumbnail"`
-			URL       string `json:"url"`
-			Site      string `json:"site"`
-		}{Title: title})
+// AniList attaches Slime's season 3 Crunchyroll listing (absolute numbers 48.5-72) to every
+// season of the franchise: only season 3, which follows 24+12+12 episodes, owns it.
+func TestAbsoluteProviderEpisodesBelongToTheirFranchiseSeason(t *testing.T) {
+	titles := []string{"Episode 48.5 - Digression"}
+	for n := 49; n <= 72; n++ {
+		titles = append(titles, "Episode "+strconv.Itoa(n)+" - Title "+strconv.Itoa(n))
 	}
-	item := formatCatalogItem(&m, true)
-	if len(item.EpisodeList) != 3 || item.EpisodeList[0].Title != "Episode 11 - One" || item.EpisodeList[2].Title != "Episode 13 - Three" {
-		t.Fatalf("absolute numbering not rebased onto 1..3: %+v", item.EpisodeList)
+	s := NewAnimeCatalogService(nil)
+	entries := []struct {
+		id, episodes int
+		title, date  string
+	}{
+		{1, 24, "Slime", "2018-10-02"},
+		{2, 12, "Slime Season 2", "2021-01-12"},
+		{3, 12, "Slime Season 2 Part 2", "2021-07-06"},
+		{4, 24, "Slime Season 3", "2024-04-05"},
+	}
+	for i, e := range entries {
+		m := withStreamingEpisodes(aniListMediaItem{ID: e.id, Episodes: e.episodes, Status: "FINISHED"}, titles...)
+		item := formatCatalogItem(&m, true)
+		for _, ep := range item.EpisodeList {
+			if ep.Title != "Épisode "+strconv.Itoa(ep.EpisodeNumber) {
+				t.Fatalf("season %d: absolute provider episode leaked before franchise placement: %+v", e.id, ep)
+			}
+		}
+		item.DisplayTitle, item.Format, item.StartDate = e.title, "TV", e.date
+		if i > 0 {
+			item.Relations = append(item.Relations, AnimeRelation{ID: entries[i-1].id, RelationType: "PREQUEL"})
+		}
+		if i < len(entries)-1 {
+			item.Relations = append(item.Relations, AnimeRelation{ID: entries[i+1].id, RelationType: "SEQUEL"})
+		}
+		s.detailC.Put(context.Background(), strconv.Itoa(e.id), &item, time.Hour)
+	}
+	f, err := s.GetFranchise(context.Background(), 1)
+	if err != nil || len(f.Seasons) != 4 {
+		t.Fatalf("%+v %v", f, err)
+	}
+	for _, season := range f.Seasons {
+		cached, err := s.GetAnimeDetailsWithEpisodes(context.Background(), season.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		item := cached.InSeason(season.EpisodeOffset)
+		if len(item.EpisodeList) != season.Episodes {
+			t.Fatalf("season %d: got %d episodes, want %d", season.ID, len(item.EpisodeList), season.Episodes)
+		}
+		for i, ep := range item.EpisodeList {
+			want := "Épisode " + strconv.Itoa(i+1)
+			if season.ID == 4 {
+				want = "Episode " + strconv.Itoa(i+49) + " - Title " + strconv.Itoa(i+49)
+			}
+			if ep.EpisodeNumber != i+1 || ep.Title != want {
+				t.Fatalf("season %d episode %d: got %q, want %q", season.ID, ep.EpisodeNumber, ep.Title, want)
+			}
+		}
 	}
 }
 
