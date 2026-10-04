@@ -151,6 +151,8 @@ func (s *Server) setupRoutes() {
 			api.Get("/auth/me", s.auth.Me)
 			api.Get("/me/progress", s.auth.GetProgress)
 			api.Put("/me/progress", s.auth.PutProgress)
+			api.Get("/me/history", s.auth.GetHistory)
+			api.Put("/me/history", s.auth.PutHistory)
 		}
 
 		// Catalog & Episode Discovery

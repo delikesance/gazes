@@ -1,5 +1,6 @@
 "use client";
 import { listProgress } from "@/lib/watch-progress";
+import { watchedAnimeIds } from "@/lib/watch-log";
 import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
@@ -23,13 +24,12 @@ interface CatalogBrowserProps {
   initialPage?: number;
 }
 
-/** Anime ids the viewer is watching, most recent first: the seeds of the suggestions feed. */
+/** Anime ids the viewer watched, most recent first: the seeds of the suggestions feed. */
 function watchedSeeds(): number[] {
-  const ids: number[] = [];
+  const ids = watchedAnimeIds(5);
   for (const item of listProgress()) {
     const id = item.animeId || item.season;
-    if (id > 0 && !ids.includes(id)) ids.push(id);
-    if (ids.length === 5) break;
+    if (ids.length < 5 && id > 0 && !ids.includes(id)) ids.push(id);
   }
   return ids;
 }

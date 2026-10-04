@@ -386,3 +386,43 @@ func TestDevKeysPersist(t *testing.T) {
 		t.Fatal("kem key must persist")
 	}
 }
+
+func TestWatchHistoryKeepsCompletedSessionsAndNewestWins(t *testing.T) {
+	s := newTestService(t)
+	c := sessionCookie(s.post(t, s.Register, "register", map[string]string{"email": "h@example.com", "password": "longenough", "pseudo": "hist"}))
+	call := func(method string, handler http.HandlerFunc, payload any, query string) *httptest.ResponseRecorder {
+		var body []byte
+		if payload != nil {
+			body, _ = json.Marshal(payload)
+		}
+		req := httptest.NewRequest(method, "/me/history"+query, bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(c)
+		rr := httptest.NewRecorder()
+		handler(rr, req)
+		return rr
+	}
+	now := time.Now().Unix()
+	first := WatchSession{ID: "a", SeasonID: 7, AnimeID: 70, Episode: 1, Title: "Seven", Genres: []string{"Action", "Fantasy"}, Format: "TV", StartedAt: now - 600, UpdatedAt: now - 300, EndPosition: 100, WatchedSeconds: 90, Duration: 1400, AudioLang: "jpn", SubLang: "fre", TZOffset: 120}
+	if rr := call("PUT", s.PutHistory, map[string]any{"sessions": []WatchSession{first}}, ""); rr.Code != http.StatusOK {
+		t.Fatalf("put: %d %s", rr.Code, rr.Body)
+	}
+	done := first
+	done.UpdatedAt, done.EndPosition, done.WatchedSeconds, done.Completed = now, 1400, 1380, true
+	stale := first
+	stale.UpdatedAt, stale.WatchedSeconds = now-400, 10
+	call("PUT", s.PutHistory, map[string]any{"sessions": []WatchSession{done, stale}}, "")
+	var got struct{ Sessions []WatchSession }
+	_ = json.Unmarshal(call("GET", s.GetHistory, nil, "").Body.Bytes(), &got)
+	if len(got.Sessions) != 1 || !got.Sessions[0].Completed || got.Sessions[0].WatchedSeconds != 1380 || got.Sessions[0].Genres[1] != "Fantasy" || got.Sessions[0].SubLang != "fre" {
+		t.Fatalf("completed session must be kept and the newest write win: %+v", got.Sessions)
+	}
+	bad := first
+	bad.ID, bad.WatchedSeconds = "b", -1
+	if rr := call("PUT", s.PutHistory, map[string]any{"sessions": []WatchSession{bad}}, ""); rr.Code != http.StatusBadRequest {
+		t.Fatalf("negative watch time must be rejected, got %d", rr.Code)
+	}
+	if rr := call("GET", s.GetHistory, nil, "?since="+strconv.FormatInt(now, 10)); !strings.Contains(rr.Body.String(), `"sessions":[]`) {
+		t.Fatalf("since must filter: %s", rr.Body)
+	}
+}

@@ -52,7 +52,7 @@ interface VideoPlayerModalProps {
   diagnostic?: PlaybackDiagnostic;
   pageMode?: boolean;
   initialTime?: number;
-  onProgress?: (position:number, duration:number)=>void;
+  onProgress?: (position:number, duration:number, tracks?:{audioLang?:string; subLang?:string})=>void;
   onPlaybackFailure?: (failure: { reason: string; position: number }) => void;
   onVideoMetadata?: (metadata: VideoMetadata) => void;
   onClose: () => void;
@@ -846,7 +846,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         lastProgressRef.current = { time, at: Date.now() };
                       }
                       currentTimeRef.current = time;
-                      onProgress?.(playbackOffset + time, totalDuration);
+                      onProgress?.(playbackOffset + time, totalDuration, {audioLang:videoMeta?.audio_tracks?.find(track=>track.index===selectedAudioTrack)?.language, subLang:selectedSubTrack===null?"":videoMeta?.subtitle_tracks?.find(track=>track.index===selectedSubTrack)?.language});
                       updateProgressDisplay(videoRef.current.currentTime);
                       updateBuffered();
                     }
