@@ -80,6 +80,7 @@ func NewServer(
 	opts ...Option,
 ) *Server {
 	fallbackResolver := indexer.NewEpisodeResolver(idx)
+	fallbackResolver.SetFastPhaseTimeout(cfg.ResolverFastPhaseTimeout)
 	var episodeResolver indexer.EpisodeSourceResolver = fallbackResolver
 	if cfg.ArrAuthoritative {
 		resolver, err := indexer.NewArrEpisodeResolver(cfg.SonarrURL, cfg.SonarrAPIKey, cfg.SonarrSeriesMap, cfg.RadarrURL, cfg.RadarrAPIKey, cfg.RadarrMovieMap, nil)

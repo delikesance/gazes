@@ -49,7 +49,7 @@ func TestCancelledQueueDoesNotCoolDownProvider(t *testing.T) {
 	_, _ = s.search(ctx, SearchOptions{Query: "cancelled"}, false)
 	<-s.slots
 	<-s.slots
-	if !s.retry.IsZero() {
+	if s.gov.Cooldown(context.Background()) > 0 {
 		t.Fatal("cancelled queue opened provider circuit")
 	}
 	if _, err := m.Search(context.Background(), SearchOptions{Query: "healthy"}); err != nil {

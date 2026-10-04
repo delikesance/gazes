@@ -95,7 +95,7 @@ func TestMultiCooldownAndCancellation(t *testing.T) {
 	var calls atomic.Int32
 	bad := sourceProvider{search: func(context.Context, indexer.SearchOptions) ([]indexer.TorrentItem, error) {
 		calls.Add(1)
-		return nil, errors.New("blocked")
+		return nil, &indexer.HTTPError{Provider: "bad", Status: 503}
 	}}
 	m := indexer.NewMultiProvider(bad)
 	for _, query := range []string{"first", "second"} {
