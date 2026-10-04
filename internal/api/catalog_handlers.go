@@ -164,6 +164,16 @@ func (s *Server) HandleCatalogForYou(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(res)
 }
 
+func splitList(raw string) []string {
+	out := []string{}
+	for _, part := range strings.Split(raw, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
 // HandleCatalogSearch handles searching the anime catalog by title and/or genre.
 func (s *Server) HandleCatalogSearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
@@ -185,7 +195,14 @@ func (s *Server) HandleCatalogSearch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res, err := s.catalogService.SearchCatalog(r.Context(), q, genre, page, perPage)
+	// genres / exclude are comma separated; the single "genre" parameter stays supported.
+	include := splitList(r.URL.Query().Get("genres"))
+	if genre != "" {
+		include = append(include, genre)
+	}
+	exclude := splitList(r.URL.Query().Get("exclude"))
+
+	res, err := s.catalogService.SearchCatalogFiltered(r.Context(), q, include, exclude, page, perPage)
 	if err != nil {
 		diagnostics.Logger(r.Context(), s.logger).Error("failed to search anime catalog", "err", err, "query", q)
 		http.Error(w, `{"error": "failed to search catalog"}`, http.StatusInternalServerError)

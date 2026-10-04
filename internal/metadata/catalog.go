@@ -202,13 +202,13 @@ query ($page: Int, $perPage: Int) {
 `
 
 const searchQuery = `
-query ($search: String, $genre: String, $page: Int, $perPage: Int) {
+query ($search: String, $genreIn: [String], $genreNotIn: [String], $tagIn: [String], $tagNotIn: [String], $page: Int, $perPage: Int) {
   Page(page: $page, perPage: $perPage) {
     pageInfo {
       total
       hasNextPage
     }
-    media(search: $search, genre: $genre, sort: POPULARITY_DESC, type: ANIME) {
+    media(search: $search, genre_in: $genreIn, genre_not_in: $genreNotIn, tag_in: $tagIn, tag_not_in: $tagNotIn, minimumTagRank: 60, sort: POPULARITY_DESC, type: ANIME) {
       id
       title {
         english
@@ -900,28 +900,96 @@ func (s *AnimeCatalogService) GetPopular(ctx context.Context, page, perPage int)
 	})
 }
 
-// SearchCatalog searches anime by title or genre.
+// SearchCatalog searches anime by title and an optional single genre.
 func (s *AnimeCatalogService) SearchCatalog(ctx context.Context, query string, genre string, page, perPage int) (*CatalogResponse, error) {
+	var include []string
+	if genre = strings.TrimSpace(genre); genre != "" {
+		include = []string{genre}
+	}
+	return s.SearchCatalogFiltered(ctx, query, include, nil, page, perPage)
+}
+
+// searchGenres and searchTags are the names the catalogue filter accepts; AniList keeps them in
+// two namespaces (genres are broad, tags such as Isekai are specific), so each name is routed to the right one.
+var searchGenres = map[string]bool{
+	"action": true, "adventure": true, "comedy": true, "drama": true, "ecchi": true, "fantasy": true, "horror": true,
+	"mahou shoujo": true, "mecha": true, "music": true, "mystery": true, "psychological": true, "romance": true,
+	"sci-fi": true, "slice of life": true, "sports": true, "supernatural": true, "thriller": true,
+}
+var searchTags = map[string]string{
+	"isekai": "Isekai", "reincarnation": "Reincarnation", "magic": "Magic", "school": "School", "harem": "Harem",
+	"gore": "Gore", "shounen": "Shounen", "seinen": "Seinen",
+}
+
+const maxFilterTerms = 8
+
+// splitFilterTerms routes each requested name to AniList genres or tags, dropping unknown names and duplicates.
+func splitFilterTerms(names []string) (genres, tags []string) {
+	seen := map[string]bool{}
+	for _, name := range names {
+		key := strings.ToLower(strings.TrimSpace(name))
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		if searchGenres[key] {
+			genres = append(genres, canonicalGenre(key))
+		} else if tag, ok := searchTags[key]; ok {
+			tags = append(tags, tag)
+		}
+		if len(genres)+len(tags) == maxFilterTerms {
+			break
+		}
+	}
+	sort.Strings(genres)
+	sort.Strings(tags)
+	return genres, tags
+}
+
+func canonicalGenre(key string) string {
+	parts := strings.Split(key, " ")
+	for i, part := range parts {
+		if part == "sci-fi" {
+			parts[i] = "Sci-Fi"
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	return strings.Join(parts, " ")
+}
+
+// SearchCatalogFiltered searches by title with several wanted (include) and unwanted (exclude)
+// genres or tags. A name in both lists is treated as excluded.
+func (s *AnimeCatalogService) SearchCatalogFiltered(ctx context.Context, query string, include, exclude []string, page, perPage int) (*CatalogResponse, error) {
 	if page <= 0 {
 		page = 1
 	}
 	if perPage <= 0 || perPage > 50 {
 		perPage = 24
 	}
-
 	query = strings.TrimSpace(query)
-	genre = strings.TrimSpace(genre)
-
-	cacheKey := fmt.Sprintf("search-%s-%s-%d-%d", strings.ToLower(query), strings.ToLower(genre), page, perPage)
-	variables := map[string]interface{}{
-		"page":    page,
-		"perPage": perPage,
+	excludeSet := map[string]bool{}
+	for _, name := range exclude {
+		excludeSet[strings.ToLower(strings.TrimSpace(name))] = true
 	}
+	wanted := make([]string, 0, len(include))
+	for _, name := range include {
+		if !excludeSet[strings.ToLower(strings.TrimSpace(name))] {
+			wanted = append(wanted, name)
+		}
+	}
+	genreIn, tagIn := splitFilterTerms(wanted)
+	genreNotIn, tagNotIn := splitFilterTerms(exclude)
+
+	cacheKey := fmt.Sprintf("search-%s-%s-%s-%s-%s-%d-%d", strings.ToLower(query), strings.Join(genreIn, ","), strings.Join(tagIn, ","), strings.Join(genreNotIn, ","), strings.Join(tagNotIn, ","), page, perPage)
+	variables := map[string]interface{}{"page": page, "perPage": perPage}
 	if query != "" {
 		variables["search"] = query
 	}
-	if genre != "" {
-		variables["genre"] = genre
+	for name, values := range map[string][]string{"genreIn": genreIn, "genreNotIn": genreNotIn, "tagIn": tagIn, "tagNotIn": tagNotIn} {
+		if len(values) > 0 {
+			variables[name] = values
+		}
 	}
 
 	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: 15 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
