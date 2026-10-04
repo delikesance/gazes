@@ -51,7 +51,7 @@ func forYouQuery(seeds []int) string {
 
 // GetForYou blends recommendations derived from what the viewer watched (seeds, most recent
 // first) with what is trending and all-time popular. Without seeds it is trending + popular.
-func (s *AnimeCatalogService) GetForYou(ctx context.Context, seeds []int, page, perPage int) (*CatalogResponse, error) {
+func (s *AnimeCatalogService) GetForYou(ctx context.Context, seeds []int, taste Taste, page, perPage int) (*CatalogResponse, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -65,13 +65,13 @@ func (s *AnimeCatalogService) GetForYou(ctx context.Context, seeds []int, page, 
 	for i, id := range seeds {
 		key[i] = fmt.Sprint(id)
 	}
-	cacheKey := fmt.Sprintf("foryou-%s-%d-%d", strings.Join(key, ","), page, perPage)
+	cacheKey := fmt.Sprintf("foryou-%s-%s-%d-%d", strings.Join(key, ","), taste.Fingerprint(), page, perPage)
 	return s.catalogC.Get(ctx, cacheKey, kv.Policy[CatalogResponse]{TTL: 30 * time.Minute}, func(ctx context.Context) (*CatalogResponse, error) {
-		return s.buildForYou(ctx, seeds, page, perPage)
+		return s.buildForYou(ctx, seeds, taste, page, perPage)
 	})
 }
 
-func (s *AnimeCatalogService) buildForYou(ctx context.Context, seeds []int, page, perPage int) (*CatalogResponse, error) {
+func (s *AnimeCatalogService) buildForYou(ctx context.Context, seeds []int, taste Taste, page, perPage int) (*CatalogResponse, error) {
 	trending, trendErr := s.GetTrending(ctx, page, perPage)
 	popular, popErr := s.GetPopular(ctx, page, perPage)
 	if trendErr != nil && popErr != nil {
@@ -80,11 +80,14 @@ func (s *AnimeCatalogService) buildForYou(ctx context.Context, seeds []int, page
 
 	var personal []AnimeCatalogItem
 	if len(seeds) > 0 && page == 1 {
-		personal = s.recommendationsFor(ctx, seeds, perPage)
+		personal = s.recommendationsFor(ctx, seeds, taste, perPage)
 	}
 
 	// Never suggest what the viewer already watches: exclude every season of each seed's franchise.
 	watched := map[int]bool{}
+	for id := range taste.Dropped {
+		watched[id] = true
+	}
 	for _, id := range seeds {
 		watched[id] = true
 		if franchise, err := s.GetFranchise(ctx, id); err == nil {
@@ -102,6 +105,10 @@ func (s *AnimeCatalogService) buildForYou(ctx context.Context, seeds []int, page
 	}
 	if popular != nil {
 		lists[2] = popular.Items
+	}
+	if !taste.Empty() {
+		lists[1] = rankByTaste(lists[1], taste)
+		lists[2] = rankByTaste(lists[2], taste)
 	}
 	// Two personal picks, then one trending and so on; popular fills the remaining slot of each round.
 	pattern := []int{0, 0, 1, 0, 0, 2}
@@ -140,7 +147,7 @@ func (s *AnimeCatalogService) buildForYou(ctx context.Context, seeds []int, page
 }
 
 // recommendationsFor ranks AniList recommendations for the seeds, favouring the most recently watched.
-func (s *AnimeCatalogService) recommendationsFor(ctx context.Context, seeds []int, limit int) []AnimeCatalogItem {
+func (s *AnimeCatalogService) recommendationsFor(ctx context.Context, seeds []int, taste Taste, limit int) []AnimeCatalogItem {
 	var parsed aniListRecommendationsResponse
 	if err := s.anilist.post(ctx, forYouQuery(seeds), map[string]interface{}{}, &parsed); err != nil || len(parsed.Errors) > 0 {
 		return nil
@@ -168,19 +175,50 @@ func (s *AnimeCatalogService) recommendationsFor(ctx context.Context, seeds []in
 		}
 		return ids[a] < ids[b]
 	})
-	if len(ids) > limit {
-		ids = ids[:limit]
+	// Take a wider pool than we show, so the taste profile can promote what fits the viewer.
+	if len(ids) > limit*2 {
+		ids = ids[:limit*2]
 	}
 	if len(ids) == 0 {
 		return nil
 	}
+	top := score[ids[0]]
 	page := &aniListPageResponse{}
 	for _, id := range ids {
 		page.Data.Page.Media = append(page.Data.Page.Media, media[id])
 	}
-	res, err := s.formatPageResponse(ctx, page, map[string]interface{}{"page": 1, "perPage": limit})
+	res, err := s.formatPageResponse(ctx, page, map[string]interface{}{"page": 1, "perPage": limit * 2})
 	if err != nil {
 		return nil
 	}
-	return res.Items
+	items := res.Items
+	if !taste.Empty() {
+		// 60% community votes, 40% fit with the viewer's own taste.
+		combined := func(item AnimeCatalogItem) float64 {
+			return 0.6*score[item.MediaID]/top + 0.4*(taste.Score(item.Genres)+1)/2
+		}
+		sort.SliceStable(items, func(a, b int) bool { return combined(items[a]) > combined(items[b]) })
+	}
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	return items
+}
+
+// rankByTaste reorders a list so titles matching the viewer's taste rise, keeping the original
+// order (popularity or trend) as the other half of the score.
+func rankByTaste(items []AnimeCatalogItem, taste Taste) []AnimeCatalogItem {
+	if len(items) < 2 {
+		return items
+	}
+	ranked := append([]AnimeCatalogItem(nil), items...)
+	original := map[int]int{}
+	for i, item := range items {
+		original[item.ID] = i
+	}
+	combined := func(item AnimeCatalogItem) float64 {
+		return 0.5*(1-float64(original[item.ID])/float64(len(items))) + 0.5*(taste.Score(item.Genres)+1)/2
+	}
+	sort.SliceStable(ranked, func(a, b int) bool { return combined(ranked[a]) > combined(ranked[b]) })
+	return ranked
 }

@@ -1,6 +1,6 @@
 "use client";
 import { listProgress } from "@/lib/watch-progress";
-import { watchedAnimeIds } from "@/lib/watch-log";
+import { watchedAnimeIds, listWatchSessions } from "@/lib/watch-log";
 import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
@@ -32,6 +32,12 @@ function watchedSeeds(): number[] {
     if (ids.length < 5 && id > 0 && !ids.includes(id)) ids.push(id);
   }
   return ids;
+}
+
+/** The 300 most recent local sessions, trimmed to what the taste profile uses. */
+function recentSessions() {
+  return listWatchSessions().slice(-300).map(({ anime_id, season_id, genres, watched_seconds, duration, completed, updated_at }) =>
+    ({ anime_id, season_id, genres, watched_seconds, duration, completed, updated_at }));
 }
 
 export function CatalogBrowser({
@@ -81,7 +87,7 @@ export function CatalogBrowser({
     let active = true;
     setLoading(true);
     setError("");
-    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), page, 24) : getCatalogSeasonal(page, 24);
+    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), page, 24) : getCatalogSeasonal(page, 24);
     request.then(result => {
       if (active) {
         setData(result);

@@ -39,10 +39,19 @@ export async function getCatalogPopular(page: number = 1, perPage: number = 20, 
   return res.json();
 }
 
-/** Suggestions: recommendations from the anime ids a viewer watched (most recent first), blended with trending titles. */
-export async function getCatalogForYou(seedIds: number[], page: number = 1, perPage: number = 24, signal?: AbortSignal): Promise<CatalogResponse> {
+/**
+ * Suggestions. Signed in, the server profiles the stored watch log; otherwise the visitor's local
+ * sessions travel in the body so their device history still shapes the feed. `seedIds` is the fallback.
+ */
+export async function getCatalogForYou(seedIds: number[], sessions: unknown[] = [], page: number = 1, perPage: number = 24, signal?: AbortSignal): Promise<CatalogResponse> {
   const ids = seedIds.length ? `&ids=${seedIds.join(",")}` : "";
-  const res = await fetch(`${getApiBase()}/catalog/foryou?page=${page}&per_page=${perPage}${ids}`, { signal });
+  const res = await fetch(`${getApiBase()}/catalog/foryou?page=${page}&per_page=${perPage}${ids}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ sessions }),
+    signal,
+  });
   if (!res.ok) {
     throw httpError("Impossible de charger vos suggestions.", "CAT", res);
   }

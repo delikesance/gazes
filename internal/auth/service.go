@@ -471,3 +471,17 @@ func (s *Service) PutHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"saved": len(body.Sessions)})
 }
+
+// SessionsFor returns the signed-in viewer's stored watch sessions (newest first, at most limit),
+// or false when the request carries no valid session.
+func (s *Service) SessionsFor(r *http.Request, limit int) ([]WatchSession, bool) {
+	u := s.currentUser(r)
+	if u == nil {
+		return nil, false
+	}
+	items, err := s.store.ListWatchSessions(u.ID, 0, limit)
+	if err != nil {
+		return nil, false
+	}
+	return items, true
+}
