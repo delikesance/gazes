@@ -62,11 +62,14 @@ export async function searchCatalog(
   query: string = "",
   genre: string = "",
   page: number = 1,
-  perPage: number = 24
+  perPage: number = 24,
+  exclude: string = ""
 ): Promise<CatalogResponse> {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
-  if (genre) params.set("genre", genre);
+  // `genre` holds the wanted genres/tags, comma separated; `exclude` the unwanted ones.
+  if (genre) params.set("genres", genre);
+  if (exclude) params.set("exclude", exclude);
   if (page > 1) params.set("page", page.toString());
   if (perPage !== 24) params.set("per_page", perPage.toString());
 

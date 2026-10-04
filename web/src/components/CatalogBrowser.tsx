@@ -2,6 +2,7 @@
 import { listProgress } from "@/lib/watch-progress";
 import { watchedAnimeIds, listWatchSessions } from "@/lib/watch-log";
 import { hideAnime, listHidden } from "@/lib/hidden-anime";
+import { genreLabel, parseList } from "@/lib/genres";
 import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
@@ -21,6 +22,7 @@ interface CatalogBrowserProps {
   initialPopular?: CatalogResponse | null;
   initialQuery?: string;
   initialGenre?: string;
+  initialExclude?: string;
   initialTab?: string;
   initialPage?: number;
 }
@@ -46,6 +48,7 @@ export function CatalogBrowser({
   initialPopular = null,
   initialQuery = "",
   initialGenre = "",
+  initialExclude = "",
   initialTab = "trending",
   initialPage = 1,
 }: CatalogBrowserProps = {}) {
@@ -53,6 +56,7 @@ export function CatalogBrowser({
   const router = useRouter();
   const [q, setQ] = useState(initialQuery);
   const [genre, setGenre] = useState(initialGenre);
+  const [exclude, setExclude] = useState(initialExclude);
   const [tab, setTab] = useState(initialTab);
   const [page, setPage] = useState(initialPage);
   const [data, setData] = useState<CatalogResponse | null>(initialData);
@@ -62,7 +66,7 @@ export function CatalogBrowser({
   const [retry, setRetry] = useState(0);
   const [popular, setPopular] = useState<CatalogResponse | null>(initialPopular);
   const [featuredUnavailable, setFeaturedUnavailable] = useState(false);
-  const discovery = !q && !genre && page === 1;
+  const discovery = !q && !genre && !exclude && page === 1;
   // The default discovery tab is the release calendar, which loads its own schedule.
   const isSuggestions = tab === "suggestions" || tab === "popular";
   const needsData = !(discovery && !isSuggestions);
@@ -71,7 +75,8 @@ export function CatalogBrowser({
     if (typeof window !== "undefined") {
       const search = new URLSearchParams(window.location.search);
       setQ(search.get("q") ?? initialQuery ?? "");
-      setGenre(search.get("genre") ?? initialGenre ?? "");
+      setGenre(search.get("genres") ?? search.get("genre") ?? initialGenre ?? "");
+      setExclude(search.get("exclude") ?? initialExclude ?? "");
       setTab(search.get("tab") ?? initialTab ?? "trending");
       setPage(Math.max(1, Number(search.get("page")) || initialPage || 1));
     }
@@ -88,7 +93,7 @@ export function CatalogBrowser({
     let active = true;
     setLoading(true);
     setError("");
-    const request = q || genre ? searchCatalog(q, genre, page, 24) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), listHidden(), page, 28) : getCatalogSeasonal(page, 24);
+    const request = q || genre || exclude ? searchCatalog(q, genre, page, 24, exclude) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), listHidden(), page, 28) : getCatalogSeasonal(page, 24);
     request.then(result => {
       if (active) {
         setData(result);
@@ -105,7 +110,7 @@ export function CatalogBrowser({
     return () => {
       active = false;
     };
-  }, [q, genre, tab, page, retry, needsData, isSuggestions]);
+  }, [q, genre, exclude, tab, page, retry, needsData, isSuggestions]);
 
   useEffect(() => {
     if (!discovery) return;
@@ -130,7 +135,8 @@ export function CatalogBrowser({
   const featured = discovery ? (popular?.items || []).filter(anime =>
     anime.status !== "NOT_YET_RELEASED" && (anime.banner_image || anime.media_poster_image || anime.poster_image)) : [];
   const heroLoading = discovery && !popular && !featuredUnavailable;
-  const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && !isSuggestions} onHide={isSuggestions ? hide : undefined} />);
+  const filterSummary = [parseList(genre).map(genreLabel).join(", "), parseList(exclude).length ? t("sans {genres}", { genres: parseList(exclude).map(genreLabel).join(", ") }) : ""].filter(Boolean).join(" · ");
+  const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && !exclude && !isSuggestions} onHide={isSuggestions ? hide : undefined} />);
 
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
@@ -150,7 +156,7 @@ export function CatalogBrowser({
     {discovery && !error && <AccountCta />}
     {(!discovery || error || (loading && needsData) || (needsData && data && data.items && data.items.length === 0)) && <div className="catalog-tools page-inset">
       {error ? <ErrorAlert className="my-8" message={error} code={errorCodeValue} onRetry={() => setRetry(retry + 1)} /> : (loading && needsData) ? <p role="status" className="catalog-message">{t("Chargement…")}</p> : <>
-        {!discovery && <section><h1 className="results-heading">{q ? t("Résultats pour « {query} »", {query:q}) : genre || t("Explorer les animes")}</h1><div className="poster-grid">{cards}</div></section>}
+        {!discovery && <section><h1 className="results-heading">{q ? t("Résultats pour « {query} »", {query:q}) : filterSummary || t("Explorer les animes")}</h1><div className="poster-grid">{cards}</div></section>}
         {data && data.items && data.items.length === 0 && <p className="catalog-message">{t("Aucun anime trouvé.")}</p>}
       </>}
       {!discovery && data && <nav aria-label={t("Pagination")} className="catalog-pagination"><button disabled={page <= 1} onClick={() => update({page:String(page - 1)})}><ArrowLeft size={16} /> {" "}{t("Précédent")}</button><span>{t("Page")}{" "}{page}</span><button disabled={!data?.has_next_page} onClick={() => update({page:String(page + 1)})}>{t("Suivant")}{" "}<ArrowRight size={16} /></button></nav>}

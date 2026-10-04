@@ -4,33 +4,35 @@ import { useI18n } from "@/lib/i18n";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Minus, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { GENRES, parseList } from "@/lib/genres";
 import { ThemeToggle } from "./ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
 
-// AniList genre names (what the catalogue search filters on) with their French labels.
-const GENRES: [string, string][] = [
-  ["Action", "Action"], ["Adventure", "Aventure"], ["Comedy", "Comédie"], ["Drama", "Drame"], ["Ecchi", "Ecchi"], ["Fantasy", "Fantastique"],
-  ["Horror", "Horreur"], ["Mahou Shoujo", "Magical girl"], ["Mecha", "Mecha"], ["Music", "Musique"], ["Mystery", "Mystère"], ["Psychological", "Psychologique"],
-  ["Romance", "Romance"], ["Sci-Fi", "Science-fiction"], ["Slice of Life", "Tranche de vie"], ["Sports", "Sport"], ["Supernatural", "Surnaturel"], ["Thriller", "Thriller"],
-];
-
-function Header({ query = "", initialGenre = "", onSubmit, onClear }: { query?: string; initialGenre?: string; onSubmit?: (event: FormEvent<HTMLFormElement>) => void; onClear?: () => void }) {
+function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, onClear }: { query?: string; initialGenre?: string; initialExclude?: string; onSubmit?: (event: FormEvent<HTMLFormElement>) => void; onClear?: () => void }) {
   const { t } = useI18n();
   const [searchOpen,setSearchOpen]=useState(false);
   const breadcrumbSlot=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(breadcrumbSlot.current){breadcrumbSlot.current.dataset.ready="true";window.dispatchEvent(new Event("gazes-header-ready"));}},[]);
   // null until the viewer picks one here: the URL genre is the starting point.
-  const [picked,setGenre]=useState<string|null>(null);
-  const genre=picked??initialGenre;
+  const [picked,setPicked]=useState<{include:string[];exclude:string[]}|null>(null);
+  const include=picked?.include??parseList(initialGenre);
+  const exclude=picked?.exclude??parseList(initialExclude);
+  const hasFilter=include.length>0||exclude.length>0;
+  // Left click wants a genre, right click refuses it; clicking again on the same side clears it.
+  const choose=(value:string,side:"include"|"exclude")=>{
+    const without=(list:string[])=>list.filter(item=>item!==value);
+    const alreadyThere=(side==="include"?include:exclude).includes(value);
+    setPicked({include:side==="include"&&!alreadyThere?[...without(include),value]:without(include),exclude:side==="exclude"&&!alreadyThere?[...without(exclude),value]:without(exclude)});
+  };
   const [filterOpen,setFilterOpen]=useState(false);
   // On a search results page the bar stays open; elsewhere it opens on demand.
-  const onSearchPage=Boolean(query||initialGenre);
+  const onSearchPage=Boolean(query||initialGenre||initialExclude);
   const searchVisible=searchOpen||onSearchPage;
   const searchButton=useRef<HTMLButtonElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);
   // Every way of closing the search (X, Escape, blur, submit) must also reset the filter panel and the picked genre.
-  const resetSearch=()=>{setSearchOpen(false);setFilterOpen(false);setGenre(null);};
+  const resetSearch=()=>{setSearchOpen(false);setFilterOpen(false);setPicked(null);};
   const closeSearch=()=>{resetSearch();searchButton.current?.focus();};
   return <header className={`catalog-toolbar catalog-header page-inset${searchVisible?" search-open":""}`} aria-label={t("Navigation principale")}>
     <Link href="/" className="site-wordmark" aria-label={t("Gazes, accueil")}>gazes<span>.</span></Link>
@@ -40,17 +42,27 @@ function Header({ query = "", initialGenre = "", onSubmit, onClear }: { query?: 
       {searchVisible&&<form id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen){setFilterOpen(false);filterButton.current?.focus();}else closeSearch();}}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))resetSearch();}}>
         <Search size={18} aria-hidden="true" />
         <input autoFocus={searchOpen} name="q" aria-label={t("Rechercher un anime")} defaultValue={query} placeholder={t("Rechercher un anime…")} />
-        <input type="hidden" name="genre" value={genre} />
-        <button ref={filterButton} type="button" className="search-filter-toggle" data-active={genre?"true":"false"} aria-label={t("Filtrer par genre")} aria-expanded={filterOpen} aria-controls="search-filter-panel" onClick={()=>setFilterOpen(open=>!open)}><SlidersHorizontal size={17} aria-hidden="true" /></button>
+        <input type="hidden" name="genres" value={include.join(",")} />
+        <input type="hidden" name="exclude" value={exclude.join(",")} />
+        <button ref={filterButton} type="button" className="search-filter-toggle" data-active={hasFilter?"true":"false"} aria-label={t("Filtrer par genre")} aria-expanded={filterOpen} aria-controls="search-filter-panel" onClick={()=>setFilterOpen(open=>!open)}><SlidersHorizontal size={17} aria-hidden="true" /></button>
         <button type="submit" aria-label={t("Rechercher")}><ArrowRight size={19} /></button>
         <button type="button" aria-label={t(onSearchPage?"Effacer la recherche":"Fermer la recherche")} onClick={()=>{if(onSearchPage&&onClear){resetSearch();onClear();}else closeSearch();}}><X size={17} /></button>
         {filterOpen&&<div id="search-filter-panel" className="search-filter-panel" role="group" aria-label={t("Genres")}>
           <p className="search-filter-title">{t("Genres")}</p>
+          <p className="search-filter-hint">{t("Clic gauche : inclure · Clic droit : exclure")}</p>
           <div className="search-filter-options">
-            {GENRES.map(([value,label])=><button key={value} type="button" aria-pressed={genre===value} onClick={()=>setGenre(genre===value?"":value)}>{t(label)}</button>)}
+            {GENRES.map(([value,label])=>{
+              const state=include.includes(value)?"include":exclude.includes(value)?"exclude":"none";
+              const name=t(label);
+              return <button key={value} type="button" data-state={state} aria-pressed={state!=="none"}
+                aria-label={state==="include"?t("{genre}, inclus",{genre:name}):state==="exclude"?t("{genre}, exclu",{genre:name}):name}
+                onClick={()=>choose(value,"include")} onContextMenu={event=>{event.preventDefault();choose(value,"exclude");}}>
+                {state==="include"&&<Plus size={13} aria-hidden="true" />}{state==="exclude"&&<Minus size={13} aria-hidden="true" />}{name}
+              </button>;
+            })}
           </div>
           <div className="search-filter-actions">
-            <button type="button" className="search-filter-clear" disabled={!genre} onClick={()=>setGenre("")}>{t("Effacer")}</button>
+            <button type="button" className="search-filter-clear" disabled={!hasFilter} onClick={()=>setPicked({include:[],exclude:[]})}>{t("Effacer")}</button>
             <button type="submit" className="search-filter-apply">{t("Appliquer")}</button>
           </div>
         </div>}
@@ -68,16 +80,19 @@ export function SiteHeader() {
   // Read from the URL on every navigation, so the search box always reflects the page being shown.
   const params = useSearchParams();
   const query = params.get("q") || "";
-  const genre = params.get("genre") || "";
+  const genre = params.get("genres") || params.get("genre") || "";
+  const exclude = params.get("exclude") || "";
 
-  return <Header query={query} initialGenre={genre} onClear={() => router.push("/")} onSubmit={event => {
+  return <Header query={query} initialGenre={genre} initialExclude={exclude} onClear={() => router.push("/")} onSubmit={event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const q = String(form.get("q") || "").trim();
-    const genre = String(form.get("genre") || "");
+    const genres = String(form.get("genres") || "");
+    const exclude = String(form.get("exclude") || "");
     const search = new URLSearchParams({page:"1"});
     if (q) search.set("q", q);
-    if (genre) search.set("genre", genre);
-    router.push(q || genre ? `/?${search.toString()}` : "/");
+    if (genres) search.set("genres", genres);
+    if (exclude) search.set("exclude", exclude);
+    router.push(q || genres || exclude ? `/?${search.toString()}` : "/");
   }} />;
 }
