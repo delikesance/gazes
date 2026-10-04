@@ -46,7 +46,7 @@ func (p *PipelineManager) ServeHTTP(w http.ResponseWriter, r *http.Request, read
 			if err != nil {
 				return err
 			}
-			meta, probeErr := metadata.NewFFprobeAnalyzer(p.logger).ProbeReader(r.Context(), reader, size)
+			meta, probeErr := metadata.NewFFprobeAnalyzer(p.logger).ProbeStreams(r.Context(), reader, size)
 			if _, err := reader.Seek(position, io.SeekStart); err != nil {
 				return err
 			}
