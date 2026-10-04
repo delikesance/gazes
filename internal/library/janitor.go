@@ -45,9 +45,10 @@ func NewJanitor(store *Store, pool *Pool, inUse func(Key) bool, clock func() tim
 }
 
 // Free deletes ORIGINAL/AV1 copies of the disk, least recently accessed first, until the disk is back above
-// its reserve. Copies being read, or accessed less than an hour ago, are kept. It returns the bytes freed.
-func (j *Janitor) Free(diskID string) (int64, error) {
-	if j.pool.Under(diskID) <= 0 || !j.diskVerified(diskID) {
+// its reserve and need more bytes can be reserved on it (need 0 only restores the reserve). Copies being
+// read, or accessed less than an hour ago, are kept. It returns the bytes freed.
+func (j *Janitor) Free(diskID string, need int64) (int64, error) {
+	if j.pool.Shortfall(diskID, need) <= 0 || !j.diskVerified(diskID) {
 		return 0, nil
 	}
 	cands, err := j.store.List(Filter{States: []State{StateOriginal, StateAV1}, DiskID: diskID, OrderBy: "last_access_at"})
@@ -58,7 +59,7 @@ func (j *Janitor) Free(diskID string) (int64, error) {
 	var firstErr error
 	now := j.clock()
 	for _, e := range cands {
-		if j.pool.Under(diskID) <= 0 {
+		if j.pool.Shortfall(diskID, need) <= 0 {
 			break
 		}
 		if !j.evictable(e, now) {
@@ -253,7 +254,7 @@ func (j *Janitor) Run(ctx context.Context) {
 			return
 		case <-free.C:
 			for _, d := range j.pool.Disks() {
-				if _, err := j.Free(d.ID); err != nil {
+				if _, err := j.Free(d.ID, 0); err != nil {
 					diagnostics.Log(ctx, slog.LevelWarn, "library.free_failed", "disk", d.ID, "error", err.Error())
 				}
 			}

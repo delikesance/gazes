@@ -209,13 +209,21 @@ func (s *Service) Register(userID int64, req Request) (Entry, bool, error) {
 		return e, false, nil
 	}
 	e, created, err := s.acq.Start(req)
-	if errors.Is(err, ErrNoSpace) {
+	var ns needSpaceError
+	if errors.As(err, &ns) {
+		// Evict least recently used copies until one disk can hold the file, then retry once.
 		for _, d := range s.pool.Disks() {
-			if _, ferr := s.janitor.Free(d.ID); ferr != nil {
+			if _, ferr := s.janitor.Free(d.ID, ns.need); ferr != nil {
 				s.logger.Warn("library.evict", "disk_id", d.ID, "error", ferr.Error())
+			}
+			if s.pool.Shortfall(d.ID, ns.need) <= 0 {
+				break
 			}
 		}
 		e, created, err = s.acq.Start(req)
+		if errors.As(err, &ns) {
+			err = ErrNoSpace
+		}
 	}
 	if err != nil {
 		return Entry{}, false, err

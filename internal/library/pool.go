@@ -348,6 +348,30 @@ func (p *Pool) Under(diskID string) int64 {
 	return d.Reserve - free
 }
 
+// Shortfall returns how many bytes must be freed on the disk so that need bytes can be reserved on it:
+// the larger of Under and need minus the space currently available for reservation (0 if fine or if the
+// disk is absent).
+func (p *Pool) Shortfall(diskID string, need int64) int64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	d, ok := p.disks[diskID]
+	if !ok {
+		return 0
+	}
+	avail, ok := p.available(d)
+	if !ok {
+		return 0
+	}
+	short := need - avail
+	if _, free, err := p.statfs(d.Path); err == nil && d.Reserve-free > short {
+		short = d.Reserve - free
+	}
+	if short < 0 {
+		return 0
+	}
+	return short
+}
+
 // Path resolves rel inside the disk's directory. It rejects paths that escape the disk.
 func (p *Pool) Path(diskID, rel string) (string, error) {
 	p.mu.Lock()
