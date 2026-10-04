@@ -66,7 +66,7 @@ test('lookupWithin resolves empty on timeout, on rejection and on a throwing loo
   assert.deepEqual(await lookupWithin(50, () => { throw new Error('x'); }), { copies: [], timedOut: false });
 });
 
-import { loadWatchData, prewarmTargets } from '../src/lib/library.ts';
+import { loadWatchData, prewarmTargets, playerWaitState, currentFor } from '../src/lib/library.ts';
 
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 const tick = () => new Promise((r) => setTimeout(r, 5));
@@ -76,6 +76,7 @@ function watch(parts) {
   const done = loadWatchData(parts, {
     ready: (d) => events.push(['ready', d]),
     sources: (s) => events.push(['sources', s]),
+    sourcesFailed: (e) => events.push(['sourcesFailed', e]),
   });
   return { events, done };
 }
@@ -86,7 +87,7 @@ test('loadWatchData starts playback from a library copy without waiting for the 
   const { events, done } = watch({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: sources.promise, copies: Promise.resolve([c]) });
   await tick();
   assert.equal(events.length, 1);
-  assert.deepEqual(events[0], ['ready', { franchise: 'F', season: 'S', copies: [c], sources: undefined }]);
+  assert.deepEqual(events[0], ['ready', { franchise: 'F', season: 'S', copies: [c], sources: undefined, sourcesState: 'pending' }]);
   sources.resolve('SRC');
   await done;
   assert.deepEqual(events[1], ['sources', 'SRC']);
@@ -99,7 +100,7 @@ test('loadWatchData waits for the sources when there is no copy', async () => {
   assert.equal(events.length, 0);
   sources.resolve('SRC');
   await done;
-  assert.deepEqual(events, [['ready', { franchise: 'F', season: 'S', copies: [], sources: 'SRC' }]]);
+  assert.deepEqual(events, [['ready', { franchise: 'F', season: 'S', copies: [], sources: 'SRC', sourcesState: 'loaded' }]]);
 });
 
 test('loadWatchData reports a sources failure only when no copy can play', async () => {
@@ -109,12 +110,32 @@ test('loadWatchData reports a sources failure only when no copy can play', async
   await done;
   assert.deepEqual(events.map((e) => e[0]), ['ready']);
   assert.equal(events[0][1].sources, undefined);
+  assert.equal(events[0][1].sourcesState, 'failed');
+});
+
+test('loadWatchData reports a late sources failure with a copy as failed, not pending', async () => {
+  const sources = deferred();
+  const { events, done } = watch({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: sources.promise, copies: Promise.resolve([copy('vf')]) });
+  await tick();
+  assert.equal(events[0][1].sourcesState, 'pending');
+  const err = new Error('late');
+  sources.reject(err);
+  await done;
+  assert.deepEqual(events[1], ['sourcesFailed', err]);
+  assert.equal(events.length, 2);
+});
+
+test('playerWaitState shows pending only while the sources request is in flight', () => {
+  assert.equal(playerWaitState({ hasSource: false, sourcesState: 'pending' }), 'pending');
+  assert.equal(playerWaitState({ hasSource: false, sourcesState: 'failed' }), 'exhausted');
+  assert.equal(playerWaitState({ hasSource: false, sourcesState: 'loaded' }), 'exhausted');
+  assert.equal(playerWaitState({ hasSource: true, sourcesState: 'pending' }), 'playing');
 });
 
 test('loadWatchData passes already available sources with the copies in one step', async () => {
   const { events, done } = watch({ franchise: Promise.resolve('F'), season: Promise.resolve('S'), sources: Promise.resolve('SRC'), copies: Promise.resolve([copy('vf')]) });
   await done;
-  assert.deepEqual(events, [['ready', { franchise: 'F', season: 'S', copies: [copy('vf')], sources: 'SRC' }]]);
+  assert.deepEqual(events, [['ready', { franchise: 'F', season: 'S', copies: [copy('vf')], sources: 'SRC', sourcesState: 'loaded' }]]);
 });
 
 test('loadWatchData still fails when the catalog fails', async () => {
@@ -129,4 +150,12 @@ test('prewarmTargets skips torrent prewarming while a library copy plays', () =>
   assert.deepEqual(prewarmTargets(list, 1).map((s) => s.info_hash), ['t2', 't3']);
   assert.deepEqual(prewarmTargets([src('t1', 'VF'), lib, src('t2', 'VF')], 0).map((s) => s.info_hash), ['t2']);
   assert.deepEqual(prewarmTargets([], 0), []);
+});
+
+test('currentFor only exposes data loaded for the current request key', () => {
+  const loaded = { key: '1/2/3:0', sourcesState: 'failed' };
+  assert.equal(currentFor(loaded, '1/2/3:0'), loaded);
+  assert.equal(currentFor(loaded, '1/2/3:1'), null);
+  assert.equal(currentFor(loaded, '1/2/4:0'), null);
+  assert.equal(currentFor(null, '1/2/3:0'), null);
 });
