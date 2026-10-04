@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -23,7 +22,7 @@ func (p *countingProvider) Search(ctx context.Context, o SearchOptions) ([]Torre
 	p.calls.Add(1)
 	time.Sleep(80 * time.Millisecond)
 	if p.fail.Load() {
-		return nil, errors.New("HTTP 429")
+		return nil, &HTTPError{Provider: "fake", Status: 429}
 	}
 	return []TorrentItem{{InfoHash: "aa", Title: "t", Seeders: 5}}, nil
 }

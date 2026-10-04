@@ -2,6 +2,7 @@ package torznab
 
 import (
 	"context"
+	"errors"
 	"github.com/gazes/gazes/internal/indexer"
 	"net/http"
 	"net/http/httptest"
@@ -89,5 +90,41 @@ func TestIndexerOnlyMagnetAsksBackendForTheTorrent(t *testing.T) {
 	m := items[0].MagnetURI
 	if !strings.Contains(m, "xs=gazes%3Ac411") || strings.Contains(m, "passkey") || strings.Contains(m, "secret") || strings.Contains(m, "tr=") {
 		t.Fatalf("magnet must name the provider and carry no tracker or credential: %s", m)
+	}
+}
+
+func TestErrorBodiesOn200MapToHTTPErrors(t *testing.T) {
+	cases := []struct {
+		body   string
+		status int
+	}{
+		{`<?xml version="1.0"?><error code="100" description="Incorrect user credentials"/>`, 401},
+		{`<error code="101" description="Account suspended"/>`, 401},
+		{`<error code="102" description="Insufficient privileges"/>`, 401},
+		{`<error code="429" description="User configurable Indexer Query Limit of 5 in last 1 hour(s) reached"/>`, 429},
+		{`<error code="900" description="Unknown error"/>`, 400},
+		{`<error code="910" description="API disabled"/>`, 400},
+	}
+	for _, tc := range cases {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/xml")
+			w.Write([]byte(tc.body))
+		}))
+		c, _ := New("c411", srv.URL, "secret")
+		_, err := c.Search(context.Background(), indexer.SearchOptions{Query: "x"})
+		srv.Close()
+		var he *indexer.HTTPError
+		if !errors.As(err, &he) || he.Status != tc.status || he.Provider != "c411" {
+			t.Fatalf("%s -> %v, want HTTP %d", tc.body, err, tc.status)
+		}
+	}
+}
+
+func TestNormalFeedIsNotTreatedAsError(t *testing.T) {
+	if he := ParseError([]byte(`<rss><channel><item><title>error</title></item></channel></rss>`), "x"); he != nil {
+		t.Fatalf("feed misread as error: %v", he)
+	}
+	if he := ParseError([]byte(`not xml`), "x"); he != nil {
+		t.Fatal("garbage misread as error")
 	}
 }

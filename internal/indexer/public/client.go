@@ -100,7 +100,7 @@ func (c *Client) fetch(ctx context.Context, address string) ([]byte, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("%s: HTTP %d", c.Kind, res.StatusCode)
+		return nil, indexer.NewHTTPError(c.Kind, res)
 	}
 	b, e := io.ReadAll(io.LimitReader(res.Body, (2<<20)+1))
 	if e != nil || len(b) > 2<<20 {

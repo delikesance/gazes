@@ -1,11 +1,13 @@
 package settings
 
 import (
+	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/indexer/torznab"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPrivateManifestReplacesDirectProviders(t *testing.T) {
@@ -81,5 +83,52 @@ func TestConfiguredGatewaysAreNotSilentlyIgnored(t *testing.T) {
 				t.Fatal("manifest gateway replaced with direct connector")
 			}
 		}
+	}
+}
+
+func gatewayPacing(t *testing.T, manifest string) map[string]indexer.Pacing {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "indexers.json")
+	os.WriteFile(path, []byte(manifest), 0600)
+	p, err := Providers(func(k string) string {
+		if k == "INDEXER_CONFIG_FILE" {
+			return path
+		}
+		return ""
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]indexer.Pacing{}
+	for _, provider := range p {
+		out[provider.Name()] = provider.(*torznab.Client).Pacing()
+	}
+	return out
+}
+
+func TestC411IsPacedByDefault(t *testing.T) {
+	got := gatewayPacing(t, `[{"name":"c411","endpoint":"http://prowlarr:9696/3/api","apiKey":"k","indexerOnly":true},{"name":"anidex","endpoint":"http://prowlarr:9696/7/api","apiKey":"k"}]`)
+	if want := (indexer.Pacing{MaxConcurrent: 1, MinInterval: 4100 * time.Millisecond}); got["c411"] != want {
+		t.Fatalf("c411 pacing %+v, want %+v", got["c411"], want)
+	}
+	if !got["anidex"].IsZero() {
+		t.Fatalf("anidex must not be paced: %+v", got["anidex"])
+	}
+}
+
+func TestGatewayPacingConfigOverridesDefault(t *testing.T) {
+	got := gatewayPacing(t, `[{"name":"c411","endpoint":"http://prowlarr:9696/3/api","apiKey":"k","maxConcurrent":2,"minIntervalMs":1500},{"name":"torrent9","endpoint":"http://prowlarr:9696/4/api","apiKey":"k","minIntervalMs":2000},{"name":"ext","endpoint":"http://prowlarr:9696/5/api","apiKey":"k","minIntervalMs":-1}]`)
+	if want := (indexer.Pacing{MaxConcurrent: 2, MinInterval: 1500 * time.Millisecond}); got["c411"] != want {
+		t.Fatalf("c411: %+v", got["c411"])
+	}
+	if want := (indexer.Pacing{MinInterval: 2 * time.Second}); got["torrent9"] != want {
+		t.Fatalf("torrent9: %+v", got["torrent9"])
+	}
+	if !got["ext"].IsZero() {
+		t.Fatalf("negative interval must disable pacing: %+v", got["ext"])
+	}
+	off := gatewayPacing(t, `[{"name":"c411","endpoint":"http://prowlarr:9696/3/api","apiKey":"k","minIntervalMs":-1}]`)
+	if !off["c411"].IsZero() {
+		t.Fatalf("c411 default must be disablable: %+v", off["c411"])
 	}
 }

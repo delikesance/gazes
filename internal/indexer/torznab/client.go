@@ -2,6 +2,7 @@
 package torznab
 
 import (
+	"bytes"
 	"context"
 	"encoding/base32"
 	"encoding/hex"
@@ -24,7 +25,12 @@ type Client struct {
 	HTTPClient                  *http.Client
 	// IndexerOnly marks every result as discovery-only (see indexer.TorrentItem).
 	IndexerOnly bool
+	// Pace limits how the gateway is called (see indexer.Pacing); enforced by indexer.MultiProvider.
+	Pace indexer.Pacing
 }
+
+// Pacing implements indexer.PacedProvider.
+func (c *Client) Pacing() indexer.Pacing { return c.Pace }
 
 func New(name, endpoint, key string) (*Client, error) {
 	u, err := url.Parse(endpoint)
@@ -67,9 +73,16 @@ func (c *Client) Search(ctx context.Context, o indexer.SearchOptions) ([]indexer
 	diagnostics.Log(ctx, slog.LevelDebug, "provider.http", "provider", c.Name(), "status", res.StatusCode)
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s: HTTP %d", c.Name(), res.StatusCode)
+		return nil, indexer.NewHTTPError(c.Name(), res)
 	}
-	items, err := Parse(io.LimitReader(res.Body, 4<<20), c.Name())
+	body, err := io.ReadAll(io.LimitReader(res.Body, 4<<20))
+	if err != nil {
+		return nil, fmt.Errorf("%s: request failed: %s", c.Name(), diagnostics.Redact(err.Error()))
+	}
+	if he := ParseError(body, c.Name()); he != nil {
+		return nil, he
+	}
+	items, err := Parse(bytes.NewReader(body), c.Name())
 	for i := range items {
 		items[i].IndexerOnly = c.IndexerOnly
 		if c.IndexerOnly {
@@ -80,6 +93,63 @@ func (c *Client) Search(ctx context.Context, o indexer.SearchOptions) ([]indexer
 		}
 	}
 	return items, err
+}
+
+// ParseError reads a Torznab/Newznab <error code="..." description="..."/> body, which gateways
+// such as Prowlarr may return with HTTP 200, and maps it to an *indexer.HTTPError so the circuit
+// breaker classifies it like the equivalent HTTP status. It returns nil for anything that is not
+// an error document.
+//
+// Sources: the Newznab/Torznab API error codes (1xx account: 100 incorrect credentials, 101 account
+// suspended, 102 insufficient privileges; 2xx request: 200 missing parameter, 201 incorrect
+// parameter, 202 no such function, 203 function not available; 300 no such item; 900 unknown error;
+// 910 API disabled) and Prowlarr's NewznabController, which reports indexer rate limits ("Query
+// Limit ... reached", "Indexer is disabled till ... due to recent failures") as error code 429,
+// "Indexer is disabled" / "unavailable" as 410 and generic failures as 500.
+//
+//	429                   -> HTTP 429 (opens the circuit at once)
+//	100, 101, 102         -> HTTP 401 (opens the circuit at once)
+//	any other code        -> HTTP 400: a generic failure that counts toward the failure threshold
+func ParseError(body []byte, provider string) *indexer.HTTPError {
+	dec := xml.NewDecoder(bytes.NewReader(body))
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil
+		}
+		start, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		if !strings.EqualFold(start.Name.Local, "error") {
+			return nil
+		}
+		var code, desc string
+		for _, a := range start.Attr {
+			switch strings.ToLower(a.Name.Local) {
+			case "code":
+				code = strings.TrimSpace(a.Value)
+			case "description":
+				desc = a.Value
+			}
+		}
+		n, _ := strconv.Atoi(code)
+		status := http.StatusBadRequest
+		switch {
+		case n == 429:
+			status = http.StatusTooManyRequests
+		case n >= 100 && n <= 102:
+			status = http.StatusUnauthorized
+		}
+		detail := "torznab error " + code
+		if desc = strings.TrimSpace(desc); desc != "" {
+			detail += ": " + desc
+		}
+		if len(detail) > 200 {
+			detail = detail[:200]
+		}
+		return &indexer.HTTPError{Provider: provider, Status: status, Detail: diagnostics.Redact(detail)}
+	}
 }
 
 type attribute struct {

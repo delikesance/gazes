@@ -113,6 +113,19 @@ func ClassifyLanguage(title string) (LanguageTag, string, bool) {
 // EpisodeResolver resolves torrent swarms for specific anime episodes.
 type EpisodeResolver struct {
 	indexer Provider
+	// fastPhase bounds the first playback discovery round (see DefaultFastPhaseTimeout).
+	fastPhase time.Duration
+}
+
+// DefaultFastPhaseTimeout is how long the shared season-pack queries of a playback resolve may run
+// before the exhaustive discovery starts.
+const DefaultFastPhaseTimeout = 3 * time.Second
+
+// SetFastPhaseTimeout overrides the fast-phase budget; non-positive values keep the default.
+func (r *EpisodeResolver) SetFastPhaseTimeout(d time.Duration) {
+	if d > 0 {
+		r.fastPhase = d
+	}
 }
 
 // EpisodeSourceResolver allows a maintained external resolver to be used while
@@ -125,7 +138,8 @@ type EpisodeSourceResolver interface {
 // NewEpisodeResolver creates a new episode resolver.
 func NewEpisodeResolver(idx Provider) *EpisodeResolver {
 	return &EpisodeResolver{
-		indexer: idx,
+		indexer:   idx,
+		fastPhase: DefaultFastPhaseTimeout,
 	}
 }
 
@@ -720,6 +734,48 @@ func FrenchSearchOptions(identity EpisodeIdentity) []SearchOptions {
 	return options
 }
 
+// maxPacedQueries caps the queries one resolve sends to a rate-paced provider.
+const maxPacedQueries = 3
+
+// pacedBudget is the number of queries a resolve may send to rate-paced providers: what the slowest one
+// can serve before the deadline (one call per MinInterval), capped at maxPacedQueries. ok is false
+// when the indexer has no paced provider.
+func pacedBudget(idx Provider, remaining time.Duration) (budget int, ok bool) {
+	src, isSrc := idx.(interface{ PacedLimits() []Pacing })
+	if !isSrc {
+		return 0, false
+	}
+	limits := src.PacedLimits()
+	if len(limits) == 0 {
+		return 0, false
+	}
+	budget = maxPacedQueries
+	for _, l := range limits {
+		if l.MinInterval > 0 {
+			budget = min(budget, int(remaining/l.MinInterval))
+		}
+	}
+	return max(budget, 0), true
+}
+
+// PacedPriorityOptions are the queries worth a rate-paced provider's few requests, most valuable
+// first. They mirror the French VF fallback role of the private tracker and reuse the existing query
+// shapes: base title + season + VF, base title + VF, base title + MULTI (the first entries of
+// SeasonPlaybackOptions), then the bare base title (as in FrenchSearchOptions).
+func PacedPriorityOptions(identity EpisodeIdentity) []SearchOptions {
+	options := SeasonPlaybackOptions(identity)
+	if len(options) < 3 {
+		return nil
+	}
+	out := append([]SearchOptions(nil), options[:3]...)
+	for _, o := range FrenchSearchOptions(identity) {
+		if o.Category == "1_3" {
+			return append(out, o)
+		}
+	}
+	return out
+}
+
 func searchAliases(identity EpisodeIdentity, limit int) []string {
 	aliases := []string{}
 	seen := map[string]bool{}
@@ -793,11 +849,11 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 		}
 		return false
 	}
-	runSearch := func(opts SearchOptions) {
-		searchCtx, cancel := context.WithTimeout(phaseParent, 8*time.Second)
+	runSearch := func(parent context.Context, opts SearchOptions, maxPages int) {
+		searchCtx, cancel := context.WithTimeout(parent, 8*time.Second)
 		defer cancel()
 		querySeen := map[string]bool{}
-		for page := 1; page <= 2; page++ {
+		for page := 1; page <= maxPages; page++ {
 			if searchCtx.Err() != nil {
 				mu.Lock()
 				failures++
@@ -842,7 +898,7 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 				mu.Unlock()
 				return
 			}
-			if page == 2 && len(results) >= 75 {
+			if page == maxPages && len(results) >= 75 {
 				truncated = true
 			}
 			mu.Unlock()
@@ -851,9 +907,22 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 			}
 		}
 	}
+	// pacing is set when a provider is rate-paced: fast, French and generic queries then skip it
+	// (ScopeUnpaced) and it only gets the pacedPhase subset below.
+	pacing := false
+	if _, ok := pacedBudget(r.indexer, 0); ok {
+		pacing = true
+	}
+	scoped := func(o SearchOptions) SearchOptions {
+		if pacing {
+			o.Scope = ScopeUnpaced
+		}
+		return o
+	}
 	runGroup := func(options []SearchOptions) {
 		jobs := make(chan SearchOptions, len(options))
 		for _, option := range options {
+			option = scoped(option)
 			key := option.Category + "|" + normalize(option.Query)
 			if searched[key] {
 				continue
@@ -879,10 +948,58 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 						mu.Unlock()
 						return
 					}
-					runSearch(option)
+					runSearch(phaseParent, option, 2)
 				}
 			}()
 		}
+	}
+	// hasFrenchPack reports a seeded VF/MULTI batch match, which makes further discovery unnecessary.
+	hasFrenchPack := func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, item := range items {
+			if matched, batch, _ := matcher.Match(item.Title); matched && batch && item.Seeders > 0 && !item.IndexerOnly {
+				tag, _, _ := ClassifyLanguage(item.Title)
+				// MULTI remains unconfirmed, but its tracks can be checked while
+				// exhaustive discovery is deferred until the player's fallback.
+				if tag == LangVF || tag == LangMULTI {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	// pacedPhase sends a rate-paced provider its few most valuable queries, one at a time (a queue
+	// would only time out), first page only, concurrently with the other providers' phases. It stops
+	// as soon as a seeded French pack is known.
+	pacedPhase := func() {
+		if !pacing {
+			return
+		}
+		remaining := 20 * time.Second
+		if deadline, ok := searchParent.Deadline(); ok {
+			remaining = time.Until(deadline)
+		}
+		budget, _ := pacedBudget(r.indexer, remaining)
+		queue := PacedPriorityOptions(identity)
+		if budget < len(queue) {
+			queue = queue[:budget]
+		}
+		diagnostics.Log(ctx, slog.LevelDebug, "resolver.paced_budget", "budget", budget, "queries", len(queue))
+		if len(queue) == 0 {
+			return
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, option := range queue {
+				if searchParent.Err() != nil || hasFrenchPack() {
+					return
+				}
+				option.Scope = ScopePaced
+				runSearch(searchParent, option, 1)
+			}
+		}()
 	}
 	generic := make([]SearchOptions, 0, len(queries))
 	for _, query := range queries {
@@ -892,25 +1009,19 @@ func (r *EpisodeResolver) resolveSeasonSources(ctx context.Context, identity Epi
 	ready := false
 	if playback {
 		primary := SeasonPlaybackOptions(identity)
-		fastCtx, cancelFast := context.WithTimeout(searchParent, 3*time.Second)
+		fastCtx, cancelFast := context.WithTimeout(searchParent, r.fastPhase)
 		phaseParent = fastCtx
 		runGroup(primary)
 		wg.Wait()
 		cancelFast()
 		searched = map[string]bool{}
 		phaseParent = searchParent
-		for _, item := range items {
-			if matched, batch, _ := matcher.Match(item.Title); matched && batch && item.Seeders > 0 && !item.IndexerOnly {
-				tag, _, _ := ClassifyLanguage(item.Title)
-				// MULTI remains unconfirmed, but its tracks can be checked while
-				// exhaustive discovery is deferred until the player's fallback.
-				ready = ready || tag == LangVF || tag == LangMULTI
-			}
-		}
+		ready = hasFrenchPack()
 		// We intentionally skipped discovery; do not claim exhaustive results.
 		truncated = truncated || ready
 	}
 	if !ready {
+		pacedPhase()
 		runGroup(frenchOptions)
 		wg.Wait()
 		stopWhenEnough = true
