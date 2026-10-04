@@ -25,6 +25,7 @@ function Header({ query = "", initialGenre = "", onSubmit }: { query?: string; i
   const genre=picked??initialGenre;
   const [filterOpen,setFilterOpen]=useState(false);
   const searchButton=useRef<HTMLButtonElement>(null);
+  const filterButton=useRef<HTMLButtonElement>(null);
   // Every way of closing the search (X, Escape, blur, submit) must also reset the filter panel and the picked genre.
   const resetSearch=()=>{setSearchOpen(false);setFilterOpen(false);setGenre(null);};
   const closeSearch=()=>{resetSearch();searchButton.current?.focus();};
@@ -33,11 +34,11 @@ function Header({ query = "", initialGenre = "", onSubmit }: { query?: string; i
     <div ref={breadcrumbSlot} id="header-breadcrumb" className="header-breadcrumb-slot" />
     <div className="header-actions">
       <button ref={searchButton} type="button" className="header-search-toggle" aria-label={t("Rechercher")} aria-expanded={searchOpen} aria-controls="header-search-form" onClick={()=>setSearchOpen(true)}><Search size={18} aria-hidden="true" /></button>
-      {searchOpen&&<form id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen)setFilterOpen(false);else closeSearch();}}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))resetSearch();}}>
+      {searchOpen&&<form id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen){setFilterOpen(false);filterButton.current?.focus();}else closeSearch();}}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))resetSearch();}}>
         <Search size={18} aria-hidden="true" />
         <input autoFocus name="q" aria-label={t("Rechercher un anime")} defaultValue={query} placeholder={t("Rechercher un anime…")} />
         <input type="hidden" name="genre" value={genre} />
-        <button type="button" className="search-filter-toggle" data-active={genre?"true":"false"} aria-label={t("Filtrer par genre")} aria-expanded={filterOpen} aria-controls="search-filter-panel" onClick={()=>setFilterOpen(open=>!open)}><SlidersHorizontal size={17} aria-hidden="true" /></button>
+        <button ref={filterButton} type="button" className="search-filter-toggle" data-active={genre?"true":"false"} aria-label={t("Filtrer par genre")} aria-expanded={filterOpen} aria-controls="search-filter-panel" onClick={()=>setFilterOpen(open=>!open)}><SlidersHorizontal size={17} aria-hidden="true" /></button>
         <button type="submit" aria-label={t("Rechercher")}><ArrowRight size={19} /></button>
         <button type="button" aria-label={t("Fermer la recherche")} onClick={closeSearch}><X size={17} /></button>
         {filterOpen&&<div id="search-filter-panel" className="search-filter-panel" role="group" aria-label={t("Genres")}>
