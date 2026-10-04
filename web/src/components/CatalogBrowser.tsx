@@ -144,7 +144,7 @@ export function CatalogBrowser({
       </div>
       {isSuggestions ? (data && data.items && data.items.length > 0 && <>
         <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("Suggestions")}</span><h2 id="season-heading" className="serif">{t("Pour vous")}</h2></div></div>
-        <SeasonalGrid count={data.items.length}>{cards}</SeasonalGrid>
+        <SeasonalGrid count={data.items.length} evenRows={false}>{cards}</SeasonalGrid>
       </>) : <ReleaseCalendar />}
     </section>}
     {discovery && !error && <AccountCta />}
