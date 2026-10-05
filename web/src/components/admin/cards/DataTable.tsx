@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Chip } from "../ui/Chip";
 import type { ChipTone } from "../ui/Chip";
 import { SeverityBadge } from "../ui/SeverityBadge";
@@ -62,7 +62,24 @@ export interface DataTableProps {
   id?: string;
   onCellClick?: (row: Row, key: string) => void;
   onCellChange?: (row: Row, key: string, value: boolean) => void;
+  /**
+   * Server-driven mode: `rows` arrive already searched, sorted and paged. The table never filters or sorts
+   * them itself; `sortKey`/`sortDir`/`searchValue` mirror the server state and the user's intent is reported
+   * through `onSortChange` / `onSearch` (debounced while typing, immediate on Enter).
+   */
+  manual?: boolean;
+  onSortChange?: (key: string, dir: SortDir) => void;
+  searchValue?: string;
+  onSearch?: (query: string) => void;
+  /** Replaces the "N lignes" counter (e.g. "26 à 50 sur 140 comptes"). */
+  statusText?: string;
+  /** Rendered under the table (pagination controls, ...). */
+  footer?: React.ReactNode;
+  /** A server round trip is in flight: the table is marked aria-busy and dimmed. */
+  busy?: boolean;
 }
+
+const SEARCH_DEBOUNCE_MS = 350;
 
 const TONE_COLOR: Record<Tone, string> = { accent: "#9b8afb", danger: "#f87171", muted: "#a1a1aa" };
 const BAR_COLOR: Record<Tone, string> = { accent: "#9b8afb", danger: "#f87171", muted: "#71717a" };
@@ -358,13 +375,38 @@ export const DataTable: React.FC<DataTableProps> = ({
   id,
   onCellClick,
   onCellChange,
+  manual = false,
+  onSortChange,
+  searchValue = "",
+  onSearch,
+  statusText,
+  footer,
+  busy = false,
 }) => {
   const uid = useId();
-  const [sort, setSort] = useState<{ key: string; dir: SortDir }>({
+  const [sortState, setSortState] = useState<{ key: string; dir: SortDir }>({
     key: sortKeyProp,
     dir: sortDirProp === "desc" ? "desc" : "asc",
   });
-  const [query, setQuery] = useState("");
+  const sort = manual ? { key: sortKeyProp, dir: (sortDirProp === "desc" ? "desc" : "asc") as SortDir } : sortState;
+  const [query, setQuery] = useState(manual ? searchValue : "");
+  const lastSent = useRef(manual ? searchValue : "");
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (debounce.current) clearTimeout(debounce.current); }, []);
+  // The URL (back/forward) changed the query behind our back: follow it.
+  useEffect(() => {
+    if (manual && searchValue !== lastSent.current) {
+      lastSent.current = searchValue;
+      setQuery(searchValue);
+    }
+  }, [manual, searchValue]);
+  const sendSearch = (value: string) => {
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = null;
+    if (value.trim() === lastSent.current.trim()) return;
+    lastSent.current = value;
+    onSearch?.(value);
+  };
   const [tab, setTab] = useState<string>(ALL_TAB);
   const [sel, setSel] = useState<string>(selectedKey == null ? "" : String(selectedKey));
   const [toggles, setToggles] = useState<Record<string, { base: boolean; val: boolean }>>({});
@@ -374,6 +416,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   const showToolbar = searchable || tabOn;
 
   const visible = useMemo(() => {
+    if (manual) return rows;
     let list = rows;
     if (tabOn) list = filterByTab(list, tabKey, tab);
     if (searchable) {
@@ -382,7 +425,7 @@ export const DataTable: React.FC<DataTableProps> = ({
     }
     if (cols.some((c) => c.key === sort.key)) list = sortRows(list, sort.key, sort.dir);
     return list;
-  }, [rows, tabOn, tabKey, tab, searchable, searchKeys, cols, query, sort]);
+  }, [manual, rows, tabOn, tabKey, tab, searchable, searchKeys, cols, query, sort]);
 
   // Original row index for the rowKey fallback, independent of filtering/sorting.
   const indexOf = useMemo(() => {
@@ -488,7 +531,17 @@ export const DataTable: React.FC<DataTableProps> = ({
                 autoComplete="off"
                 placeholder={searchPlaceholder}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (manual) {
+                    if (debounce.current) clearTimeout(debounce.current);
+                    const next = e.target.value;
+                    debounce.current = setTimeout(() => sendSearch(next), SEARCH_DEBOUNCE_MS);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (manual && e.key === "Enter") sendSearch(e.currentTarget.value);
+                }}
                 className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fafafa]"
                 style={{
                   height: 44,
@@ -538,11 +591,14 @@ export const DataTable: React.FC<DataTableProps> = ({
             </div>
           )}
           <span role="status" style={{ fontSize: 12, color: "#a1a1aa" }}>
-            {countText(shown, total)}
+            {statusText ?? countText(shown, total)}
           </span>
         </div>
       )}
-      <div style={maxHeight > 0 ? { overflow: "auto", maxHeight, borderRadius: 12 } : { overflowX: "auto" }}>
+      <div
+        aria-busy={busy || undefined}
+        style={{ ...(maxHeight > 0 ? { overflow: "auto", maxHeight, borderRadius: 12 } : { overflowX: "auto" }), ...(busy ? { opacity: 0.6 } : null) }}
+      >
         <table style={{ width: "100%", minWidth, borderCollapse: "collapse", fontSize: 13 }}>
           <caption style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>
             {caption || title || "Tableau de données"}
@@ -579,7 +635,11 @@ export const DataTable: React.FC<DataTableProps> = ({
                     {sortable ? (
                       <button
                         type="button"
-                        onClick={() => setSort((s) => nextSort(s, c))}
+                        onClick={() => {
+                          const next = nextSort(sort, c);
+                          if (manual) onSortChange?.(next.key, next.dir);
+                          else setSortState(next);
+                        }}
                         className={FOCUS}
                         style={{
                           display: "inline-flex",
@@ -672,6 +732,7 @@ export const DataTable: React.FC<DataTableProps> = ({
           {emptyText}
         </p>
       )}
+      {footer}
       {footnote && <span style={{ fontSize: 12, color: "#a1a1aa" }}>{footnote}</span>}
     </section>
   );
