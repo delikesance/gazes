@@ -2,7 +2,12 @@ import type { MetadataRoute } from "next";
 import { getCatalogPopular, getCatalogSeasonal } from "@/lib/api";
 import { SITE_URL } from "@/lib/site";
 
-export const revalidate = 3600;
+// Rendered on request, never at build time: the build has no backend, so a prerendered sitemap would
+// freeze on the home page alone. The catalog lookups are cached in memory instead.
+export const dynamic = "force-dynamic";
+
+const TTL_MS = 3600_000;
+let cache: { ids: number[]; at: number } | null = null;
 
 const PAGES = 3;
 const PER_PAGE = 50;
@@ -24,8 +29,16 @@ async function collectIds(): Promise<number[]> {
   return [...ids];
 }
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+async function cachedIds(): Promise<number[]> {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache.ids;
   const ids = await collectIds();
+  // An empty result means the backend or AniList failed: serve it, but retry on the next request.
+  if (ids.length) cache = { ids, at: Date.now() };
+  return ids.length ? ids : cache?.ids ?? [];
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const ids = await cachedIds();
   return [
     { url: SITE_URL, changeFrequency: "daily", priority: 1 },
     ...ids.map((id) => ({ url: `${SITE_URL}/anime/${id}`, changeFrequency: "weekly" as const, priority: 0.7 })),
