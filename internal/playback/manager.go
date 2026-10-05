@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -74,6 +75,25 @@ func New(engine torrent.Engine, analyzer metadata.Analyzer, logger *slog.Logger,
 	go m.sweep()
 	return m
 }
+
+// RemuxError is the failure of the ffmpeg run that produces one segment. Timeout reports that
+// the segment's deadline expired while ffmpeg was running (it was killed), not that it failed.
+type RemuxError struct {
+	Err     error
+	Stderr  string
+	Timeout bool
+}
+
+func (e *RemuxError) Error() string { return "segment remux: " + e.Err.Error() + ": " + e.Stderr }
+func (e *RemuxError) Unwrap() error { return e.Err }
+
+// ActiveSessions is the number of playback sessions currently held by the manager.
+func (m *Manager) ActiveSessions() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.sessions)
+}
+
 func (m *Manager) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -138,16 +158,24 @@ func (m *Manager) SubtitleStart(id, hash string, file, track int, position float
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	s, ok := m.sessions[id]
-	if !ok || s.hash != hash || s.file != file { return 0, false }
+	if !ok || s.hash != hash || s.file != file {
+		return 0, false
+	}
 	start := position
 	latest := -1.0
 	for _, cue := range s.index.Subtitles[track] {
-		t := cue.Start-s.Origin
-		if t <= position && t > latest { latest = t }
-		if t <= position && cue.Duration > 0 && t+cue.Duration > position { start = min(start,t) }
+		t := cue.Start - s.Origin
+		if t <= position && t > latest {
+			latest = t
+		}
+		if t <= position && cue.Duration > 0 && t+cue.Duration > position {
+			start = min(start, t)
+		}
 	}
-	if latest >= 0 { start = min(start, latest) }
-	return max(0,start), true
+	if latest >= 0 {
+		start = min(start, latest)
+	}
+	return max(0, start), true
 }
 func (m *Manager) Update(id string, position float64, generation uint64) (*Session, bool) {
 	m.mu.Lock()
@@ -333,7 +361,7 @@ func (m *Manager) produce(ctx context.Context, key string, j *job, s *Session, n
 	started := time.Now()
 	err = cmd.Run()
 	if err != nil {
-		m.finish(key, j, fmt.Errorf("segment remux: %w: %s", err, stderr.String()))
+		m.finish(key, j, &RemuxError{Err: err, Stderr: stderr.String(), Timeout: errors.Is(ctx.Err(), context.DeadlineExceeded)})
 		return
 	}
 	src, err := os.Open(output)

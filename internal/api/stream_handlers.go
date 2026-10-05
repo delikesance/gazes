@@ -1,7 +1,9 @@
 package api
 
 import (
+	"errors"
 	"fmt"
+	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"net/http"
 	"strconv"
@@ -65,6 +67,9 @@ func (s *Server) HandleStream(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.streamPipeline.ServeHTTP(w, r, reader, fileInfo.Path, fileInfo.Length, opts); err != nil {
 		diagnostics.Logger(r.Context(), s.logger).Error("stream serving error", "err", err, "file", fileInfo.Path)
+		if errors.Is(err, stream.ErrRemuxFailed) {
+			s.recordPlaybackError(r.Context(), admin.PlaybackError{Code: diagnostics.RemuxFailed, InfoHash: ih, Message: err.Error()})
+		}
 	}
 }
 
