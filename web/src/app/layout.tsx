@@ -31,6 +31,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: "Gazes — Découvrez votre prochain anime", template: `%s · ${SITE_NAME}` },
   description: DESCRIPTION,
+  verification: { google: "s6pY-8MjEo77FWK_KuhEdtTAmWgsHbIeWlkzYSMIPac" },
   openGraph: { type: "website", siteName: SITE_NAME, locale: "fr_FR", title: "Gazes — Découvrez votre prochain anime", description: DESCRIPTION },
   twitter: { card: "summary_large_image", title: "Gazes — Découvrez votre prochain anime", description: DESCRIPTION },
 };
