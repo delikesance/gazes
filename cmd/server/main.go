@@ -151,6 +151,10 @@ func main() {
 	if adminSvc, stopAdmin := startAdmin(cfg, logger, redisClient); adminSvc != nil {
 		defer stopAdmin()
 		serverOpts = append(serverOpts, api.WithAdmin(adminSvc))
+		// Best-effort playback error recording (bounded queue, never blocks a playback).
+		errorRecorder := admin.NewErrorRecorder(adminSvc.Store())
+		defer errorRecorder.Close()
+		serverOpts = append(serverOpts, api.WithErrorSink(errorRecorder))
 	}
 
 	server := api.NewServer(cfg, logger, catalogIndexers, engine, streamPipeline, serverOpts...)

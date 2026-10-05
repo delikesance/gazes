@@ -47,6 +47,7 @@ type Server struct {
 	library         *library.Service
 	libraryUser     func(*http.Request) (int64, bool)
 	admin           *admin.Service
+	errorSink       admin.ErrorSink
 }
 
 // Option customises a Server.
