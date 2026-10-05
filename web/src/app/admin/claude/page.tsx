@@ -3,7 +3,7 @@ import { ApiErrorBlock } from "@/components/admin/pages/ApiErrorBlock";
 import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
 import { AdminApiError } from "@/lib/admin/api";
 import { adminGetServer } from "@/lib/admin/server";
-import type { AdminActions, AdminApprovalsList, AdminEnvelope, AdminKillSwitch, AdminMcpAudit, AdminMcpTools } from "@/lib/admin/types";
+import type { AdminActions, AdminApprovalsList, AdminEnvelope, AdminKillSwitch, AdminMcpAudit, AdminMcpTools, AdminWatch } from "@/lib/admin/types";
 
 export default async function Page() {
   let tools: AdminEnvelope<AdminMcpTools>;
@@ -11,13 +11,15 @@ export default async function Page() {
   let approvals: AdminEnvelope<AdminApprovalsList>;
   let kill: AdminEnvelope<AdminKillSwitch>;
   let audit: AdminEnvelope<AdminMcpAudit>;
+  let watch: AdminEnvelope<AdminWatch>;
   try {
-    [tools, actions, approvals, kill, audit] = await Promise.all([
+    [tools, actions, approvals, kill, audit, watch] = await Promise.all([
       adminGetServer<AdminMcpTools>("/mcp/tools"),
       adminGetServer<AdminActions>("/ops/actions"),
       adminGetServer<AdminApprovalsList>("/approvals", { params: { limit: 50 } }),
       adminGetServer<AdminKillSwitch>("/ops/kill-switch"),
       adminGetServer<AdminMcpAudit>("/mcp/audit", { params: { limit: 50 } }),
+      adminGetServer<AdminWatch>("/watch"),
     ]);
   } catch (error) {
     if (!(error instanceof AdminApiError)) throw error;
@@ -35,6 +37,7 @@ export default async function Page() {
       approvals={approvals.data}
       killSwitch={kill.data}
       audit={audit.data}
+      watch={watch.data}
       generatedAt={audit.generated_at}
     />
   );

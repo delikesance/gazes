@@ -26,6 +26,9 @@ type Config struct {
 	TorrentCacheMaxBytes int64         `json:"torrent_cache_max_bytes"`
 	AccountsDir          string        `json:"accounts_dir"`
 	AdminDBPath          string        `json:"admin_db_path"`
+	WatchWebhookURL      string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_URL: where watch events are POSTed (optional)
+	WatchWebhookSecret   string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
+	WatchDiskPath        string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
 	TrustProxy           bool          `json:"trust_proxy"`
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
 	// title matching. API keys and bindings are intentionally never serialized.
@@ -83,6 +86,9 @@ func Load() *Config {
 		TorrentCacheMaxBytes:     getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
 		AccountsDir:              getEnv("ACCOUNTS_DIR", "./accounts"),
 		AdminDBPath:              getEnv("GAZES_ADMIN_DB", filepath.Join(getEnv("ACCOUNTS_DIR", "./accounts"), "admin.sqlite")),
+		WatchWebhookURL:          getEnv("GAZES_WATCH_WEBHOOK_URL", ""),
+		WatchWebhookSecret:       getEnv("GAZES_WATCH_WEBHOOK_SECRET", ""),
+		WatchDiskPath:            getEnv("GAZES_WATCH_DISK_PATH", ""),
 		TrustProxy:               getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
 		ArrAuthoritative:         getEnvBool("ARR_AUTHORITATIVE", false),
 		SonarrURL:                getEnv("SONARR_URL", ""),

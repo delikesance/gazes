@@ -20,6 +20,8 @@ type Service struct {
 	identify func(*http.Request) (int64, bool)
 	users    UserLookup
 	ops      opsState
+	watchCfg WatchConfig
+	watchMu  sync.Mutex        // one evaluation of the watch rules at a time
 	toolsFn  func() []ToolInfo // MCP tool catalogue, set by the API layer (nil = none)
 
 	mu       sync.Mutex
@@ -102,6 +104,7 @@ func (s *Service) Mount(r chi.Router) {
 		s.mountPlayback(r)
 		s.mountOps(r)
 		s.mountSettings(r)
+		s.mountWatch(r)
 	})
 }
 
