@@ -243,3 +243,40 @@ func TestServiceDatabases(t *testing.T) {
 		t.Fatalf("backfill wrote %d days, want 3", n)
 	}
 }
+
+func TestSessionWritesNeedCSRFHeader(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	ops, _, _ := svc.store.CreateToken(ctx, "ops", []string{ScopeOpsWrite}, 0)
+	r := chi.NewRouter()
+	r.With(svc.Auth(ScopeOpsWrite)).Post("/w", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
+	r.With(svc.Auth(ScopeMetricsRead)).Get("/r", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
+
+	do := func(method, path string, mut func(*http.Request)) int {
+		req := httptest.NewRequest(method, path, nil)
+		mut(req)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	admin := func(r *http.Request) { r.AddCookie(&http.Cookie{Name: "sid", Value: "1"}) }
+	adminCSRF := func(r *http.Request) { admin(r); r.Header.Set("X-Gazes-Admin", "1") }
+	bearer := func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+ops) }
+
+	for _, tc := range []struct {
+		name   string
+		method string
+		path   string
+		mut    func(*http.Request)
+		want   int
+	}{
+		{"session POST without header is refused", "POST", "/w", admin, 403},
+		{"session POST with header", "POST", "/w", adminCSRF, 204},
+		{"session GET needs no header", "GET", "/r", admin, 204},
+		{"token POST needs no header", "POST", "/w", bearer, 204},
+	} {
+		if got := do(tc.method, tc.path, tc.mut); got != tc.want {
+			t.Errorf("%s: status %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
