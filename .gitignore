@@ -32,5 +32,6 @@ prowlarr-backup*.tar.gz
 # Persistent diagnostic files
 /diagnostics/
 
-# Graphify knowledge graph outputs and cache
+# graphify outputs
 graphify-out/
+.claude/settings.local.json
