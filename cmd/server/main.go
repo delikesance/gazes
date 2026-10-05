@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/api"
 	"github.com/gazes/gazes/internal/auth"
 	"github.com/gazes/gazes/internal/config"
@@ -146,6 +147,12 @@ func main() {
 		}
 	}
 
+	// The admin panel is optional: any failure here leaves streaming untouched.
+	if adminSvc, stopAdmin := startAdmin(cfg, logger, redisClient); adminSvc != nil {
+		defer stopAdmin()
+		serverOpts = append(serverOpts, api.WithAdmin(adminSvc))
+	}
+
 	server := api.NewServer(cfg, logger, catalogIndexers, engine, streamPipeline, serverOpts...)
 	defer server.ClosePlayback()
 
@@ -184,5 +191,45 @@ func main() {
 			_ = httpServer.Close()
 		}
 		logger.Info("gazes server gracefully stopped")
+	}
+}
+
+// startAdmin opens the admin database, builds the admin service and runs the metrics rollup
+// (Redis-elected so one replica per period does the work) until the returned stop func is
+// called. It returns a nil service when the admin database cannot be opened.
+func startAdmin(cfg *config.Config, logger *slog.Logger, redis *kv.Client) (*admin.Service, func()) {
+	store, err := admin.Open(cfg.AdminDBPath)
+	if err != nil {
+		logger.Error("admin disabled: cannot open admin database", "err", err, "path", cfg.AdminDBPath)
+		return nil, nil
+	}
+	svc, err := admin.NewService(store, filepath.Join(cfg.AccountsDir, "accounts.sqlite"))
+	if err != nil {
+		logger.Error("admin disabled: cannot open accounts database read-only", "err", err)
+		store.Close()
+		return nil, nil
+	}
+	elect := func(name string, period time.Duration) func(context.Context) bool {
+		if redis == nil {
+			return nil
+		}
+		return func(ctx context.Context) bool { return redis.Elect(ctx, name, period) }
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if e := elect("admin-backfill", time.Hour); e == nil || e(ctx) {
+			if err := svc.BackfillIfEmpty(ctx, 30); err != nil && ctx.Err() == nil {
+				logger.Error("admin initial backfill failed", "err", err)
+			}
+		}
+		svc.Rollup().RunElected(ctx, admin.DefaultRollupInterval, nil, elect("admin-rollup", admin.DefaultRollupInterval-time.Minute))
+	}()
+	return svc, func() {
+		cancel()
+		<-done
+		svc.Close()
+		store.Close()
 	}
 }

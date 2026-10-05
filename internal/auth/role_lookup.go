@@ -39,3 +39,8 @@ func (s *Store) UserRole(ctx context.Context, id int64) (string, error) {
 	err := s.db.QueryRowContext(ctx, `SELECT role FROM users WHERE id = ?`, id).Scan(&r)
 	return r, err
 }
+
+// UserRole returns the role of the user with this ID (sql.ErrNoRows when unknown).
+func (s *Service) UserRole(ctx context.Context, id int64) (string, error) {
+	return s.store.UserRole(ctx, id)
+}
