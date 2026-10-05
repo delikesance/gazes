@@ -95,4 +95,11 @@ func TestMCPToolCallsThroughTheRealServer(t *testing.T) {
 	if d, _ := call("list_issues", `{"limit":5}`); len(d["items"].([]any)) != 0 {
 		t.Errorf("a dry run must not create an issue: %v", d["items"])
 	}
+	for method, key := range map[string]string{"prompts/list": "prompts", "resources/list": "resources"} {
+		_, out := rpc(sid, `{"jsonrpc":"2.0","id":3,"method":"`+method+`"}`)
+		res, _ := out["result"].(map[string]any)
+		if items, _ := res[key].([]any); len(items) == 0 {
+			t.Errorf("%s is empty: %v", method, out)
+		}
+	}
 }
