@@ -16,20 +16,20 @@ type NyaaChannel struct {
 	Items       []NyaaItem `xml:"item"`
 }
 
-// NyaaItem maps an item in the Nyaa RSS feed with custom nyaa namespace tags.
+// NyaaItem maps an item in the Nyaa/Sukebei RSS feed. Namespaces are left unset on purpose: the two sites declare different ones.
 type NyaaItem struct {
 	Title      string `xml:"title"`
 	Link       string `xml:"link"`
 	GUID       string `xml:"guid"`
 	PubDate    string `xml:"pubDate"`
-	Seeders    int    `xml:"https://nyaa.si/xmlns/nyaa seeders"`
-	Leechers   int    `xml:"https://nyaa.si/xmlns/nyaa leechers"`
-	Downloads  int    `xml:"https://nyaa.si/xmlns/nyaa downloads"`
-	InfoHash   string `xml:"https://nyaa.si/xmlns/nyaa infoHash"`
-	CategoryId string `xml:"https://nyaa.si/xmlns/nyaa categoryId"`
-	Category   string `xml:"https://nyaa.si/xmlns/nyaa category"`
-	Size       string `xml:"https://nyaa.si/xmlns/nyaa size"`
-	Comments   int    `xml:"https://nyaa.si/xmlns/nyaa comments"`
-	IsTrusted  string `xml:"https://nyaa.si/xmlns/nyaa trusted"`
-	IsRemake   string `xml:"https://nyaa.si/xmlns/nyaa remake"`
+	Seeders    int    `xml:"seeders"`
+	Leechers   int    `xml:"leechers"`
+	Downloads  int    `xml:"downloads"`
+	InfoHash   string `xml:"infoHash"`
+	CategoryId string `xml:"categoryId"`
+	Category   string `xml:"category"`
+	Size       string `xml:"size"`
+	Comments   int    `xml:"comments"`
+	IsTrusted  string `xml:"trusted"`
+	IsRemake   string `xml:"remake"`
 }
