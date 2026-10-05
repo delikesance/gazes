@@ -20,6 +20,7 @@ type Service struct {
 	identify func(*http.Request) (int64, bool)
 	users    UserLookup
 	ops      opsState
+	toolsFn  func() []ToolInfo // MCP tool catalogue, set by the API layer (nil = none)
 
 	mu       sync.Mutex
 	tokenMWs map[string]func(http.Handler) http.Handler
@@ -100,6 +101,7 @@ func (s *Service) Mount(r chi.Router) {
 		s.mountUsers(r)
 		s.mountPlayback(r)
 		s.mountOps(r)
+		s.mountSettings(r)
 	})
 }
 
