@@ -9,6 +9,7 @@ import type {
   AdminKillSwitch,
   AdminMcpAudit,
   AdminMcpTools,
+  AdminWatch,
 } from "@/lib/admin/types";
 import { AdminApiError, adminGet, adminWrite } from "@/lib/admin/api";
 import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
@@ -29,6 +30,13 @@ import {
   pendingCount,
   sortApprovals,
   TOOL_LEVELS,
+  breachedRules,
+  formatWatchValue,
+  RULE_STATE_TONES,
+  ruleStateLabel,
+  VERDICT_TONES,
+  verdictLabel,
+  watchRuleLabel,
 } from "./claude.logic";
 
 export interface ClaudeViewProps {
@@ -37,6 +45,7 @@ export interface ClaudeViewProps {
   approvals: AdminApprovalsList;
   killSwitch: AdminKillSwitch;
   audit: AdminMcpAudit;
+  watch: AdminWatch;
   /** Server clock of the data (ISO), used for relative times. */
   generatedAt: string;
   /** Public base URL of the API, when known, for the connection command. */
@@ -72,6 +81,32 @@ const AUDIT_COLUMNS: ColumnDef[] = [
   { key: "token", label: "Jeton", type: "mono", muted: true },
 ];
 
+const RULE_COLUMNS: ColumnDef[] = [
+  { key: "label", label: "Règle", type: "text", sortable: true },
+  { key: "stateLabel", label: "État", type: "chip" },
+  { key: "value", label: "Valeur", type: "text", align: "right" },
+  { key: "threshold", label: "Seuil", type: "text", align: "right" },
+  { key: "detail", label: "Détail", type: "text", muted: true },
+  { key: "since", label: "Depuis", type: "text" },
+  { key: "issue", label: "Constat", type: "mono", muted: true },
+];
+
+const EFFECT_COLUMNS: ColumnDef[] = [
+  { key: "title", label: "Constat", type: "text" },
+  { key: "rule", label: "Règle", type: "text", muted: true },
+  { key: "before", label: "À l'ouverture", type: "text", align: "right" },
+  { key: "atFix", label: "À la résolution", type: "text", align: "right" },
+  { key: "after", label: "24 h après", type: "text", align: "right" },
+  { key: "verdictLabel", label: "Verdict", type: "chip" },
+];
+
+const RUN_COLUMNS: ColumnDef[] = [
+  { key: "ts", label: "Évaluation", type: "text" },
+  { key: "breached", label: "Règles dépassées", type: "number", align: "right" },
+  { key: "duration", label: "Durée", type: "number", unit: " ms", align: "right" },
+  { key: "webhook", label: "Webhook (envoyés / échecs)", type: "text", align: "right" },
+];
+
 const TOOL_TABS: TabDef[] = TOOL_LEVELS.map((l) => ({ label: levelLabel(l), value: l }));
 
 function messageOf(e: unknown): string {
@@ -79,7 +114,7 @@ function messageOf(e: unknown): string {
   return "Erreur inattendue";
 }
 
-export function ClaudeView({ tools, actions, approvals, killSwitch, audit, generatedAt, host = null, demo = false }: ClaudeViewProps) {
+export function ClaudeView({ tools, actions, approvals, killSwitch, audit, watch, generatedAt, host = null, demo = false }: ClaudeViewProps) {
   const [items, setItems] = useState<AdminApproval[]>(approvals.items);
   const [kill, setKill] = useState<AdminKillSwitch>(killSwitch);
   const [reason, setReason] = useState("");
@@ -164,6 +199,37 @@ export function ClaudeView({ tools, actions, approvals, killSwitch, audit, gener
       outcomeLabelTone: toneOf(OUTCOME_TONES[x.outcome] ?? "neutral"),
     };
   });
+  const ruleRows: Row[] = watch.rules.map((r) => ({
+    label: watchRuleLabel(r.rule, r.label),
+    stateLabel: ruleStateLabel(r.state),
+    stateLabelTone: RULE_STATE_TONES[r.state] ?? "muted",
+    value: formatWatchValue(r.value, r.unit),
+    threshold: formatWatchValue(r.threshold, r.unit),
+    detail: r.detail,
+    since: r.since ? relativeFr(r.since, generatedAt) : "—",
+    issue: r.issue_id ?? "—",
+  }));
+  const effectRows: Row[] = watch.effects.map((e) => {
+    const unit = watch.rules.find((r) => r.rule === e.rule)?.unit ?? "";
+    return {
+      id: e.issue_id,
+      title: e.title,
+      rule: watchRuleLabel(e.rule),
+      before: formatWatchValue(e.value_open, unit),
+      atFix: e.resolved_at ? formatWatchValue(e.value_resolved, unit) : "—",
+      after: e.resolved_at ? formatWatchValue(e.value_after, unit) : "—",
+      verdictLabel: verdictLabel(e.verdict),
+      verdictLabelTone: VERDICT_TONES[e.verdict] ?? "muted",
+    };
+  });
+  const runRows: Row[] = watch.runs.map((r, i) => ({
+    id: i,
+    ts: relativeFr(r.ts, generatedAt),
+    breached: r.breached,
+    duration: r.duration_ms,
+    webhook: watch.webhook_configured ? `${fmtInt(r.webhook_sent)} / ${fmtInt(r.webhook_failed)}` : "non configuré",
+  }));
+  const breached = breachedRules(watch.rules);
   const auditTabs: TabDef[] = [
     { label: "OK", value: "ok" },
     { label: "Erreurs", value: "error" },
@@ -181,6 +247,7 @@ export function ClaudeView({ tools, actions, approvals, killSwitch, audit, gener
           <>
             <span className="admin-chip">{tools.enabled ? "Serveur MCP activé" : "Serveur MCP non activé"}</span>
             <span className="admin-chip">{kill.suspended ? "Écritures suspendues" : "Écritures actives"}</span>
+            <span className="admin-chip">{breached.length > 0 ? `${breached.length} règle${breached.length > 1 ? "s" : ""} dépassée${breached.length > 1 ? "s" : ""}` : "Aucune règle dépassée"}</span>
           </>
         }
       />
@@ -321,9 +388,39 @@ export function ClaudeView({ tools, actions, approvals, killSwitch, audit, gener
         </div>
       </SectionCard>
 
-      <SectionCard title="Surveillance automatique" badge="À venir" subtitle="Règles de veille évaluées par le serveur et exécutions planifiées de Claude.">
-        <EmptyState title="Pas encore disponible" text="Les règles de veille, leur état et le planning des vérifications de Claude arrivent avec le prochain jalon (M5). Rien n'est simulé ici." />
-      </SectionCard>
+      <DataTable
+        id="watch-rules"
+        title="Surveillance automatique"
+        subtitle={`Le serveur évalue ces règles toutes les ${fmtInt(watch.interval_seconds)} s et ouvre un constat à chaque dépassement${watch.webhook_configured ? ", puis prévient le webhook configuré" : " (aucun webhook configuré : GAZES_WATCH_WEBHOOK_URL)"}. Un constat n'est jamais clos automatiquement.`}
+        columns={RULE_COLUMNS}
+        rows={ruleRows}
+        rowKey="label"
+        minWidth={820}
+        emptyText="Aucune règle."
+        footnote="« Non mesuré » : la donnée n'est pas collectée aujourd'hui (démarrage, limite de flux) ou pas configurée (disque). Rien n'est estimé."
+      />
+
+      <DataTable
+        id="watch-effects"
+        title="Avant / après des corrections"
+        subtitle="La valeur de la règle à l'ouverture du constat, à sa résolution et 24 h plus tard : « corrigé » se juge sur la mesure, pas sur le statut."
+        columns={EFFECT_COLUMNS}
+        rows={effectRows}
+        rowKey="id"
+        minWidth={820}
+        emptyText="Aucun constat de surveillance pour l'instant."
+      />
+
+      <DataTable
+        id="watch-runs"
+        title="Dernières évaluations"
+        columns={RUN_COLUMNS}
+        rows={runRows}
+        rowKey="id"
+        minWidth={640}
+        emptyText="Aucune évaluation encore enregistrée."
+        footnote={`Les lignes de plus de ${fmtInt(watch.retention_days)} jours (erreurs de lecture, journal des appels) sont supprimées chaque heure.`}
+      />
     </>
   );
 }
