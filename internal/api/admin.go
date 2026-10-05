@@ -26,5 +26,6 @@ func (s *Server) mountAdmin(r chi.Router) {
 		return
 	}
 	s.admin.SetSessionAuth(s.libraryUserID, adminUsers{s})
+	s.wireAdminPlayback()
 	s.admin.Mount(r)
 }
