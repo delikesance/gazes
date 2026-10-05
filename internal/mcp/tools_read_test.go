@@ -293,3 +293,38 @@ func TestReadToolsNoPrivateKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestGetWatchStatusToolIsDiagnosticsOnlyAndReadOnly(t *testing.T) {
+	e := newEnv(t, nil)
+	m, _ := e.token(t, "metrics:read")
+	d, _ := e.token(t, "diagnostics:read")
+	if has(toolNames(t, e.mustConnect(t, m)), "get_watch_status") {
+		t.Fatal("a metrics-only token must not see get_watch_status")
+	}
+	cs := e.mustConnect(t, d)
+	if !has(toolNames(t, cs), "get_watch_status") {
+		t.Fatal("a diagnostics token must see get_watch_status")
+	}
+	text, isErr := call(t, cs, "get_watch_status", nil)
+	if isErr {
+		t.Fatalf("error result: %s", text)
+	}
+	var v struct {
+		Rules []struct {
+			Rule  string `json:"rule"`
+			State string `json:"state"`
+		} `json:"rules"`
+		WebhookConfigured bool `json:"webhook_configured"`
+	}
+	if err := json.Unmarshal([]byte(text), &v); err != nil {
+		t.Fatal(err)
+	}
+	if len(v.Rules) != 5 {
+		t.Fatalf("rules = %d, want 5: %s", len(v.Rules), text)
+	}
+	for _, r := range v.Rules {
+		if r.State != "not_measured" {
+			t.Errorf("%s is %s before any evaluation, want not_measured", r.Rule, r.State)
+		}
+	}
+}

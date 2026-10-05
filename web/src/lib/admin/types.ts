@@ -641,3 +641,53 @@ export interface AdminToken {
 export interface AdminTokens {
   items: AdminToken[];
 }
+
+// ---- Surveillance automatique (internal/admin/watch.go, api_watch.go) ----
+
+export type AdminWatchState = "ok" | "near" | "breached" | "not_measured";
+
+export interface AdminWatchRule {
+  rule: string;
+  label: string;
+  state: AdminWatchState;
+  value: number | null;
+  threshold: number;
+  unit: string;
+  detail: string;
+  since: string | null;
+  issue_id: string | null;
+}
+
+export interface AdminWatchRun {
+  ts: string;
+  breached: number;
+  duration_ms: number;
+  webhook_sent: number;
+  webhook_failed: number;
+}
+
+export type AdminWatchVerdict = "open" | "pending" | "improved" | "not_improved";
+
+export interface AdminWatchEffect {
+  issue_id: string;
+  rule: string;
+  title: string;
+  status: string;
+  value_open: number | null;
+  value_resolved: number | null;
+  value_after: number | null;
+  opened_at: string;
+  resolved_at: string | null;
+  verdict: AdminWatchVerdict;
+}
+
+// GET /watch (reading never evaluates anything; the server evaluates every interval_seconds)
+export interface AdminWatch {
+  interval_seconds: number;
+  webhook_configured: boolean;
+  disk_configured: boolean;
+  retention_days: number;
+  rules: AdminWatchRule[];
+  runs: AdminWatchRun[];
+  effects: AdminWatchEffect[];
+}

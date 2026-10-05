@@ -220,8 +220,14 @@ func startAdmin(cfg *config.Config, logger *slog.Logger, redis *kv.Client) (*adm
 		}
 		return func(ctx context.Context) bool { return redis.Elect(ctx, name, period) }
 	}
+	svc.SetWatchConfig(admin.WatchConfig{WebhookURL: cfg.WatchWebhookURL, WebhookSecret: cfg.WatchWebhookSecret, DiskPath: cfg.WatchDiskPath})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		svc.RunWatch(ctx, admin.DefaultWatchInterval, elect("admin-watch", admin.DefaultWatchInterval-10*time.Second))
+	}()
 	go func() {
 		defer close(done)
 		if e := elect("admin-backfill", time.Hour); e == nil || e(ctx) {
@@ -234,6 +240,7 @@ func startAdmin(cfg *config.Config, logger *slog.Logger, redis *kv.Client) (*adm
 	return svc, func() {
 		cancel()
 		<-done
+		<-watchDone
 		svc.Close()
 		store.Close()
 	}

@@ -1,4 +1,4 @@
-import type { AdminApproval, AdminMcpAuditRow, AdminMcpTool, AdminThreshold, AdminToolLevel } from "../../../lib/admin/types";
+import type { AdminApproval, AdminMcpAuditRow, AdminMcpTool, AdminThreshold, AdminToolLevel, AdminWatchRule, AdminWatchVerdict } from "../../../lib/admin/types";
 
 /** Pure helpers of the "Claude et MCP" and "Paramètres" pages (tested with node --test). */
 
@@ -151,4 +151,51 @@ export function ruleUnit(rule: string): string {
 /** Human readable token status; the API gives active | expired | revoked. */
 export function tokenStatusLabel(status: string): string {
   return ({ active: "Actif", expired: "Expiré", revoked: "Révoqué" } as Record<string, string>)[status] ?? status;
+}
+
+// ---- Surveillance automatique ----
+
+const RULE_STATE_LABELS: Record<string, string> = { ok: "OK", near: "Proche du seuil", breached: "Dépassé", not_measured: "Non mesuré" };
+
+export function ruleStateLabel(state: string): string {
+  return RULE_STATE_LABELS[state] ?? state;
+}
+
+/** Tone of a rule state; the label always carries the meaning as well. */
+export const RULE_STATE_TONES: Record<string, string> = { ok: "muted", near: "accent", breached: "danger", not_measured: "muted" };
+
+const WATCH_RULE_LABELS: Record<string, string> = {
+  error_rate_pct: "Taux d'erreur de lecture",
+  startup_p95_s: "Démarrage p95",
+  stream_saturation_pct: "Saturation des flux",
+  disk_pct: "Occupation du disque",
+  source_failures: "Sources en échec (SRC_DEAD)",
+};
+
+export function watchRuleLabel(rule: string, fallback?: string): string {
+  return WATCH_RULE_LABELS[rule] ?? fallback ?? rule;
+}
+
+/** "13,3 %" / "4 échecs"; null is never turned into 0. */
+export function formatWatchValue(value: number | null, unit: string): string {
+  if (value === null || !Number.isFinite(value)) return "[À MESURER]";
+  const text = value.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  return unit ? `${text} ${unit}` : text;
+}
+
+const VERDICT_LABELS: Record<string, string> = {
+  open: "Ouvert",
+  pending: "Mesure à +24 h",
+  improved: "Amélioré",
+  not_improved: "Pas d'amélioration",
+};
+
+export function verdictLabel(verdict: AdminWatchVerdict | string): string {
+  return VERDICT_LABELS[verdict] ?? verdict;
+}
+
+export const VERDICT_TONES: Record<string, string> = { open: "muted", pending: "muted", improved: "accent", not_improved: "danger" };
+
+export function breachedRules(rules: ReadonlyArray<AdminWatchRule>): AdminWatchRule[] {
+  return rules.filter((r) => r.state === "breached");
 }
