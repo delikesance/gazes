@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"io"
@@ -11,6 +12,9 @@ import (
 	"os/exec"
 	"strings"
 )
+
+// ErrRemuxFailed marks an ffmpeg remux that exited with an error (not a client disconnect).
+var ErrRemuxFailed = errors.New("ffmpeg remux failed")
 
 // RemuxStream pipes a video stream through FFmpeg, re-wrapping into fragmented MP4 (fMP4) with AAC audio.
 func RemuxStream(ctx context.Context, w http.ResponseWriter, src io.Reader, logger *slog.Logger, opts PipelineOptions) error {
@@ -109,7 +113,7 @@ func RemuxStream(ctx context.Context, w http.ResponseWriter, src io.Reader, logg
 			return nil
 		}
 		logger.Error("ffmpeg pipeline execution error", "err", err, "stderr", stderrBuf.String())
-		return fmt.Errorf("ffmpeg remux failed: %w, stderr: %s", err, stderrBuf.String())
+		return fmt.Errorf("%w: %w, stderr: %s", ErrRemuxFailed, err, stderrBuf.String())
 	}
 
 	logger.Debug("media.remux_completed")

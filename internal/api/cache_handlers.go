@@ -48,9 +48,17 @@ func (s *Server) warmOnce(ctx context.Context) {
 // HandleCacheDiagnostics reports cache efficiency and upstream pressure: hit ratios, stale answers
 // served, lock waits, throttled upstream calls and the remaining shared AniList cooldown.
 func (s *Server) HandleCacheDiagnostics(w http.ResponseWriter, r *http.Request) {
+	out := s.cacheDiagnostics(r.Context())
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+// cacheDiagnostics builds the /api/v1/diagnostics/cache body (also read by the admin panel).
+func (s *Server) cacheDiagnostics(ctx context.Context) map[string]any {
 	out := map[string]any{"redis": "disabled"}
 	if s.kv != nil {
-		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		defer cancel()
 		redis := map[string]any{"status": "ok"}
 		if latency, keys, err := s.kv.Health(ctx); err != nil {
@@ -63,7 +71,5 @@ func (s *Server) HandleCacheDiagnostics(w http.ResponseWriter, r *http.Request) 
 		out["stats"] = s.kv.Stats()
 		out["anilist_cooldown_ms"] = s.catalogService.UpstreamCooldown(ctx).Milliseconds()
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(out)
+	return out
 }

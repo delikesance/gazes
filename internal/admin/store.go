@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS approvals (
 
 var migrations = []dbmigrate.Migration{
 	{Version: 1, Name: "baseline", Up: dbmigrate.SQL(baselineSchema)},
+	// The admin PATCH /issues/{id} stores a free-form triage note next to the status.
+	{Version: 2, Name: "issues_note", Up: dbmigrate.SQL(`ALTER TABLE issues ADD COLUMN note TEXT`)},
 }
 
 // Open opens (creating if needed) the admin database at path and migrates it.

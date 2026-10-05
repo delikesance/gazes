@@ -56,6 +56,12 @@ type Config struct {
 	LibraryEncodePauseStreams int           `json:"library_encode_pause_streams"`
 	LibraryReserveBytes       int64         `json:"library_reserve_bytes"`
 	LibraryStallTimeout       time.Duration `json:"library_stall_timeout"`
+
+	// Optional cost inputs for the admin panel (nil = not provided, never defaulted).
+	CostServerMonth       *float64 `json:"cost_server_month,omitempty"`         // GAZES_COST_SERVER_MONTH: server cost per month
+	CostBandwidthPerGB    *float64 `json:"cost_bandwidth_per_gb,omitempty"`     // GAZES_COST_BANDWIDTH_PER_GB
+	CostStoragePerGBMonth *float64 `json:"cost_storage_per_gb_month,omitempty"` // GAZES_COST_STORAGE_PER_GB_MONTH
+	GBPerWatchHour        *float64 `json:"gb_per_watch_hour,omitempty"`         // GAZES_GB_PER_WATCH_HOUR: data served per hour watched
 }
 
 // Load loads configuration from environment variables with fallback defaults.
@@ -101,7 +107,25 @@ func Load() *Config {
 		LibraryEncodeCRF:          getEnvInt("LIBRARY_ENCODE_CRF", 30),
 		LibraryEncodeThreads:      getEnvInt("LIBRARY_ENCODE_THREADS", 8),
 		LibraryEncodePauseStreams: getEnvInt("LIBRARY_ENCODE_PAUSE_STREAMS", 3),
+
+		CostServerMonth:       getEnvOptFloat("GAZES_COST_SERVER_MONTH"),
+		CostBandwidthPerGB:    getEnvOptFloat("GAZES_COST_BANDWIDTH_PER_GB"),
+		CostStoragePerGBMonth: getEnvOptFloat("GAZES_COST_STORAGE_PER_GB_MONTH"),
+		GBPerWatchHour:        getEnvOptFloat("GAZES_GB_PER_WATCH_HOUR"),
 	}
+}
+
+// getEnvOptFloat reads an optional non-negative number; absent, empty, invalid or negative is nil.
+func getEnvOptFloat(key string) *float64 {
+	val, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(val) == "" {
+		return nil
+	}
+	f, err := strconv.ParseFloat(strings.TrimSpace(val), 64)
+	if err != nil || f < 0 || f != f || f > 1e12 {
+		return nil
+	}
+	return &f
 }
 
 func getEnvOrFile(key, fileKey string) string {

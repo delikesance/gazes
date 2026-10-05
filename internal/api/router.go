@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/auth"
 	"github.com/gazes/gazes/internal/config"
 	"github.com/gazes/gazes/internal/indexer"
@@ -45,6 +46,8 @@ type Server struct {
 	subtitles       subtitleJobs
 	library         *library.Service
 	libraryUser     func(*http.Request) (int64, bool)
+	admin           *admin.Service
+	errorSink       admin.ErrorSink
 }
 
 // Option customises a Server.
@@ -147,6 +150,8 @@ func (s *Server) setupRoutes() {
 
 	// Liveness Probe
 	r.Get("/healthz", s.HandleHealthz)
+
+	s.mountAdmin(r)
 
 	// API v1 Routes
 	r.Route("/api/v1", func(api chi.Router) {
