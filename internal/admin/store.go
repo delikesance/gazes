@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS playback_errors (
 	message TEXT
 );
 CREATE INDEX IF NOT EXISTS playback_errors_ts ON playback_errors(ts);
+CREATE TABLE IF NOT EXISTS playback_startups (
+	ts INTEGER NOT NULL,
+	ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS playback_startups_ts ON playback_startups(ts);
 CREATE INDEX IF NOT EXISTS playback_errors_code_ts ON playback_errors(code, ts);
 CREATE TABLE IF NOT EXISTS issues (
 	id TEXT PRIMARY KEY,

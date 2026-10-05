@@ -3,6 +3,7 @@ import { ApiErrorBlock } from "@/components/admin/pages/ApiErrorBlock";
 import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
 import { AdminApiError, parseAdminPeriod } from "@/lib/admin/api";
 import { adminGetServer } from "@/lib/admin/server";
+import { getAnimeCatalogDetail } from "@/lib/api";
 import type { AdminOverview, AdminPlaybackErrors, AdminPlaybackHealth } from "@/lib/admin/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -32,8 +33,17 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const failures = [health, errors].filter((r): r is PromiseRejectedResult => r.status === "rejected");
   const playbackNotice = failures.length > 0 ? `Mesures du lecteur indisponibles : ${describe(failures[0].reason)}.` : undefined;
 
+  const liveAnime = health.status === "fulfilled" ? health.value.data.live_anime ?? [] : [];
+  const topIds = [...new Set([...overview.value.data.top_anime, ...liveAnime].map((a) => a.anime_id))];
+  const details = await Promise.allSettled(topIds.map((id) => getAnimeCatalogDetail(id)));
+  const posters: Record<number, string> = {};
+  details.forEach((d, i) => {
+    if (d.status === "fulfilled" && d.value.poster_image) posters[topIds[i]] = d.value.poster_image;
+  });
+
   return (
     <OverviewView
+      posters={posters}
       overview={overview.value.data}
       health={health.status === "fulfilled" ? health.value.data : null}
       errors={errors.status === "fulfilled" ? errors.value.data : null}

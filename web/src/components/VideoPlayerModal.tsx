@@ -193,6 +193,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const resumePlaybackRef = useRef(!initialPaused);
   const failureReportedRef = useRef(false);
   const hasStartedRef = useRef(false);
+  const loadStartedAtRef = useRef<number | null>(null);
   const fileResolvedRef = useRef(false);
   const onFileResolvedRef = useRef(onFileResolved);
   useEffect(() => { onFileResolvedRef.current = onFileResolved; }, [onFileResolved]);
@@ -478,6 +479,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     resumePlaybackRef.current = !initialPaused;
     failureReportedRef.current = false;
     hasStartedRef.current = false;
+    loadStartedAtRef.current = performance.now();
     fileResolvedRef.current = false;
     setPlaybackError(null);
     subtitleSelectionRef.current = false;
@@ -945,7 +947,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   crossOrigin="anonymous"
                   onTimeUpdate={(event) => {
                   if (hlsMode && event.currentTarget.dataset.playbackPhase === "preparing") return;
-                  if(!hasStartedRef.current&&event.currentTarget===videoRef.current&&event.currentTarget.currentTime>lastProgressRef.current.time&&event.currentTarget.videoWidth>0)diagnosticEvent(diagnostic,"playback.started",{position:playbackOffset+event.currentTarget.currentTime,width:event.currentTarget.videoWidth,height:event.currentTarget.videoHeight});
+                  if(!hasStartedRef.current&&event.currentTarget===videoRef.current&&event.currentTarget.currentTime>lastProgressRef.current.time&&event.currentTarget.videoWidth>0){const startedAt=loadStartedAtRef.current;loadStartedAtRef.current=null;diagnosticEvent(diagnostic,"playback.started",{position:playbackOffset+event.currentTarget.currentTime,width:event.currentTarget.videoWidth,height:event.currentTarget.videoHeight,...(startedAt!==null?{startup_ms:Math.round(performance.now()-startedAt)}:{})});}
                     if (event.currentTarget === videoRef.current) {
                       const time = videoRef.current.currentTime;
                       if (time > lastProgressRef.current.time && videoRef.current.videoWidth > 0) {

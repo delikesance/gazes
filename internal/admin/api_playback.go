@@ -101,6 +101,39 @@ func (s *Service) pbSumSessions(ctx context.Context, from, to string) (sessions,
 	return
 }
 
+// pbActiveWatchers counts the watch sessions refreshed in the last pbActiveWindow seconds
+// (the client syncs its watch log every 30 s while signed in).
+const pbActiveWindow = 120
+
+func (s *Service) pbActiveWatchers(ctx context.Context) (int64, error) {
+	var n int64
+	err := s.accountsDB().QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM watch_sessions WHERE updated_at >= ?`, s.now().Unix()-pbActiveWindow).Scan(&n)
+	return n, err
+}
+
+// pbStartupPercentiles returns the p50/p95 time to first frame (ms) over [from, to).
+func (s *Service) pbStartupPercentiles(ctx context.Context, from, to int64) (p50, p95 float64, n int, err error) {
+	rows, err := s.adminDB().QueryContext(ctx, `SELECT ms FROM playback_startups WHERE ts >= ? AND ts < ? ORDER BY ms LIMIT 50000`, from, to)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	defer rows.Close()
+	var ms []float64
+	for rows.Next() {
+		var v float64
+		if err := rows.Scan(&v); err != nil {
+			return 0, 0, 0, err
+		}
+		ms = append(ms, v)
+	}
+	if err := rows.Err(); err != nil || len(ms) == 0 {
+		return 0, 0, 0, err
+	}
+	at := func(q float64) float64 { return ms[int(q*float64(len(ms)-1)+0.5)] }
+	return at(0.5), at(0.95), len(ms), nil
+}
+
 func pbServerError(w http.ResponseWriter, err error) {
 	_ = err // details stay in the logs: never echo SQL errors to the caller
 	writeAPIError(w, http.StatusInternalServerError, "internal", "internal error")
@@ -135,6 +168,26 @@ func (s *Service) handlePlaybackHealth(w http.ResponseWriter, r *http.Request) {
 	active := map[string]any{"value": nil, "measured": false}
 	if deps.stats != nil {
 		active = map[string]any{"value": deps.stats.ActiveSessions(), "measured": true}
+	} else if n, err := s.pbActiveWatchers(ctx); err == nil {
+		// Legacy engine: count signed-in viewers whose watch log was updated recently.
+		active = map[string]any{"value": n, "measured": true, "source": "watch_sessions"}
+	}
+	liveAnime := []map[string]any{}
+	if rows, err := s.accountsDB().QueryContext(ctx,
+		`SELECT anime_id, MAX(title), COUNT(*) AS n FROM watch_sessions WHERE updated_at >= ? AND anime_id > 0 GROUP BY anime_id ORDER BY n DESC, anime_id LIMIT 5`,
+		s.now().Unix()-pbActiveWindow); err == nil {
+		for rows.Next() {
+			var id, n int64
+			var title string
+			if rows.Scan(&id, &title, &n) == nil {
+				liveAnime = append(liveAnime, map[string]any{"anime_id": id, "title": title, "sessions": n})
+			}
+		}
+		rows.Close()
+	}
+	startup := map[string]any{"p50": nil, "p95": nil, "measured": false}
+	if p50, p95, n, err := s.pbStartupPercentiles(ctx, from, to); err == nil && n > 0 {
+		startup = map[string]any{"p50": p50, "p95": p95, "samples": n, "measured": true}
 	}
 	rate := func(e, n int64) *float64 {
 		if n == 0 {
@@ -160,7 +213,8 @@ func (s *Service) handlePlaybackHealth(w http.ResponseWriter, r *http.Request) {
 			"errors": errs, "sessions": sess, "measured": true,
 			"note": "erreurs enregistrées / séances ; seuls les sites instrumentés sont comptés",
 		},
-		"startup_ms": map[string]any{"p50": nil, "p95": nil, "measured": false},
+		"startup_ms": startup,
+		"live_anime": liveAnime,
 		"sources":    map[string]any{"active": nil, "total": nil, "failing": failing, "measured": false},
 		"cache":      map[string]any{"data": cache, "measured": cacheMeasured},
 	})

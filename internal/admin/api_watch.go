@@ -55,6 +55,7 @@ func (s *Service) Prune(ctx context.Context) error {
 		at  int64
 	}{
 		{`DELETE FROM playback_errors WHERE ts < ?`, cutoff},
+		{`DELETE FROM playback_startups WHERE ts < ?`, cutoff},
 		{`DELETE FROM mcp_audit WHERE ts < ?`, cutoff},
 		{`DELETE FROM action_idempotency WHERE created_at < ?`, now.Add(-7 * 24 * time.Hour).Unix()},
 	} {

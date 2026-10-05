@@ -17,6 +17,7 @@ export interface MediaRowProps {
   goodWhen?: "up" | "down";
   size?: "sm" | "lg";
   tint?: number | string;
+  poster?: string | null;
 }
 
 const num = (v: number | null | undefined): number | null =>
@@ -34,6 +35,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
   goodWhen = "up",
   size = "sm",
   tint,
+  poster,
 }) => {
   const ranked = variant !== "live";
   const rankN = num(rank);
@@ -67,7 +69,7 @@ export const MediaRow: React.FC<MediaRowProps> = ({
           {rankN}
         </span>
       )}
-      <Thumb title={title} size={size === "lg" ? "lg" : "sm"} tint={tint === "" ? undefined : tint} decorative />
+      <Thumb title={title} size={size === "lg" ? "lg" : "sm"} tint={tint === "" ? undefined : tint} decorative poster={poster} />
       {showBar ? (
         <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           <span style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: "4px 12px" }}>
