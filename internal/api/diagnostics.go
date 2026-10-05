@@ -99,7 +99,7 @@ var telemetryIDs = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`)
 var telemetryHash = regexp.MustCompile(`^[a-fA-F0-9]{40}$`)
 var telemetryCodes = regexp.MustCompile(`^[a-zA-Z0-9_.-]{0,80}$`)
 var telemetryEvents = map[string]bool{"playback.attempt": true, "playback.file_selected": true, "playback.file_rejected": true, "playback.started": true, "playback.buffering": true, "playback.failed": true, "playback.abandoned": true, "playback.exhausted": true, "playback.swarm": true, "playback.media_error": true, "playback.gesture_required": true, "playback.seek": true, "playback.tracks": true, "playback.resolution": true, "browser.error": true, "playback.subtitle_failed": true, "playback.discovery_started": true, "playback.discovery_completed": true, "playback.discovery_failed": true, "playback.vf_deferred": true}
-var telemetryAttrs = map[string]bool{"reason": true, "error_code": true, "position": true, "duration": true, "file_index": true, "file_path": true, "file_count": true, "ready_state": true, "network_state": true, "video_codec": true, "audio_codec": true, "buffered_seconds": true, "seeders": true, "download_speed": true, "pieces_ready": true, "buffer_percent": true, "width": true, "height": true, "source_count": true, "audio_track": true, "subtitle_track": true, "partial": true}
+var telemetryAttrs = map[string]bool{"reason": true, "error_code": true, "position": true, "duration": true, "file_index": true, "file_path": true, "file_count": true, "ready_state": true, "network_state": true, "video_codec": true, "audio_codec": true, "buffered_seconds": true, "seeders": true, "download_speed": true, "pieces_ready": true, "buffer_percent": true, "width": true, "height": true, "source_count": true, "audio_track": true, "subtitle_track": true, "partial": true, "startup_ms": true}
 
 type clientEvent struct {
 	Event      string         `json:"event"`
@@ -242,6 +242,9 @@ func (s *Server) HandleDiagnosticEvents(w http.ResponseWriter, r *http.Request) 
 			attrs = append(attrs, k, v)
 		}
 		diagnostics.Log(ctx, level, e.Event, attrs...)
+		if ms, ok := e.Attributes["startup_ms"].(float64); ok && e.Event == "playback.started" && s.admin != nil {
+			s.admin.RecordStartup(ctx, ms)
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

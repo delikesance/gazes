@@ -371,8 +371,11 @@ export interface AdminPlaybackHealth {
   startup_ms: {
     p50: number | null;
     p95: number | null;
+    samples?: number;
     measured: boolean;
   };
+  /** Anime being watched right now (signed-in viewers), most watched first. */
+  live_anime?: Array<{ anime_id: number; title: string; sessions: number }>;
   sources: {
     active: number | null;
     total: number | null;

@@ -377,8 +377,8 @@ func TestPlaybackHealth(t *testing.T) {
 	if h.code != 200 {
 		t.Fatalf("%d %s", h.code, h.body)
 	}
-	if as := pbSub(t, h.data, "active_sessions"); as["value"] != nil || as["measured"] != false {
-		t.Errorf("active_sessions = %v", as)
+	if as := pbSub(t, h.data, "active_sessions"); as["value"] != 0.0 || as["measured"] != true || as["source"] != "watch_sessions" {
+		t.Errorf("active_sessions without engine stats = %v", as) // falls back to recent watch logs
 	}
 	if er := pbSub(t, h.data, "error_rate"); er["value"] != nil || er["previous"] != nil {
 		t.Errorf("error_rate without sessions must be null: %v", er)
@@ -389,6 +389,14 @@ func TestPlaybackHealth(t *testing.T) {
 	}
 	if c := pbSub(t, h.data, "cache"); c["data"] != nil || c["measured"] != false {
 		t.Errorf("cache = %v", c)
+	}
+
+	for _, ms := range []float64{1000, 2000, 3000, 0, -5, 999999} { // the last three are implausible
+		e.svc.RecordStartup(context.Background(), ms)
+	}
+	h = e.do(t, "GET", "/playback/health", "", e.as("diag"))
+	if st := pbSub(t, h.data, "startup_ms"); st["p50"] != 2000.0 || st["samples"] != 3.0 || st["measured"] != true {
+		t.Errorf("startup after samples = %v", st)
 	}
 
 	e.seedErrorSet(t)

@@ -85,9 +85,10 @@ export interface OverviewTopRow {
   value: number;
   bar: number;
   trend: number | null;
+  poster: string | null;
 }
 
-export function topAnimeRows(overview: AdminOverview): OverviewTopRow[] {
+export function topAnimeRows(overview: AdminOverview, posters: Record<number, string> = {}): OverviewTopRow[] {
   const top = overview.top_anime;
   const max = top.length ? Math.max(...top.map((a) => a.share_pct)) : 0;
   return top.map((a, i) => ({
@@ -97,6 +98,7 @@ export function topAnimeRows(overview: AdminOverview): OverviewTopRow[] {
     value: a.sessions,
     bar: max > 0 ? Math.round((a.share_pct / max) * 100) : 0,
     trend: a.delta_pct,
+    poster: posters[a.anime_id] ?? null,
   }));
 }
 

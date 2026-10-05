@@ -64,3 +64,15 @@ func (s *Service) SetCostInputs(c CostInputs) {
 	s.pbSet(func(d *playbackDeps) { d.costs = c })
 	s.respCache.clear() // /costs answers depend on these inputs
 }
+
+// maxStartupMS bounds a plausible time to first frame; larger values are a stale tab, not a startup.
+const maxStartupMS = 120_000
+
+// RecordStartup stores one client-measured time to first frame. Implausible values and write
+// failures are dropped: a metric must never affect a playback.
+func (s *Service) RecordStartup(ctx context.Context, ms float64) {
+	if s == nil || !(ms > 0 && ms <= maxStartupMS) {
+		return
+	}
+	_, _ = s.adminDB().ExecContext(ctx, `INSERT INTO playback_startups(ts, ms) VALUES(?, ?)`, s.now().Unix(), int64(ms))
+}
