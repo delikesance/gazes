@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gazes/gazes/internal/auth"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"regexp"
 	"runtime/debug"
@@ -113,38 +113,52 @@ type clientEvent struct {
 }
 type rateWindow struct {
 	since time.Time
+	span  time.Duration
 	count int
 }
-type diagnosticLimiter struct {
+
+const rateLimiterMaxKeys = 10000
+
+// rateLimiter is an in-memory fixed-window counter. The zero value is ready to use.
+type rateLimiter struct {
 	mu      sync.Mutex
 	windows map[string]rateWindow
 }
 
-func (l *diagnosticLimiter) allow(key string) bool {
+// hit counts one event for key and reports whether it is within limit for the current span.
+func (l *rateLimiter) hit(key string, limit int, span time.Duration) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := time.Now()
 	if l.windows == nil {
 		l.windows = map[string]rateWindow{}
 	}
-	if len(l.windows) >= 4096 {
+	if len(l.windows) >= rateLimiterMaxKeys {
 		for k, w := range l.windows {
-			if now.Sub(w.since) >= time.Minute {
+			if now.Sub(w.since) >= w.span {
 				delete(l.windows, k)
 			}
 		}
-		if len(l.windows) >= 4096 {
-			return false
+		// Still full of live windows: drop arbitrary ones so new clients are never locked out
+		// and the next calls do not rescan the whole table.
+		for k := range l.windows {
+			if len(l.windows) < rateLimiterMaxKeys-rateLimiterMaxKeys/10 {
+				break
+			}
+			delete(l.windows, k)
 		}
 	}
 	window := l.windows[key]
-	if now.Sub(window.since) >= time.Minute {
-		window = rateWindow{since: now}
+	if now.Sub(window.since) >= span {
+		window = rateWindow{since: now, span: span}
 	}
 	window.count++
 	l.windows[key] = window
-	return window.count <= 120
+	return window.count <= limit
 }
+
+// allow is the telemetry endpoint's budget: 120 events a minute per client.
+func (l *rateLimiter) allow(key string) bool { return l.hit(key, 120, time.Minute) }
 
 // validTelemetryEvent applies the allow-lists and format checks to one client event.
 func validTelemetryEvent(e clientEvent) bool {
@@ -185,9 +199,7 @@ func validTelemetryEvent(e clientEvent) bool {
 }
 
 func (s *Server) HandleDiagnosticEvents(w http.ResponseWriter, r *http.Request) {
-	// Use the socket peer, never caller-provided X-Forwarded-For, for this limiter.
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	if !s.diagnosticRate.allow(host) {
+	if !s.diagnosticRate.allow(auth.ClientIP(r, s.trustProxy)) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "diagnostic rate limit", 429)
 		return

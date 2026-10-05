@@ -1,0 +1,65 @@
+package api
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+func limited(s *Server, remote, xff string) int {
+	h := s.rateLimit("t", 2, time.Minute)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = remote
+	if xff != "" {
+		r.Header.Set("X-Forwarded-For", xff)
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w.Code
+}
+
+func TestRateLimitKeysOnClientIP(t *testing.T) {
+	s := &Server{trustProxy: true}
+	for range 2 {
+		if c := limited(s, "172.18.0.5:1", "203.0.113.7"); c != 200 {
+			t.Fatalf("within limit: %d", c)
+		}
+	}
+	if c := limited(s, "172.18.0.5:1", "203.0.113.7"); c != http.StatusTooManyRequests {
+		t.Fatalf("over limit: %d", c)
+	}
+	// Another client behind the same proxy has its own budget.
+	if c := limited(s, "172.18.0.5:1", "203.0.113.8"); c != 200 {
+		t.Fatalf("other client throttled: %d", c)
+	}
+}
+
+func TestRateLimitIgnoresForwardedHeaderWithoutProxy(t *testing.T) {
+	s := &Server{}
+	for range 2 {
+		limited(s, "198.51.100.1:1", "10.0.0.1")
+	}
+	if c := limited(s, "198.51.100.1:1", "10.0.0.2"); c != http.StatusTooManyRequests {
+		t.Fatalf("forged X-Forwarded-For escaped the limit: %d", c)
+	}
+}
+
+func TestRateLimitSkipsLoopback(t *testing.T) {
+	s := &Server{}
+	for range 10 {
+		if c := limited(s, "127.0.0.1:1", ""); c != 200 {
+			t.Fatalf("loopback (ffmpeg reading its own stream) throttled: %d", c)
+		}
+	}
+}
+
+func TestRateLimiterEvictsInsteadOfLockingOut(t *testing.T) {
+	var l rateLimiter
+	for i := range rateLimiterMaxKeys + 10 {
+		l.hit(string(rune('a'))+time.Duration(i).String(), 5, time.Minute)
+	}
+	if !l.hit("fresh-client", 5, time.Minute) {
+		t.Fatal("a full table must evict old keys, not refuse new clients")
+	}
+}
