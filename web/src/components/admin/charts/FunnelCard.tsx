@@ -69,7 +69,7 @@ export const FunnelCard: React.FC<FunnelCardProps> = ({ subtitle = "", note = ""
             </div>
             <div style={{ flex: "1 1 190px", minWidth: 0, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", textAlign: "right" }}>
               <span style={{ fontSize: 20, fontVariantNumeric: "tabular-nums" }}>
-                {f.count} <span style={{ fontSize: 12, color: MUTED }}>({f.pctStart})</span>
+                {f.count} {f.pctStart && <span style={{ fontSize: 12, color: MUTED }}>({f.pctStart})</span>}
               </span>
               {f.lossText !== null && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: f.isWorst ? "#f87171" : MUTED }}>

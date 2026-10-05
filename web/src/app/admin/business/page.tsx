@@ -1,5 +1,40 @@
-import { AdminPlaceholder } from "@/components/admin/layout/AdminPlaceholder";
+import { BusinessView } from "@/components/admin/pages/BusinessView";
+import { ApiErrorBlock } from "@/components/admin/pages/ApiErrorBlock";
+import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
+import { AdminApiError, parseAdminPeriod } from "@/lib/admin/api";
+import { adminGetServer } from "@/lib/admin/server";
+import type { AdminCosts, AdminEnvelope, AdminOverview } from "@/lib/admin/types";
 
-export default function Page({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  return <AdminPlaceholder eyebrow="Économie" title="Business" searchParams={searchParams} />;
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+export default async function Page({ searchParams }: { searchParams: SearchParams }) {
+  const period = parseAdminPeriod((await searchParams).period);
+
+  let costs: AdminEnvelope<AdminCosts>;
+  let overview: AdminEnvelope<AdminOverview>;
+  try {
+    [costs, overview] = await Promise.all([
+      adminGetServer<AdminCosts>("/costs", { period }),
+      adminGetServer<AdminOverview>("/overview", { period }),
+    ]);
+  } catch (error) {
+    if (!(error instanceof AdminApiError)) throw error;
+    return (
+      <>
+        <AdminPageHeader eyebrow="Pilotage" title="Business" subtitle={`Période : ${period} derniers jours`} />
+        <ApiErrorBlock error={error} />
+      </>
+    );
+  }
+
+  return (
+    <BusinessView
+      costs={costs.data}
+      overview={overview.data}
+      periodDays={period}
+      from={costs.period?.from}
+      to={costs.period?.to}
+      generatedAt={costs.generated_at}
+    />
+  );
 }

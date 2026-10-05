@@ -21,6 +21,7 @@ import {
   plainValue,
   rowKeyOf,
   searchFieldId,
+  sameQuery,
   sortRows,
 } from "./cards.logic";
 import type { CellType, ColumnDef, Row, SortDir, TabDef, Tone } from "./cards.logic";
@@ -388,14 +389,22 @@ export const DataTable: React.FC<DataTableProps> = ({
     key: sortKeyProp,
     dir: sortDirProp === "desc" ? "desc" : "asc",
   });
-  const sort = manual ? { key: sortKeyProp, dir: (sortDirProp === "desc" ? "desc" : "asc") as SortDir } : sortState;
+  const sort = useMemo<{ key: string; dir: SortDir }>(
+    () => (manual ? { key: sortKeyProp, dir: sortDirProp === "desc" ? "desc" : "asc" } : sortState),
+    [manual, sortKeyProp, sortDirProp, sortState],
+  );
   const [query, setQuery] = useState(manual ? searchValue : "");
   const lastSent = useRef(manual ? searchValue : "");
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (debounce.current) clearTimeout(debounce.current); }, []);
-  // The URL (back/forward) changed the query behind our back: follow it.
+  // The debounced call must reach the latest handler (it closes over the URL state of the page).
+  const onSearchRef = useRef(onSearch);
   useEffect(() => {
-    if (manual && searchValue !== lastSent.current) {
+    onSearchRef.current = onSearch;
+  });
+  useEffect(() => () => { if (debounce.current) clearTimeout(debounce.current); }, []);
+  // The URL (back/forward) changed the query behind our back: follow it (a trimmed echo of what we sent is not a change).
+  useEffect(() => {
+    if (manual && !sameQuery(searchValue, lastSent.current)) {
       lastSent.current = searchValue;
       setQuery(searchValue);
     }
@@ -403,12 +412,14 @@ export const DataTable: React.FC<DataTableProps> = ({
   const sendSearch = (value: string) => {
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = null;
-    if (value.trim() === lastSent.current.trim()) return;
+    if (sameQuery(value, lastSent.current)) return;
     lastSent.current = value;
-    onSearch?.(value);
+    onSearchRef.current?.(value);
   };
   const [tab, setTab] = useState<string>(ALL_TAB);
-  const [sel, setSel] = useState<string>(selectedKey == null ? "" : String(selectedKey));
+  const [selState, setSel] = useState<string>(selectedKey == null ? "" : String(selectedKey));
+  // Server-driven: the selection lives in the URL, so the prop is the source of truth.
+  const sel = manual ? (selectedKey == null ? "" : String(selectedKey)) : selState;
   const [toggles, setToggles] = useState<Record<string, { base: boolean; val: boolean }>>({});
 
   const cols = useMemo<ColumnDef[]>(() => columns.map((c) => ({ type: "text" as CellType, ...c })), [columns]);
