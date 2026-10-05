@@ -31,7 +31,7 @@ func TestOpenTwiceKeepsDataAndSchema(t *testing.T) {
 	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil || v != len(migrations) {
 		t.Fatalf("user_version = %d, %v", v, err)
 	}
-	tables := []string{"admin_tokens", "metrics_daily", "metrics_hourly", "metrics_anime_daily", "playback_errors", "issues", "mcp_audit", "approvals"}
+	tables := []string{"admin_tokens", "metrics_daily", "metrics_hourly", "metrics_anime_daily", "playback_errors", "issues", "mcp_audit", "approvals", "settings", "action_idempotency"}
 	for _, tb := range tables {
 		var n int
 		if err := s.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, tb).Scan(&n); err != nil || n != 1 {
