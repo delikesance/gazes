@@ -48,6 +48,13 @@
       "Bash(pnpm run test*)",
       "Bash(pnpm exec tsc*)",
       "Bash(pnpm run build)",
+      "Bash(pnpm exec eslint*)",
+      "Bash(pnpm exec next*)",
+      "Bash(node scripts/*)",
+      "Bash(curl -s* localhost:*)",
+      "Bash(git pull --ff-only*)",
+      "Bash(git rev-parse*)",
+      "Bash(git show*)",
       "Bash(rg *)",
       "Bash(fd *)",
       "Bash(jq *)",
@@ -84,12 +91,20 @@
       "Bash(rm -rf ~*)",
       "Bash(git push origin --delete main*)",
       "Bash(git push origin --delete dev*)",
-      "Bash(docker compose down -v*)"
+      "Bash(docker compose down -v*)",
+      "Read(./web/.next*/**)",
+      "Read(./web/node_modules/**)",
+      "Read(./web/tsconfig.tsbuildinfo)",
+      "Read(./web/pnpm-lock.yaml)",
+      "Read(./go.sum)",
+      "Read(./web/public/subtitles/**)",
+      "Read(./graphify-out/cache/**)",
+      "Read(~/.config/forgejo/**)"
     ]
   },
   "env": {
-    "BASH_MAX_OUTPUT_LENGTH": "20000",
-    "MAX_MCP_OUTPUT_TOKENS": "10000",
+    "BASH_MAX_OUTPUT_LENGTH": "12000",
+    "MAX_MCP_OUTPUT_TOKENS": "8000",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "MAX_THINKING_TOKENS": "8000"
   },

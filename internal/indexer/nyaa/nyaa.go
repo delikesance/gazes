@@ -21,6 +21,11 @@ const (
 	DefaultBaseURL   = "https://nyaa.si"
 	DefaultUserAgent = "Gazes/1.0 (+https://github.com/gazes/gazes)"
 
+	// SukebeiBaseURL hosts the adult releases (hentai) that Nyaa.si does not carry.
+	SukebeiBaseURL = "https://sukebei.nyaa.si"
+	// CategorySukebeiAnime is Sukebei's "Art - Anime"; its category tree differs from Nyaa's.
+	CategorySukebeiAnime = "1_1"
+
 	// Categories
 	CategoryAllAnime                  = "1_0"
 	CategoryAnimeEnglishTranslated    = "1_2"
@@ -42,6 +47,7 @@ type Client struct {
 	BaseURL    string
 	HTTPClient *http.Client
 	UserAgent  string
+	sukebei    bool
 }
 
 // NewClient creates a new Nyaa client.
@@ -61,7 +67,20 @@ func NewClient(baseURL string, httpClient *http.Client) *Client {
 	}
 }
 
+// NewSukebeiClient creates a client for sukebei.nyaa.si, restricted to its anime category.
+func NewSukebeiClient(baseURL string, httpClient *http.Client) *Client {
+	if baseURL == "" {
+		baseURL = SukebeiBaseURL
+	}
+	c := NewClient(baseURL, httpClient)
+	c.sukebei = true
+	return c
+}
+
 func (c *Client) Name() string {
+	if c.sukebei {
+		return "sukebei.nyaa.si"
+	}
 	return "nyaa.si"
 }
 
@@ -107,7 +126,9 @@ func (c *Client) buildURL(opts indexer.SearchOptions) (string, error) {
 	if opts.Query != "" {
 		q.Set("q", opts.Query)
 	}
-	if opts.Category != "" {
+	if c.sukebei {
+		q.Set("c", CategorySukebeiAnime)
+	} else if opts.Category != "" {
 		q.Set("c", opts.Category)
 	} else {
 		q.Set("c", CategoryAnimeEnglishTranslated)
