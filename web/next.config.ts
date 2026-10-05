@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
         destination: `${backendUrl}/api/:path*`,
       },
       {
+        // MCP server (Streamable HTTP, bearer token only): lets `claude mcp add` use the public host.
+        source: "/mcp",
+        destination: `${backendUrl}/mcp`,
+      },
+      {
         source: "/healthz",
         destination: `${backendUrl}/healthz`,
       },

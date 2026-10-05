@@ -26,6 +26,7 @@ import type {
   AdminMcpAudit,
   AdminMcpTools,
   AdminSettings,
+  AdminTokenCreated,
   AdminTokens,
   AdminWatch,
   AdminMe,
@@ -48,6 +49,7 @@ import settings from "./settings.json";
 import mcp_audit from "./mcp-audit.json";
 import mcp_tools from "./mcp-tools.json";
 import tokens from "./tokens.json";
+import token_created from "./token-created.json";
 import watch from "./watch.json";
 import watch_empty from "./watch.empty.json";
 import me_session from "./me.session.json";
@@ -170,3 +172,4 @@ exact<Env<AdminMcpTools>>()(mcp_tools);
 exact<Env<AdminTokens>>()(tokens);
 exact<Env<AdminWatch>>()(watch);
 exact<Env<AdminWatch>>()(watch_empty);
+exact<Env<AdminTokenCreated>>()(token_created);
