@@ -19,7 +19,7 @@ func (s *Service) mountPlayback(r chi.Router) {
 	r.With(diag).Get("/playback/errors", s.handlePlaybackErrors)
 	r.With(diag).Get("/playback/errors/summary", s.handlePlaybackErrorsSummary)
 	r.With(diag).Get("/playback/sources", s.handlePlaybackSources)
-	r.With(s.Auth(ScopeMetricsRead)).Get("/costs", s.handleCosts)
+	r.With(s.AuthCached(ScopeMetricsRead, ResponseCacheTTL)).Get("/costs", s.handleCosts)
 
 	r.With(diag).Get("/issues", s.handleIssuesList)
 	r.With(diag).Get("/issues/{id}", s.handleIssueGet)

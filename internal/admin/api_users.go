@@ -103,10 +103,10 @@ func usersWindowArgs(now time.Time) []any {
 }
 
 func (s *Service) mountUsers(r chi.Router) {
-	r.With(s.Auth(ScopeMetricsRead)).Get("/users/summary", s.handleUsersSummary)
-	r.With(s.Auth(ScopeMetricsRead)).Get("/users", s.handleUsersList)
+	r.With(s.AuthCached(ScopeMetricsRead, ResponseCacheTTL)).Get("/users/summary", s.handleUsersSummary)
+	r.With(s.AuthCached(ScopeMetricsRead, ResponseCacheTTL)).Get("/users", s.handleUsersList)
 	r.With(s.Auth(ScopeMetricsRead)).Get("/users/{id}", s.handleUserDetail)
-	r.With(s.Auth(ScopeMetricsRead)).Get("/growth", s.handleGrowth)
+	r.With(s.AuthCached(ScopeMetricsRead, ResponseCacheTTL)).Get("/growth", s.handleGrowth)
 }
 
 func usersViaToken(r *http.Request) bool {

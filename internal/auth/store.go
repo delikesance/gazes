@@ -223,6 +223,24 @@ func (s *Store) SetUserRole(ctx context.Context, pseudo, role string) error {
 	return tx.Commit()
 }
 
+// SetUserRoleByID sets a user's role by account id: the unambiguous way when pseudos are shared.
+// It returns sql.ErrNoRows when no account has this id.
+func (s *Store) SetUserRoleByID(ctx context.Context, id int64, role string) error {
+	if role != RoleUser && role != RoleAdmin {
+		return ErrInvalidRole
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET role = ? WHERE id = ?`, role, id)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 // CountAdmins returns how many users hold the admin role.
 func (s *Store) CountAdmins(ctx context.Context) (int, error) {
 	var n int

@@ -60,4 +60,7 @@ func (s *Service) SetCacheDiagnostics(f func(ctx context.Context) any) {
 }
 
 // SetCostInputs sets the optional cost inputs.
-func (s *Service) SetCostInputs(c CostInputs) { s.pbSet(func(d *playbackDeps) { d.costs = c }) }
+func (s *Service) SetCostInputs(c CostInputs) {
+	s.pbSet(func(d *playbackDeps) { d.costs = c })
+	s.respCache.clear() // /costs answers depend on these inputs
+}
