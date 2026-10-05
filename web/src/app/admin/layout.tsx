@@ -31,8 +31,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     await adminGet("/me", { cookie });
   } catch (error) {
     // 401 (signed out) and 403 (not an admin) both answer 404: the panel must not reveal that it exists, and
-    // a /login redirect would confirm it. Other failures (API down, 5xx) surface through the error boundary.
-    if (error instanceof AdminApiError && (error.status === 401 || error.status === 403)) notFound();
+    // a /login redirect would confirm it. A 404 from the API means the admin API is not mounted on this
+    // backend (not configured or an older build): there is no panel either. Other failures (API down, 5xx)
+    // surface through the error boundary.
+    if (error instanceof AdminApiError && (error.status === 401 || error.status === 403 || error.status === 404)) notFound();
     throw error;
   }
   return <AdminShell pseudo={await pseudoOf(cookie)}>{children}</AdminShell>;

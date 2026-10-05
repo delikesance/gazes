@@ -527,3 +527,117 @@ export interface AdminIssueUpdate {
   status?: "new" | "in_progress" | "resolved";
   note?: string;
 }
+
+// ---- Claude et MCP / Paramètres (internal/admin/api_ops.go, api_settings.go, ops.go) ----
+
+export type AdminApprovalStatus = "pending" | "approved" | "executed" | "rejected" | "failed" | "undone";
+
+// GET /approvals/{id} and the items of GET /approvals (api_ops.go approvalView)
+export interface AdminApproval {
+  id: number;
+  created_at: string;
+  tool: string;
+  args: Record<string, unknown>;
+  justification: string | null;
+  expected_effect: string | null;
+  plan: { summary: string; details: Record<string, unknown> } | null;
+  status: AdminApprovalStatus;
+  requested_by_token: number | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  executed_at: string | null;
+  result: Record<string, unknown> | null;
+  undoable: boolean;
+}
+
+// GET /approvals?status=&limit=&offset=
+export interface AdminApprovalsList {
+  items: AdminApproval[];
+  page: { limit: number; offset: number; total: number };
+}
+
+// GET /ops/kill-switch (ops.go KillSwitch)
+export interface AdminKillSwitch {
+  suspended: boolean;
+  reason: string;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export type AdminActionLevel = "reversible" | "sensitive";
+
+// GET /ops/actions
+export interface AdminAction {
+  name: string;
+  level: AdminActionLevel;
+  scope: string;
+  summary: string;
+  implemented: boolean;
+}
+export interface AdminActions {
+  items: AdminAction[];
+  reversible_budget_per_hour: number;
+}
+
+export type AdminToolLevel = "read" | "diagnostic" | "reversible" | "sensitive";
+
+// GET /mcp/tools (api_settings.go ToolInfo; empty and enabled:false when /mcp is not mounted)
+export interface AdminMcpTool {
+  name: string;
+  description: string;
+  level: AdminToolLevel;
+  scope: string;
+  method: string;
+  path: string;
+  summary: string;
+}
+export interface AdminMcpTools {
+  enabled: boolean;
+  items: AdminMcpTool[];
+}
+
+// GET /mcp/audit?outcome=&limit=&offset= (arguments were redacted and truncated when written)
+export interface AdminMcpAuditRow {
+  id: number;
+  ts: string;
+  token_id: number | null;
+  tool: string;
+  args_summary: string;
+  outcome: string;
+  duration_ms: number;
+  approval_id: number | null;
+}
+export interface AdminMcpAudit {
+  total: number;
+  limit: number;
+  offset: number;
+  items: AdminMcpAuditRow[];
+}
+
+// GET /settings
+export interface AdminThreshold {
+  rule: string;
+  value: number;
+  default: number;
+  min: number;
+  max: number;
+}
+export interface AdminSettings {
+  thresholds: AdminThreshold[];
+  reversible_budget_per_hour: number;
+  kill_switch: AdminKillSwitch;
+}
+
+// GET /tokens (session only; metadata, never a hash or a secret)
+export interface AdminToken {
+  id: number;
+  name: string;
+  scopes: string[];
+  created_at: string;
+  expires_at: string;
+  last_used_at: string | null;
+  status: string;
+}
+export interface AdminTokens {
+  items: AdminToken[];
+}
