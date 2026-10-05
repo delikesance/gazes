@@ -222,6 +222,11 @@ export function barPercent(n: number, max: number): number {
   return clampPercent((n / max) * 100);
 }
 
+/** Two search strings mean the same query when they only differ by surrounding spaces. */
+export function sameQuery(a: string, b: string): boolean {
+  return a.trim() === b.trim();
+}
+
 /** Id of the search field: unique per instance. */
 export function searchFieldId(uid: string, id?: string): string {
   const base = id ? "dt-" + String(id).replace(/[^A-Za-z0-9_-]+/g, "-") : "dt" + uid.replace(/[^A-Za-z0-9_-]+/g, "");

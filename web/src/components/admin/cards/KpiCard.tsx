@@ -25,6 +25,8 @@ export interface KpiCardProps {
   /** Decimals of the main value when it is a number. */
   decimals?: number;
   basis?: number;
+  /** Text shown when the value is empty (default "[À MESURER]"; "[À RENSEIGNER]" for a price to fill in). */
+  missingLabel?: string;
 }
 
 export const KpiCard: React.FC<KpiCardProps> = ({
@@ -45,8 +47,11 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   tag,
   decimals,
   basis = 200,
+  missingLabel,
 }) => {
-  const { text, missing } = formatKpiValue(value, decimals);
+  const formatted = formatKpiValue(value, decimals);
+  const missing = formatted.missing;
+  const text = missing && missingLabel ? missingLabel : formatted.text;
   const hasDelta = delta !== null && delta !== undefined && Number.isFinite(Number(delta));
   const d = hasDelta ? Number(delta) : 0;
   const unitStr = deltaUnit === "" ? "%" : deltaUnit;

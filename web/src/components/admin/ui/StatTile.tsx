@@ -17,6 +17,8 @@ interface StatTileProps {
   size?: StatSize;
   swatch?: StatSwatch;
   basis?: number | string;
+  /** Text shown when the value is empty (default "[À MESURER]"). */
+  missingLabel?: string;
 }
 
 const TONES: Record<StatTone, string> = {
@@ -44,9 +46,10 @@ export const StatTile: React.FC<StatTileProps> = ({
   size = "md",
   swatch = "none",
   basis = 120,
+  missingLabel = "[À MESURER]",
 }) => {
   const missing = value === null || value === undefined || value === "";
-  const displayValue = missing ? "[À MESURER]" : String(value);
+  const displayValue = missing ? missingLabel : String(value);
 
   const fontSizeMap: Record<StatSize, number> = { sm: 20, md: 22, lg: 28 };
   const fontSize = missing ? 14 : fontSizeMap[size];
