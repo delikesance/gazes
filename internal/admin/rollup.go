@@ -277,10 +277,14 @@ func (r *Rollup) Backfill(ctx context.Context, now time.Time, days int) error {
 // Run calls RollupRecent immediately, then every interval (default 10 minutes
 // when interval <= 0) until ctx is done. Errors and panics are logged and the
 // loop continues; passes never overlap.
-//
-// No cross-instance lock: M2 will wire a Redis leader election, like
-// startWarmer in internal/api; a single replica is enough for v1.
 func (r *Rollup) Run(ctx context.Context, interval time.Duration, now func() time.Time) {
+	r.RunElected(ctx, interval, now, nil)
+}
+
+// RunElected is Run where each pass first asks elect (when non-nil) whether this
+// instance should do the work, so only one replica rolls up per period (Redis
+// election in cmd/server, like startWarmer in internal/api).
+func (r *Rollup) RunElected(ctx context.Context, interval time.Duration, now func() time.Time, elect func(context.Context) bool) {
 	if interval <= 0 {
 		interval = DefaultRollupInterval
 	}
@@ -288,6 +292,9 @@ func (r *Rollup) Run(ctx context.Context, interval time.Duration, now func() tim
 		now = time.Now
 	}
 	pass := func() {
+		if elect != nil && !elect(ctx) {
+			return
+		}
 		if !r.mu.TryLock() {
 			return
 		}
