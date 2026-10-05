@@ -138,10 +138,14 @@ func (s *Server) setupRoutes() {
 	r.Use(s.diagnosticContext)
 	r.Use(s.diagnosticRecover)
 
-	// CORS Configuration for P2P and web clients
+	// Off by default: the web app is same-origin. Opt in with ENABLE_CORS, ideally with CORS_ALLOWED_ORIGINS.
 	if s.cfg.EnableCORS {
+		origins := s.cfg.CORSAllowedOrigins
+		if len(origins) == 0 {
+			origins = []string{"*"}
+		}
 		r.Use(cors.Handler(cors.Options{
-			AllowedOrigins:   []string{"*"},
+			AllowedOrigins:   origins,
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Range", "Origin", "X-Playback-Session-ID", "X-Playback-Attempt-ID", "X-Request-ID", "X-Playback-Anime-ID", "X-Playback-Season-ID", "X-Playback-Episode"},
 			ExposedHeaders:   []string{"Content-Length", "Content-Range", "Accept-Ranges", "Content-Type", "X-Request-ID", "X-Playback-Session-ID"},
