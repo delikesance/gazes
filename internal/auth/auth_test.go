@@ -516,3 +516,40 @@ func TestCurrentUserReadsSessionCookie(t *testing.T) {
 		t.Fatal("forged cookie accepted")
 	}
 }
+
+func TestMeShowsTheRoleOnlyForAnAdministrator(t *testing.T) {
+	s := newTestService(t)
+	reg := s.post(t, s.Register, "register", map[string]string{"email": "root@example.com", "password": "correct horse", "pseudo": "root"})
+	if reg.Code != http.StatusCreated {
+		t.Fatalf("register: %d %s", reg.Code, reg.Body)
+	}
+	cookie := sessionCookie(reg)
+	me := func() map[string]any {
+		req := httptest.NewRequest("GET", "/auth/me", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		s.Me(rr, req)
+		var body struct {
+			User map[string]any `json:"user"`
+		}
+		if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil || body.User == nil {
+			t.Fatalf("me: %d %s", rr.Code, rr.Body)
+		}
+		return body.User
+	}
+	if _, has := me()["role"]; has {
+		t.Fatalf("a regular user must not get a role field: %v", me())
+	}
+	if err := s.store.SetUserRole(t.Context(), "root", RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	if got := me()["role"]; got != RoleAdmin {
+		t.Fatalf("an administrator must get role=admin, got %v", got)
+	}
+	if err := s.store.SetUserRole(t.Context(), "root", RoleUser); err != nil {
+		t.Fatal(err)
+	}
+	if _, has := me()["role"]; has {
+		t.Fatal("the role must disappear once revoked")
+	}
+}

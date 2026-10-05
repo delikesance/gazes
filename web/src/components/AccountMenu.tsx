@@ -43,6 +43,12 @@ export function AccountMenu() {
 
   return (
     <div className="account-actions" ref={root}>
+      {user.role === "admin" && (
+        <>
+          <Link href="/admin" className="clay clay-secondary clay-sm account-text"><ShieldCheck size={15} aria-hidden="true" />{t("Admin")}</Link>
+          <Link href="/admin" className="account-icon" aria-label={t("Panneau d’administration")}><ShieldCheck size={18} aria-hidden="true" /></Link>
+        </>
+      )}
       <button type="button" className="account-pill" aria-haspopup="menu" aria-expanded={open} aria-label={t("Compte")} onClick={() => setOpen((v) => !v)}>
         <span className="account-avatar" aria-hidden="true">{user.pseudo.slice(0, 1).toUpperCase()}</span>
         <span className="account-name">{user.pseudo}</span>
