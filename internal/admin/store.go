@@ -104,6 +104,32 @@ var migrations = []dbmigrate.Migration{
 	{Version: 1, Name: "baseline", Up: dbmigrate.SQL(baselineSchema)},
 	// The admin PATCH /issues/{id} stores a free-form triage note next to the status.
 	{Version: 2, Name: "issues_note", Up: dbmigrate.SQL(`ALTER TABLE issues ADD COLUMN note TEXT`)},
+	// M4 actions: settings (kill switch, alert thresholds, budget), the richer approvals queue and
+	// the idempotency ledger of action calls.
+	{Version: 3, Name: "ops_actions", Up: dbmigrate.SQL(
+		`CREATE TABLE IF NOT EXISTS settings (
+			key TEXT PRIMARY KEY,
+			value TEXT,
+			updated_at INTEGER,
+			updated_by TEXT
+		)`,
+		`ALTER TABLE approvals ADD COLUMN requested_by INTEGER`,
+		`ALTER TABLE approvals ADD COLUMN plan TEXT`,
+		`ALTER TABLE approvals ADD COLUMN result TEXT`,
+		`ALTER TABLE approvals ADD COLUMN executed_at INTEGER`,
+		`CREATE INDEX IF NOT EXISTS approvals_status ON approvals(status, id)`,
+		`CREATE TABLE IF NOT EXISTS action_idempotency (
+			token_id INTEGER NOT NULL,
+			key TEXT NOT NULL,
+			tool TEXT NOT NULL,
+			args_hash TEXT NOT NULL,
+			http_status INTEGER NOT NULL,
+			response TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			PRIMARY KEY (token_id, key)
+		)`,
+		`CREATE INDEX IF NOT EXISTS mcp_audit_token_ts ON mcp_audit(token_id, ts)`,
+	)},
 }
 
 // Open opens (creating if needed) the admin database at path and migrates it.

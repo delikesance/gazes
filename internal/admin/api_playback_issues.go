@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -184,49 +185,63 @@ func (s *Service) handleIssueGet(w http.ResponseWriter, r *http.Request) {
 // handleIssueCreate: POST /issues (ops:write) — feeds the "Claude et MCP" page (a finding raised
 // by Claude or an admin). Answers 201 with the created issue.
 func (s *Service) handleIssueCreate(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		Title        string `json:"title"`
-		Severity     string `json:"severity"`
-		Evidence     string `json:"evidence"`
-		SuggestedFix string `json:"suggested_fix"`
-		Source       string `json:"source"`
-	}
+	var in issueInput
 	if !issueDecode(w, r, &in) {
 		return
 	}
+	if code, msg := in.validate(); code != "" {
+		writeAPIError(w, http.StatusBadRequest, code, msg)
+		return
+	}
+	i, err := s.insertIssue(r.Context(), in)
+	if err != nil {
+		pbServerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, envelope{GeneratedAt: time.Now().UTC().Format(time.RFC3339), Data: i})
+}
+
+// issueInput is the body of POST /issues and the arguments of the create_issue action.
+type issueInput struct {
+	Title        string `json:"title"`
+	Severity     string `json:"severity"`
+	Evidence     string `json:"evidence"`
+	SuggestedFix string `json:"suggested_fix"`
+	Source       string `json:"source"`
+}
+
+// validate trims the title and returns an API error code and message, or "" when valid.
+func (in *issueInput) validate() (code, msg string) {
 	in.Title = strings.TrimSpace(in.Title)
 	switch {
 	case in.Title == "" || !issueFieldOK(in.Title, issueMaxTitle):
-		writeAPIError(w, http.StatusBadRequest, "bad_title", "title is required (max 200 characters)")
+		return "bad_title", "title is required (max 200 characters)"
 	case !issueSeverity[in.Severity]:
-		writeAPIError(w, http.StatusBadRequest, "bad_severity", "severity must be low, medium, high or critical")
+		return "bad_severity", "severity must be low, medium, high or critical"
 	case !issueFieldOK(in.Evidence, issueMaxEvidence):
-		writeAPIError(w, http.StatusBadRequest, "bad_evidence", "evidence is too long (max 4000 characters)")
+		return "bad_evidence", "evidence is too long (max 4000 characters)"
 	case !issueFieldOK(in.SuggestedFix, issueMaxFix):
-		writeAPIError(w, http.StatusBadRequest, "bad_suggested_fix", "suggested_fix is too long (max 2000 characters)")
+		return "bad_suggested_fix", "suggested_fix is too long (max 2000 characters)"
 	case !issueFieldOK(in.Source, issueMaxSource):
-		writeAPIError(w, http.StatusBadRequest, "bad_source", "source is too long (max 100 characters)")
-	default:
-		var b [8]byte
-		if _, err := rand.Read(b[:]); err != nil {
-			pbServerError(w, err)
-			return
-		}
-		id := "iss-" + hex.EncodeToString(b[:])
-		now := s.now().Unix()
-		if _, err := s.adminDB().ExecContext(r.Context(),
-			`INSERT INTO issues (id, created_at, updated_at, severity, status, title, evidence, suggested_fix, source) VALUES (?,?,?,?,?,?,?,?,?)`,
-			id, now, now, in.Severity, "new", in.Title, nullStr(in.Evidence), nullStr(in.SuggestedFix), nullStr(in.Source)); err != nil {
-			pbServerError(w, err)
-			return
-		}
-		i, err := scanIssue(s.adminDB().QueryRowContext(r.Context(), `SELECT `+issueColumns+` FROM issues WHERE id = ?`, id))
-		if err != nil {
-			pbServerError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusCreated, envelope{GeneratedAt: time.Now().UTC().Format(time.RFC3339), Data: i})
+		return "bad_source", "source is too long (max 100 characters)"
 	}
+	return "", ""
+}
+
+// insertIssue stores a validated issue with status "new" and returns it.
+func (s *Service) insertIssue(ctx context.Context, in issueInput) (issue, error) {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return issue{}, err
+	}
+	id := "iss-" + hex.EncodeToString(b[:])
+	now := s.now().Unix()
+	if _, err := s.adminDB().ExecContext(ctx,
+		`INSERT INTO issues (id, created_at, updated_at, severity, status, title, evidence, suggested_fix, source) VALUES (?,?,?,?,?,?,?,?,?)`,
+		id, now, now, in.Severity, "new", in.Title, nullStr(in.Evidence), nullStr(in.SuggestedFix), nullStr(in.Source)); err != nil {
+		return issue{}, err
+	}
+	return scanIssue(s.adminDB().QueryRowContext(ctx, `SELECT `+issueColumns+` FROM issues WHERE id = ?`, id))
 }
 
 // handleIssueUpdate: PATCH /issues/{id} (ops:write) — feeds the "Claude et MCP" page (triage:

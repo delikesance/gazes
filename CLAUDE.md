@@ -2,12 +2,9 @@
 
 See [AGENTS.md](AGENTS.md) for project guidelines and architectural invariants.
 
-## Agent Orchestration (mandatory)
+## Working mode: inline, no sub-agents (token budget)
 
-- The main session acts as **orchestrator and reasoner**: it scopes the problem, plans, splits work into bounded tasks, reviews sub-agent results, and makes the final decisions.
-- Hands-on work (codebase exploration, investigation, implementation, tests) is delegated to **sub-agents**.
-- Sub-agents never inherit the orchestrator's model: always pass `model` explicitly on every Agent tool call.
-  - Default is **Sonnet 5.5** (`model: "sonnet"`) for implementation and anything needing design or multi-file reasoning.
-  - **Haiku 4.5** (`model: "haiku"`) is allowed for simple, bounded, mechanical tasks: codebase lookups, fact-finding, running tests/lint, generating types, replicating an existing pattern, docs. If Haiku fails a task once, escalate it to Sonnet.
-- Prefer querying the graphify knowledge graph (once set up, see `docs/admin-panel-plan.md`) over reading files; keep task briefs and reports short.
-- The orchestrator verifies sub-agent output (diffs, test results) before reporting anything as done.
+- Do the work in the main session. **Do not spawn sub-agents** (Agent tool) unless the user explicitly asks for one in that request. Every sub-agent starts cold and re-reads context, which costs far more tokens than working inline with a warm prompt cache.
+- Keep the context lean: query the graphify knowledge graph (`graphify query "..."`, outputs in `graphify-out/`, see `docs/admin-panel-plan.md`) before reading files; read only the files and line ranges you need; keep command output short (`| tail`, `| head`, `grep`); do not re-read files you just wrote.
+- Verify your own work before reporting it done: run the relevant build, lint and tests and read the results.
+- Prefer one worktree per session and do not write to other worktrees from this session (a hook enforces it).
