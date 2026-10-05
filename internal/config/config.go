@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ type Config struct {
 	TorrentPort          int           `json:"torrent_port"`
 	TorrentCacheMaxBytes int64         `json:"torrent_cache_max_bytes"`
 	AccountsDir          string        `json:"accounts_dir"`
+	AdminDBPath          string        `json:"admin_db_path"`
 	TrustProxy           bool          `json:"trust_proxy"`
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
 	// title matching. API keys and bindings are intentionally never serialized.
@@ -74,6 +76,7 @@ func Load() *Config {
 		TorrentPort:              getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
 		TorrentCacheMaxBytes:     getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
 		AccountsDir:              getEnv("ACCOUNTS_DIR", "./accounts"),
+		AdminDBPath:              getEnv("GAZES_ADMIN_DB", filepath.Join(getEnv("ACCOUNTS_DIR", "./accounts"), "admin.sqlite")),
 		TrustProxy:               getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
 		ArrAuthoritative:         getEnvBool("ARR_AUTHORITATIVE", false),
 		SonarrURL:                getEnv("SONARR_URL", ""),

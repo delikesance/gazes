@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -8,10 +9,23 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gazes/gazes/internal/dbmigrate"
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 var ErrEmailTaken = errors.New("email already registered")
+
+// Account roles stored in users.role.
+const (
+	RoleUser  = "user"
+	RoleAdmin = "admin"
+)
+
+// ErrInvalidRole is returned by SetUserRole for a role other than user or admin.
+var ErrInvalidRole = errors.New("invalid role")
+
+// ErrAmbiguousPseudo is returned by SetUserRole when several users share the pseudo.
+var ErrAmbiguousPseudo = errors.New("pseudo matches several users")
 
 // Store persists users, sessions and watch progress in SQLite.
 type Store struct{ db *sql.DB }
@@ -22,6 +36,7 @@ type User struct {
 	EmailEnc string
 	Pseudo   string
 	PassHash string
+	Role     string
 }
 
 // Progress is one season's resume point; Completed acts as a tombstone so a
@@ -58,7 +73,7 @@ type WatchSession struct {
 	TZOffset       int      `json:"tz_offset"`
 }
 
-const schema = `
+const baselineSchema = `
 CREATE TABLE IF NOT EXISTS users (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	email_idx TEXT NOT NULL UNIQUE,
@@ -114,6 +129,25 @@ CREATE TABLE IF NOT EXISTS hidden_anime (
 );
 CREATE INDEX IF NOT EXISTS watch_sessions_user_time ON watch_sessions(user_id, started_at);`
 
+// migrations is the ordered schema history of accounts.sqlite. A database created before
+// versioning (user_version 0) is adopted by migration 1, which is idempotent.
+var migrations = []dbmigrate.Migration{
+	{Version: 1, Name: "baseline", Up: dbmigrate.SQL(baselineSchema)},
+	{Version: 2, Name: "users_role_and_watch_started_index", Up: func(tx *sql.Tx) error {
+		var n int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'role'`).Scan(&n); err != nil {
+			return err
+		}
+		if n == 0 {
+			if _, err := tx.Exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'`); err != nil {
+				return err
+			}
+		}
+		_, err := tx.Exec(`CREATE INDEX IF NOT EXISTS watch_sessions_started ON watch_sessions(started_at)`)
+		return err
+	}},
+}
+
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
 func OpenStore(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -124,7 +158,7 @@ func OpenStore(dir string) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(4)
-	if _, err := db.Exec(schema); err != nil {
+	if err := dbmigrate.Apply(context.Background(), db, migrations); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -147,19 +181,53 @@ func (s *Store) CreateUser(u User, now time.Time) (int64, error) {
 }
 
 func (s *Store) UserByEmailIdx(idx string) (*User, error) {
-	return s.scanUser(s.db.QueryRow(`SELECT id, email_idx, email_enc, pseudo, pass_hash FROM users WHERE email_idx = ?`, idx))
+	return s.scanUser(s.db.QueryRow(`SELECT id, email_idx, email_enc, pseudo, pass_hash, role FROM users WHERE email_idx = ?`, idx))
 }
 
 func (s *Store) UserByID(id int64) (*User, error) {
-	return s.scanUser(s.db.QueryRow(`SELECT id, email_idx, email_enc, pseudo, pass_hash FROM users WHERE id = ?`, id))
+	return s.scanUser(s.db.QueryRow(`SELECT id, email_idx, email_enc, pseudo, pass_hash, role FROM users WHERE id = ?`, id))
 }
 
 func (s *Store) scanUser(row *sql.Row) (*User, error) {
 	var u User
-	if err := row.Scan(&u.ID, &u.EmailIdx, &u.EmailEnc, &u.Pseudo, &u.PassHash); err != nil {
+	if err := row.Scan(&u.ID, &u.EmailIdx, &u.EmailEnc, &u.Pseudo, &u.PassHash, &u.Role); err != nil {
 		return nil, err
 	}
 	return &u, nil
+}
+
+// SetUserRole sets a user's role (user or admin), looked up by pseudo. Pseudos are not unique,
+// so an ambiguous pseudo is refused rather than promoting several accounts.
+func (s *Store) SetUserRole(ctx context.Context, pseudo, role string) error {
+	if role != RoleUser && role != RoleAdmin {
+		return ErrInvalidRole
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE pseudo = ?`, pseudo).Scan(&n); err != nil {
+		return err
+	}
+	switch {
+	case n == 0:
+		return sql.ErrNoRows
+	case n > 1:
+		return ErrAmbiguousPseudo
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE users SET role = ? WHERE pseudo = ?`, role, pseudo); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// CountAdmins returns how many users hold the admin role.
+func (s *Store) CountAdmins(ctx context.Context) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE role = ?`, RoleAdmin).Scan(&n)
+	return n, err
 }
 
 func (s *Store) CreateSession(tokenHash string, userID int64, expires, now time.Time) error {
