@@ -1,0 +1,502 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 30,
+    "from": "2026-03-02",
+    "to": "2026-03-31",
+    "prev_from": "2026-01-31",
+    "prev_to": "2026-03-01"
+  },
+  "data": {
+    "acquisition_sources": {
+      "measured": false,
+      "value": null
+    },
+    "activity": {
+      "dau": {
+        "value": 0,
+        "previous": 0,
+        "delta_pct": null
+      },
+      "mau": {
+        "value": 0,
+        "previous": 0,
+        "delta_pct": null
+      },
+      "stickiness_pct": {
+        "value": 0,
+        "previous": 0,
+        "delta_pct": null
+      },
+      "wau": {
+        "value": 0,
+        "previous": 0,
+        "delta_pct": null
+      }
+    },
+    "activity_series": [
+      {
+        "day": "2026-03-02",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-03",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-04",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-05",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-06",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-07",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-08",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-09",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-10",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-11",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-12",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-13",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-14",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-15",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-16",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-17",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-18",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-19",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-20",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-21",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-22",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-23",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-24",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-25",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-26",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-27",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-28",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-29",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-30",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      },
+      {
+        "day": "2026-03-31",
+        "dau": 0,
+        "wau": 0,
+        "mau": 0
+      }
+    ],
+    "churn": {
+      "churn_pct": null,
+      "churned": 0,
+      "previous_window_active": 0,
+      "window_days": 30
+    },
+    "cohorts": [
+      {
+        "d1": null,
+        "d14": null,
+        "d30": null,
+        "d7": null,
+        "users": 0,
+        "week_start": "2026-03-02"
+      },
+      {
+        "d1": null,
+        "d14": null,
+        "d30": null,
+        "d7": null,
+        "users": 0,
+        "week_start": "2026-03-09"
+      },
+      {
+        "d1": null,
+        "d14": null,
+        "d30": null,
+        "d7": null,
+        "users": 0,
+        "week_start": "2026-03-16"
+      },
+      {
+        "d1": null,
+        "d14": null,
+        "d30": null,
+        "d7": null,
+        "users": 0,
+        "week_start": "2026-03-23"
+      },
+      {
+        "d1": null,
+        "d14": null,
+        "d30": null,
+        "d7": null,
+        "users": 0,
+        "week_start": "2026-03-30"
+      }
+    ],
+    "cumulative_users": [
+      {
+        "day": "2026-03-02",
+        "users": 0
+      },
+      {
+        "day": "2026-03-03",
+        "users": 0
+      },
+      {
+        "day": "2026-03-04",
+        "users": 0
+      },
+      {
+        "day": "2026-03-05",
+        "users": 0
+      },
+      {
+        "day": "2026-03-06",
+        "users": 0
+      },
+      {
+        "day": "2026-03-07",
+        "users": 0
+      },
+      {
+        "day": "2026-03-08",
+        "users": 0
+      },
+      {
+        "day": "2026-03-09",
+        "users": 0
+      },
+      {
+        "day": "2026-03-10",
+        "users": 0
+      },
+      {
+        "day": "2026-03-11",
+        "users": 0
+      },
+      {
+        "day": "2026-03-12",
+        "users": 0
+      },
+      {
+        "day": "2026-03-13",
+        "users": 0
+      },
+      {
+        "day": "2026-03-14",
+        "users": 0
+      },
+      {
+        "day": "2026-03-15",
+        "users": 0
+      },
+      {
+        "day": "2026-03-16",
+        "users": 0
+      },
+      {
+        "day": "2026-03-17",
+        "users": 0
+      },
+      {
+        "day": "2026-03-18",
+        "users": 0
+      },
+      {
+        "day": "2026-03-19",
+        "users": 0
+      },
+      {
+        "day": "2026-03-20",
+        "users": 0
+      },
+      {
+        "day": "2026-03-21",
+        "users": 0
+      },
+      {
+        "day": "2026-03-22",
+        "users": 0
+      },
+      {
+        "day": "2026-03-23",
+        "users": 0
+      },
+      {
+        "day": "2026-03-24",
+        "users": 0
+      },
+      {
+        "day": "2026-03-25",
+        "users": 0
+      },
+      {
+        "day": "2026-03-26",
+        "users": 0
+      },
+      {
+        "day": "2026-03-27",
+        "users": 0
+      },
+      {
+        "day": "2026-03-28",
+        "users": 0
+      },
+      {
+        "day": "2026-03-29",
+        "users": 0
+      },
+      {
+        "day": "2026-03-30",
+        "users": 0
+      },
+      {
+        "day": "2026-03-31",
+        "users": 0
+      }
+    ],
+    "funnel": {
+      "cohort_size": 0,
+      "note": "nested funnel; Jn = session on signup day + n; accounts too recent for a step are excluded from its denominator (excluded_too_recent)",
+      "steps": [
+        {
+          "conversion_pct": null,
+          "eligible": 0,
+          "excluded_too_recent": 0,
+          "key": "signup",
+          "label": "Inscription",
+          "users": 0
+        },
+        {
+          "conversion_pct": null,
+          "eligible": 0,
+          "excluded_too_recent": 0,
+          "key": "first_session",
+          "label": "Première séance",
+          "users": 0
+        },
+        {
+          "conversion_pct": null,
+          "eligible": 0,
+          "excluded_too_recent": 0,
+          "key": "three_episodes",
+          "label": "3 épisodes distincts vus",
+          "users": 0
+        },
+        {
+          "conversion_pct": null,
+          "eligible": 0,
+          "excluded_too_recent": 0,
+          "key": "active_d7",
+          "label": "Actif à J7",
+          "users": 0
+        },
+        {
+          "conversion_pct": null,
+          "eligible": 0,
+          "excluded_too_recent": 0,
+          "key": "active_d30",
+          "label": "Actif à J30",
+          "users": 0
+        }
+      ]
+    },
+    "not_measured": [
+      "visitor_to_signup",
+      "acquisition_sources"
+    ],
+    "signups_per_week": [
+      {
+        "signups": 0,
+        "week_start": "2026-03-02"
+      },
+      {
+        "signups": 0,
+        "week_start": "2026-03-09"
+      },
+      {
+        "signups": 0,
+        "week_start": "2026-03-16"
+      },
+      {
+        "signups": 0,
+        "week_start": "2026-03-23"
+      },
+      {
+        "signups": 0,
+        "week_start": "2026-03-30"
+      }
+    ],
+    "time_to_first_session": {
+      "buckets": [
+        {
+          "key": "lt_1h",
+          "label": "\u003c 1 h",
+          "share_pct": 0,
+          "users": 0
+        },
+        {
+          "key": "1h_24h",
+          "label": "1-24 h",
+          "share_pct": 0,
+          "users": 0
+        },
+        {
+          "key": "1d_7d",
+          "label": "1-7 j",
+          "share_pct": 0,
+          "users": 0
+        },
+        {
+          "key": "gt_7d",
+          "label": "\u003e 7 j",
+          "share_pct": 0,
+          "users": 0
+        },
+        {
+          "key": "never",
+          "label": "Jamais (aucune séance à ce jour)",
+          "share_pct": 0,
+          "users": 0
+        }
+      ],
+      "cohort_size": 0
+    },
+    "visitor_to_signup": {
+      "measured": false,
+      "value": null
+    }
+  }
+}
+

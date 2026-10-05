@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 30,
+    "from": "2026-03-02",
+    "to": "2026-03-31",
+    "prev_from": "2026-01-31",
+    "prev_to": "2026-03-01"
+  },
+  "data": {
+    "costs": {
+      "bandwidth": {
+        "measured": false,
+        "missing_inputs": [
+          "GAZES_COST_BANDWIDTH_PER_GB",
+          "GAZES_GB_PER_WATCH_HOUR"
+        ],
+        "value": null
+      },
+      "currency_unit": "unit of the configured prices (no currency is assumed)",
+      "per_active_user": {
+        "measured": false,
+        "value": null
+      },
+      "per_watch_hour": {
+        "measured": false,
+        "value": null
+      },
+      "server": {
+        "measured": false,
+        "missing_inputs": [
+          "GAZES_COST_SERVER_MONTH"
+        ],
+        "value": null
+      },
+      "server_prorata": 1,
+      "storage": {
+        "measured": false,
+        "missing_inputs": [
+          "GAZES_COST_STORAGE_PER_GB_MONTH",
+          "stored volume (not measured)"
+        ],
+        "value": null
+      },
+      "total": {
+        "measured": false,
+        "value": null
+      }
+    },
+    "usage": {
+      "active_users": {
+        "value": 0,
+        "previous": 0,
+        "delta_pct": null
+      },
+      "peak_concurrent_sessions": {
+        "estimated": true,
+        "method": "sweep over watch_sessions (started_at..updated_at)",
+        "truncated": false,
+        "value": 0
+      },
+      "sessions": {
+        "value": 0,
+        "previous": 0,
+        "delta_pct": null
+      },
+      "watch_hours": {
+        "value": 0,
+        "previous": 0,
+        "delta_pct": null
+      }
+    }
+  }
+}
+

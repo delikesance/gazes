@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "data": {
+    "id": "iss-9962e20b6eeb6726",
+    "created_at": "2026-03-31T10:00:00Z",
+    "updated_at": "2026-03-31T10:00:00Z",
+    "severity": "high",
+    "status": "new",
+    "title": "Sources lentes",
+    "evidence": "3 timeouts",
+    "suggested_fix": "augmenter le délai",
+    "source": "claude",
+    "note": null
+  }
+}
+

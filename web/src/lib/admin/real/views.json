@@ -1,0 +1,356 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 7,
+    "from": "2026-03-25",
+    "to": "2026-03-31",
+    "prev_from": "2026-03-18",
+    "prev_to": "2026-03-24"
+  },
+  "data": {
+    "avg_session_minutes": 8.1,
+    "by_timezone": [
+      {
+        "sessions": 6,
+        "share_pct": 85.71,
+        "tz_offset": 60
+      },
+      {
+        "sessions": 1,
+        "share_pct": 14.29,
+        "tz_offset": -300
+      }
+    ],
+    "completion_by_weekday": [
+      {
+        "weekday": 0,
+        "name": "lun",
+        "sessions": 1,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 1,
+        "name": "mar",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 2,
+        "name": "mer",
+        "sessions": 1,
+        "completed": 1,
+        "completion_pct": 100
+      },
+      {
+        "weekday": 3,
+        "name": "jeu",
+        "sessions": 2,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 4,
+        "name": "ven",
+        "sessions": 1,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 5,
+        "name": "sam",
+        "sessions": 1,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 6,
+        "name": "dim",
+        "sessions": 1,
+        "completed": 1,
+        "completion_pct": 100
+      }
+    ],
+    "drop_episodes": [
+      {
+        "abandon_pct": 75,
+        "anime_id": 100,
+        "episode": 1,
+        "median_drop_minute": 3.33,
+        "season_id": 100,
+        "sessions": 4,
+        "title": "Alpha"
+      }
+    ],
+    "drop_points": [
+      {
+        "from_decile": 0,
+        "to_decile": 1,
+        "drop_pts": 20
+      },
+      {
+        "from_decile": 1,
+        "to_decile": 2,
+        "drop_pts": 20
+      },
+      {
+        "from_decile": 2,
+        "to_decile": 3,
+        "drop_pts": 20
+      }
+    ],
+    "episodes_per_active_user": {
+      "value": 1.5,
+      "previous": 1,
+      "delta_pct": 50
+    },
+    "resume_vs_first": {
+      "first": 5,
+      "resume": 2,
+      "resume_pct": 28.57
+    },
+    "retention_curve": [
+      {
+        "decile": 0,
+        "from_pct": 0,
+        "present": 5,
+        "eligible": 5,
+        "retained_pct": 100
+      },
+      {
+        "decile": 1,
+        "from_pct": 10,
+        "present": 4,
+        "eligible": 5,
+        "retained_pct": 80
+      },
+      {
+        "decile": 2,
+        "from_pct": 20,
+        "present": 3,
+        "eligible": 5,
+        "retained_pct": 60
+      },
+      {
+        "decile": 3,
+        "from_pct": 30,
+        "present": 2,
+        "eligible": 5,
+        "retained_pct": 40
+      },
+      {
+        "decile": 4,
+        "from_pct": 40,
+        "present": 2,
+        "eligible": 5,
+        "retained_pct": 40
+      },
+      {
+        "decile": 5,
+        "from_pct": 50,
+        "present": 2,
+        "eligible": 6,
+        "retained_pct": 33.33
+      },
+      {
+        "decile": 6,
+        "from_pct": 60,
+        "present": 2,
+        "eligible": 6,
+        "retained_pct": 33.33
+      },
+      {
+        "decile": 7,
+        "from_pct": 70,
+        "present": 2,
+        "eligible": 6,
+        "retained_pct": 33.33
+      },
+      {
+        "decile": 8,
+        "from_pct": 80,
+        "present": 2,
+        "eligible": 6,
+        "retained_pct": 33.33
+      },
+      {
+        "decile": 9,
+        "from_pct": 90,
+        "present": 2,
+        "eligible": 6,
+        "retained_pct": 33.33
+      }
+    ],
+    "session_length_buckets": [
+      {
+        "range_minutes": "\u003c5",
+        "sessions": 3,
+        "share_pct": 42.86
+      },
+      {
+        "range_minutes": "5-15",
+        "sessions": 3,
+        "share_pct": 42.86
+      },
+      {
+        "range_minutes": "15-30",
+        "sessions": 1,
+        "share_pct": 14.29
+      },
+      {
+        "range_minutes": "30-60",
+        "sessions": 0,
+        "share_pct": 0
+      },
+      {
+        "range_minutes": "\u003e60",
+        "sessions": 0,
+        "share_pct": 0
+      }
+    ],
+    "sessions_by_hour": [
+      {
+        "hour": 0,
+        "sessions": 1
+      },
+      {
+        "hour": 1,
+        "sessions": 0
+      },
+      {
+        "hour": 2,
+        "sessions": 0
+      },
+      {
+        "hour": 3,
+        "sessions": 0
+      },
+      {
+        "hour": 4,
+        "sessions": 0
+      },
+      {
+        "hour": 5,
+        "sessions": 0
+      },
+      {
+        "hour": 6,
+        "sessions": 0
+      },
+      {
+        "hour": 7,
+        "sessions": 0
+      },
+      {
+        "hour": 8,
+        "sessions": 0
+      },
+      {
+        "hour": 9,
+        "sessions": 3
+      },
+      {
+        "hour": 10,
+        "sessions": 1
+      },
+      {
+        "hour": 11,
+        "sessions": 1
+      },
+      {
+        "hour": 12,
+        "sessions": 0
+      },
+      {
+        "hour": 13,
+        "sessions": 0
+      },
+      {
+        "hour": 14,
+        "sessions": 0
+      },
+      {
+        "hour": 15,
+        "sessions": 0
+      },
+      {
+        "hour": 16,
+        "sessions": 0
+      },
+      {
+        "hour": 17,
+        "sessions": 0
+      },
+      {
+        "hour": 18,
+        "sessions": 0
+      },
+      {
+        "hour": 19,
+        "sessions": 0
+      },
+      {
+        "hour": 20,
+        "sessions": 0
+      },
+      {
+        "hour": 21,
+        "sessions": 0
+      },
+      {
+        "hour": 22,
+        "sessions": 0
+      },
+      {
+        "hour": 23,
+        "sessions": 1
+      }
+    ],
+    "sessions_series": [
+      {
+        "day": "2026-03-25",
+        "sessions": 1,
+        "prev_day": "2026-03-18",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-26",
+        "sessions": 2,
+        "prev_day": "2026-03-19",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-27",
+        "sessions": 1,
+        "prev_day": "2026-03-20",
+        "prev_sessions": 1
+      },
+      {
+        "day": "2026-03-28",
+        "sessions": 1,
+        "prev_day": "2026-03-21",
+        "prev_sessions": 1
+      },
+      {
+        "day": "2026-03-29",
+        "sessions": 1,
+        "prev_day": "2026-03-22",
+        "prev_sessions": 1
+      },
+      {
+        "day": "2026-03-30",
+        "sessions": 1,
+        "prev_day": "2026-03-23",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-31",
+        "sessions": 0,
+        "prev_day": "2026-03-24",
+        "prev_sessions": 0
+      }
+    ]
+  }
+}
+
