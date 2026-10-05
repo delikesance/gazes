@@ -14,15 +14,16 @@ import (
 // database and the rollup job. Handlers live in api_*.go files and reach the databases
 // through adminDB and accountsDB only.
 type Service struct {
-	store    *Store
-	rollup   *Rollup
-	now      func() time.Time
-	identify func(*http.Request) (int64, bool)
-	users    UserLookup
-	ops      opsState
-	watchCfg WatchConfig
-	watchMu  sync.Mutex        // one evaluation of the watch rules at a time
-	toolsFn  func() []ToolInfo // MCP tool catalogue, set by the API layer (nil = none)
+	store     *Store
+	rollup    *Rollup
+	now       func() time.Time
+	identify  func(*http.Request) (int64, bool)
+	users     UserLookup
+	ops       opsState
+	watchCfg  WatchConfig
+	respCache responseCache     // short cache of the heavy aggregate answers (api_cache.go)
+	watchMu   sync.Mutex        // one evaluation of the watch rules at a time
+	toolsFn   func() []ToolInfo // MCP tool catalogue, set by the API layer (nil = none)
 
 	mu       sync.Mutex
 	tokenMWs map[string]func(http.Handler) http.Handler
