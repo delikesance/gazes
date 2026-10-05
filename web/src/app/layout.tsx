@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import { LocaleDocument } from "@/components/LocaleDocument";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SiteChrome } from "@/components/SiteChrome";
 import { AuthProvider } from "@/components/AuthProvider";
 import type { Metadata } from "next";
 import Script from "next/script";
@@ -44,10 +45,10 @@ export default function RootLayout({
       <body id="top" className={`${dmSans.variable} ${fraunces.variable} ${geistMono.variable} antialiased`}>
         <LocaleDocument />
         <AuthProvider>
-          <Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense>
+          <SiteChrome><Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense></SiteChrome>
           <div className="site-content">{children}</div>
         </AuthProvider>
-        <SiteFooter />
+        <SiteChrome><SiteFooter /></SiteChrome>
       </body>
     </html>
   );

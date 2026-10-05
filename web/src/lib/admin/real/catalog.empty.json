@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 30,
+    "from": "2026-03-02",
+    "to": "2026-03-31",
+    "prev_from": "2026-01-31",
+    "prev_to": "2026-03-01"
+  },
+  "data": {
+    "anime": [],
+    "anime_total": 0,
+    "audio_langs": [],
+    "format": "all",
+    "formats": [],
+    "genres": [],
+    "limit": 50,
+    "new_vs_catalog": {
+      "catalog": {
+        "series": 0,
+        "sessions": 0,
+        "share_pct": 0
+      },
+      "history_from": "",
+      "new_series": {
+        "series": 0,
+        "sessions": 0,
+        "share_pct": 0
+      }
+    },
+    "offset": 0,
+    "quadrant": {
+      "median_completion_pct": 0,
+      "median_sessions": 0,
+      "points": []
+    },
+    "sub_langs": []
+  }
+}
+

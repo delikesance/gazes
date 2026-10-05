@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 30,
+    "from": "2026-03-02",
+    "to": "2026-03-31",
+    "prev_from": "2026-01-31",
+    "prev_to": "2026-03-01"
+  },
+  "data": {
+    "not_measured": [
+      "attempts_per_source"
+    ],
+    "sources": [
+      {
+        "failure_rate": null,
+        "failures": {
+          "value": 3,
+          "previous": 1,
+          "delta_pct": 200
+        },
+        "last_seen": "2026-03-31T08:00:00Z",
+        "measured": false,
+        "share_pct": 60,
+        "source": "nyaa.si"
+      },
+      {
+        "failure_rate": null,
+        "failures": {
+          "value": 1,
+          "previous": 0,
+          "delta_pct": null
+        },
+        "last_seen": "2026-03-05T12:00:00Z",
+        "measured": false,
+        "share_pct": 20,
+        "source": "c411"
+      },
+      {
+        "failure_rate": null,
+        "failures": {
+          "value": 1,
+          "previous": 0,
+          "delta_pct": null
+        },
+        "last_seen": "2026-03-10T12:00:00Z",
+        "measured": false,
+        "share_pct": 20,
+        "source": "unknown"
+      }
+    ],
+    "total_failures": 5
+  }
+}
+

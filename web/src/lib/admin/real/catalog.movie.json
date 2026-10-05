@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 7,
+    "from": "2026-03-25",
+    "to": "2026-03-31",
+    "prev_from": "2026-03-18",
+    "prev_to": "2026-03-24"
+  },
+  "data": {
+    "anime": [
+      {
+        "anime_id": 200,
+        "title": "Beta",
+        "format": "movie",
+        "sessions": 1,
+        "watch_hours": 0.19,
+        "completion_pct": 0,
+        "new_viewers": 1,
+        "delta_pct": null
+      }
+    ],
+    "anime_total": 1,
+    "audio_langs": [
+      {
+        "key": "fr",
+        "sessions": 1,
+        "share_pct": 100
+      }
+    ],
+    "format": "movie",
+    "formats": [
+      {
+        "key": "tv",
+        "sessions": 5,
+        "share_pct": 71.43
+      },
+      {
+        "key": "movie",
+        "sessions": 1,
+        "share_pct": 14.29
+      },
+      {
+        "key": "ova",
+        "sessions": 1,
+        "share_pct": 14.29
+      }
+    ],
+    "genres": [
+      {
+        "genre": "Action",
+        "sessions": 1,
+        "share_pct": 100,
+        "completion_pct": 0
+      }
+    ],
+    "limit": 50,
+    "new_vs_catalog": {
+      "catalog": {
+        "series": 0,
+        "sessions": 0,
+        "share_pct": 0
+      },
+      "history_from": "2026-03-20",
+      "new_series": {
+        "series": 1,
+        "sessions": 1,
+        "share_pct": 100
+      }
+    },
+    "offset": 0,
+    "quadrant": {
+      "median_completion_pct": 0,
+      "median_sessions": 1,
+      "points": [
+        {
+          "anime_id": 200,
+          "title": "Beta",
+          "sessions": 1,
+          "completion_pct": 0,
+          "quadrant": "à retirer",
+          "quadrant_key": "retire"
+        }
+      ]
+    },
+    "sub_langs": [
+      {
+        "key": "unknown",
+        "sessions": 1,
+        "share_pct": 100
+      }
+    ]
+  }
+}
+

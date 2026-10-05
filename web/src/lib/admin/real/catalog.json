@@ -1,0 +1,152 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 7,
+    "from": "2026-03-25",
+    "to": "2026-03-31",
+    "prev_from": "2026-03-18",
+    "prev_to": "2026-03-24"
+  },
+  "data": {
+    "anime": [
+      {
+        "anime_id": 100,
+        "title": "Alpha",
+        "format": "tv",
+        "sessions": 5,
+        "watch_hours": 0.75,
+        "completion_pct": 40,
+        "new_viewers": 3,
+        "delta_pct": 150
+      },
+      {
+        "anime_id": 200,
+        "title": "Beta",
+        "format": "movie",
+        "sessions": 1,
+        "watch_hours": 0.19,
+        "completion_pct": 0,
+        "new_viewers": 1,
+        "delta_pct": null
+      },
+      {
+        "anime_id": 300,
+        "title": "Gamma",
+        "format": "ova",
+        "sessions": 1,
+        "watch_hours": 0,
+        "completion_pct": 0,
+        "new_viewers": 1,
+        "delta_pct": null
+      }
+    ],
+    "anime_total": 3,
+    "audio_langs": [
+      {
+        "key": "jp",
+        "sessions": 5,
+        "share_pct": 71.43
+      },
+      {
+        "key": "fr",
+        "sessions": 1,
+        "share_pct": 14.29
+      },
+      {
+        "key": "unknown",
+        "sessions": 1,
+        "share_pct": 14.29
+      }
+    ],
+    "format": "all",
+    "formats": [
+      {
+        "key": "tv",
+        "sessions": 5,
+        "share_pct": 71.43
+      },
+      {
+        "key": "movie",
+        "sessions": 1,
+        "share_pct": 14.29
+      },
+      {
+        "key": "ova",
+        "sessions": 1,
+        "share_pct": 14.29
+      }
+    ],
+    "genres": [
+      {
+        "genre": "Action",
+        "sessions": 6,
+        "share_pct": 85.71,
+        "completion_pct": 33.33
+      },
+      {
+        "genre": "Drama",
+        "sessions": 5,
+        "share_pct": 71.43,
+        "completion_pct": 40
+      }
+    ],
+    "limit": 50,
+    "new_vs_catalog": {
+      "catalog": {
+        "series": 1,
+        "sessions": 5,
+        "share_pct": 71.43
+      },
+      "history_from": "2026-03-20",
+      "new_series": {
+        "series": 2,
+        "sessions": 2,
+        "share_pct": 28.57
+      }
+    },
+    "offset": 0,
+    "quadrant": {
+      "median_completion_pct": 0,
+      "median_sessions": 1,
+      "points": [
+        {
+          "anime_id": 100,
+          "title": "Alpha",
+          "sessions": 5,
+          "completion_pct": 40,
+          "quadrant": "valeurs sûres",
+          "quadrant_key": "safe"
+        },
+        {
+          "anime_id": 200,
+          "title": "Beta",
+          "sessions": 1,
+          "completion_pct": 0,
+          "quadrant": "à retirer",
+          "quadrant_key": "retire"
+        },
+        {
+          "anime_id": 300,
+          "title": "Gamma",
+          "sessions": 1,
+          "completion_pct": 0,
+          "quadrant": "à retirer",
+          "quadrant_key": "retire"
+        }
+      ]
+    },
+    "sub_langs": [
+      {
+        "key": "fr",
+        "sessions": 5,
+        "share_pct": 71.43
+      },
+      {
+        "key": "unknown",
+        "sessions": 2,
+        "share_pct": 28.57
+      }
+    ]
+  }
+}
+
