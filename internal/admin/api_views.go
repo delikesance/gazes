@@ -15,9 +15,9 @@ import (
 // mountViews registers the admin read endpoints of this file's agent (views = overview/views/catalog).
 // Only that agent edits this file (and its tests).
 func (s *Service) mountViews(r chi.Router) {
-	r.With(s.Auth(ScopeMetricsRead)).Get("/overview", s.handleOverview)
-	r.With(s.Auth(ScopeMetricsRead)).Get("/views", s.handleViews)
-	r.With(s.Auth(ScopeMetricsRead)).Get("/catalog", s.handleCatalog)
+	r.With(s.AuthCached(ScopeMetricsRead, ResponseCacheTTL)).Get("/overview", s.handleOverview)
+	r.With(s.AuthCached(ScopeMetricsRead, ResponseCacheTTL)).Get("/views", s.handleViews)
+	r.With(s.AuthCached(ScopeMetricsRead, ResponseCacheTTL)).Get("/catalog", s.handleCatalog)
 }
 
 var viewsWeekdayNames = [7]string{"lun", "mar", "mer", "jeu", "ven", "sam", "dim"}

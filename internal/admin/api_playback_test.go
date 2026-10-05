@@ -96,6 +96,7 @@ func (e *pbEnv) do(t *testing.T, method, path, body string, mut func(*http.Reque
 	} else {
 		rd = strings.NewReader("")
 	}
+	e.svc.respCache.clear() // tests change data between calls and want the handler, not the cache
 	req := httptest.NewRequest(method, "/api/v1/admin"+path, rd)
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")

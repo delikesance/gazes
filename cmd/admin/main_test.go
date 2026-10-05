@@ -5,8 +5,10 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/auth"
@@ -28,6 +30,8 @@ func (f *fakeRoles) RoleByPseudo(_ context.Context, p string) (string, error) {
 	}
 	return r, nil
 }
+func (f *fakeRoles) SetUserRoleByID(context.Context, int64, string) error { return sql.ErrNoRows }
+func (f *fakeRoles) UserRole(context.Context, int64) (string, error)      { return "", sql.ErrNoRows }
 func (f *fakeRoles) CountAdmins(context.Context) (int, error) {
 	n := 0
 	for _, r := range f.roles {
@@ -122,5 +126,58 @@ func TestTokenCommands(t *testing.T) {
 	}
 	if _, err := st.VerifyToken(ctx, plain); err == nil {
 		t.Fatal("revoked token still valid")
+	}
+}
+
+func TestRoleByAccountIDWhenPseudosAreShared(t *testing.T) {
+	st, err := auth.OpenStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	ctx := context.Background()
+	now := time.Now()
+	var ids []int64
+	for i, mail := range []string{"a", "b", "c"} {
+		pseudo := "twin"
+		if i == 2 {
+			pseudo = "solo"
+		}
+		id, err := st.CreateUser(auth.User{EmailIdx: mail, EmailEnc: mail, Pseudo: pseudo, PassHash: "x"}, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	var out bytes.Buffer
+	if err := grant(ctx, &out, st, "twin"); err == nil || !strings.Contains(err.Error(), "matches several users") {
+		t.Fatalf("an ambiguous pseudo must be refused, got %v", err)
+	}
+	target := "#" + strconv.FormatInt(ids[1], 10)
+	if err := grant(ctx, &out, st, target); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := st.UserRole(ctx, ids[1]); r != auth.RoleAdmin {
+		t.Fatalf("role of %s = %q", target, r)
+	}
+	if r, _ := st.UserRole(ctx, ids[0]); r != auth.RoleUser {
+		t.Fatalf("the homonym must stay a user, got %q", r)
+	}
+	if err := revokeAdmin(ctx, &out, st, target, false); err == nil || !strings.Contains(err.Error(), "last admin") {
+		t.Fatalf("the last admin must be protected, got %v", err)
+	}
+	if err := revokeAdmin(ctx, &out, st, target, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := grant(ctx, &out, st, "#999999"); err == nil || !strings.Contains(err.Error(), "no user") {
+		t.Fatalf("unknown id: %v", err)
+	}
+	for _, bad := range []string{"#", "#0", "#-1", "#1x", "# 1", "#12345678901234567"} {
+		if _, ok := parseID(bad); ok {
+			t.Errorf("parseID(%q) must be rejected", bad)
+		}
+	}
+	if id, ok := parseID("#42"); !ok || id != 42 {
+		t.Fatalf("parseID(#42) = %d %v", id, ok)
 	}
 }
