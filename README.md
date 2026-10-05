@@ -4,6 +4,12 @@ Gazes is a self-hosted anime streaming platform built on BitTorrent. It finds re
 
 ## Showcase
 
+### Demo
+
+[![Demo: home, release calendar, Frieren series and season pages, playback, episode picker and sources modal](docs/demo/demo-poster.png)](docs/demo/demo.mp4)
+
+A walkthrough of the classic flow: browse the home page and release calendar, open Frieren from the search, go through the series and season pages, play episode 2 and open the episode picker and the Sources modal (click the image to play the video).
+
 | | |
 | --- | --- |
 | ![Home page with the featured carousel](docs/screenshots/home.png) | ![Release calendar for the current week](docs/screenshots/home-calendar.png) |
