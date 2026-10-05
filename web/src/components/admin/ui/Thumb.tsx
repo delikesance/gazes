@@ -7,6 +7,8 @@ interface ThumbProps {
   size?: "sm" | "lg";
   tint?: number | string;
   decorative?: boolean;
+  /** Cover URL; the initials stay as fallback when absent or broken. */
+  poster?: string | null;
 }
 
 const TINTS = ["#2a2650", "#3d2a2a", "#1f3a3a", "#3a3320", "#2a3a2a", "#3a2a3a", "#202c44"];
@@ -16,7 +18,9 @@ export const Thumb: React.FC<ThumbProps> = ({
   size = "sm",
   tint,
   decorative = true,
+  poster,
 }) => {
+  const [failed, setFailed] = React.useState(false);
   const titleStr = String(title || "");
   const words = titleStr.split(/[\s\-:]+/).filter((w) => /^[A-Za-zÀ-ɏ0-9]/.test(w));
   const letters = words.filter((w) => /^[A-Za-zÀ-ɏ]/.test(w));
@@ -58,9 +62,15 @@ export const Thumb: React.FC<ThumbProps> = ({
         fontFamily: "'Geist Mono', monospace",
         fontSize: fs + "px",
         lineHeight: "1",
+        overflow: "hidden",
       }}
     >
-      {ini}
+      {poster && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={poster} alt="" loading="lazy" onError={() => setFailed(true)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      ) : (
+        ini
+      )}
     </span>
   );
 };

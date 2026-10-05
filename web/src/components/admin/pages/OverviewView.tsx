@@ -29,18 +29,21 @@ export interface OverviewViewProps {
   to?: string;
   /** Response timestamp: relative times ("il y a 6 min") are computed against it. */
   generatedAt: string;
+  /** Cover URLs by anime_id for the top list; missing entries fall back to initials. */
+  posters?: Record<number, string>;
 }
 
-export function OverviewView({ overview, health, errors, playbackNotice, periodDays, from, to, generatedAt }: OverviewViewProps) {
+export function OverviewView({ overview, health, errors, playbackNotice, periodDays, from, to, generatedAt, posters }: OverviewViewProps) {
   const vs = `vs ${periodDays} j préc.`;
   const kpis = overviewKpis(overview);
   const insights = overviewInsights(overview, health);
   const sessions = sessionsChart(overview);
   const signups = signupsBlock(overview);
-  const top = topAnimeRows(overview);
+  const top = topAnimeRows(overview, posters);
   const heat = heatmapBlock(overview);
   const tiles = playbackTiles(health);
   const latest = latestErrors(errors, generatedAt);
+  const liveAnime = health?.live_anime ?? [];
   const live = health?.active_sessions;
   const liveValue = live && live.measured && live.value !== null ? live.value : null;
 
@@ -100,9 +103,17 @@ export function OverviewView({ overview, health, errors, playbackNotice, periodD
               : `Séances en cours : ${MISSING}.`}
           </p>
           <ul style={{ ...LIST_RESET, display: "flex", flexDirection: "column", gap: 4 }}>
-            <li>
-              <MediaRow variant="live" title="Détail par anime" meta="Aucun endpoint de séances en cours par anime" value={MISSING} />
-            </li>
+            {liveAnime.length > 0 ? (
+              liveAnime.map((a) => (
+                <li key={a.anime_id}>
+                  <MediaRow variant="live" title={a.title || `Anime n° ${a.anime_id}`} meta="en cours de lecture" value={a.sessions} valueLabel="séances" poster={posters?.[a.anime_id]} tint={a.anime_id} />
+                </li>
+              ))
+            ) : (
+              <li>
+                <p style={MUTED_TEXT}>Personne ne regarde un anime en ce moment.</p>
+              </li>
+            )}
           </ul>
         </section>
       </div>
@@ -114,7 +125,7 @@ export function OverviewView({ overview, health, errors, playbackNotice, periodD
             <ol style={{ ...LIST_RESET, display: "flex", flexDirection: "column", gap: 6 }}>
               {top.map((a, i) => (
                 <li key={`${a.title}-${a.rank}`}>
-                  <MediaRow variant="ranked" rank={a.rank} title={a.title} meta={a.meta} value={a.value} valueLabel="visionnages" bar={a.bar} trend={a.trend} tint={i} />
+                  <MediaRow variant="ranked" rank={a.rank} title={a.title} meta={a.meta} value={a.value} valueLabel="visionnages" bar={a.bar} trend={a.trend} tint={i} poster={a.poster} />
                 </li>
               ))}
             </ol>
