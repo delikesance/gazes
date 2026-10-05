@@ -10,6 +10,9 @@
  * and `boolean`); scripts/admin-types.test.mjs checks the literal values at runtime.
  */
 import type {
+  AdminActions,
+  AdminApproval,
+  AdminApprovalsList,
   AdminCatalog,
   AdminCosts,
   AdminEnvelope,
@@ -19,6 +22,11 @@ import type {
   AdminIssueCreate,
   AdminIssueUpdate,
   AdminIssuesList,
+  AdminKillSwitch,
+  AdminMcpAudit,
+  AdminMcpTools,
+  AdminSettings,
+  AdminTokens,
   AdminMe,
   AdminOverview,
   AdminPlaybackErrors,
@@ -30,6 +38,15 @@ import type {
   AdminViews,
 } from "../types";
 
+import approvals from "./approvals.json";
+import approval_executed from "./approval-executed.json";
+import kill_switch from "./kill-switch.json";
+import kill_switch_on from "./kill-switch.on.json";
+import actions from "./actions.json";
+import settings from "./settings.json";
+import mcp_audit from "./mcp-audit.json";
+import mcp_tools from "./mcp-tools.json";
+import tokens from "./tokens.json";
 import me_session from "./me.session.json";
 import me_token from "./me.token.json";
 import overview from "./overview.json";
@@ -77,7 +94,7 @@ type Widen<T> = T extends string
         ? { [K in keyof T]: Widen<T[K]> }
         : T;
 
-/** V with every key unknown to T turned into `never` (deep): detects extra fields. */
+/** V with every key unknown to T turned into `never` (deep): detects extra fields (free-form `Record<string, unknown>` objects accept any key). */
 type NoExtra<V, T> = V extends readonly unknown[]
   ? Extract<T, readonly unknown[]> extends readonly (infer TE)[]
     ? NoExtra<V[number], TE>[]
@@ -86,7 +103,9 @@ type NoExtra<V, T> = V extends readonly unknown[]
     ? Extract<T, object> extends infer TO
       ? [TO] extends [never]
         ? never
-        : Exclude<keyof V, keyof TO> extends never
+        : string extends keyof TO
+          ? V
+          : Exclude<keyof V, keyof TO> extends never
           ? { [K in keyof V]: NoExtra<V[K], K extends keyof TO ? TO[K] : never> }
           : never
       : never
@@ -136,3 +155,13 @@ exact<Env<AdminIssue>>()(issue_update_response);
 exact<AdminIssueCreate>()(issue_create_request);
 exact<AdminIssueCreate>()(issue_create_minimal_request);
 exact<AdminIssueUpdate>()(issue_update_request);
+
+exact<Env<AdminApprovalsList>>()(approvals);
+exact<Env<AdminApproval>>()(approval_executed);
+exact<Env<AdminKillSwitch>>()(kill_switch);
+exact<Env<AdminKillSwitch>>()(kill_switch_on);
+exact<Env<AdminActions>>()(actions);
+exact<Env<AdminSettings>>()(settings);
+exact<Env<AdminMcpAudit>>()(mcp_audit);
+exact<Env<AdminMcpTools>>()(mcp_tools);
+exact<Env<AdminTokens>>()(tokens);

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/mcp"
 	"github.com/go-chi/chi/v5"
 )
@@ -17,6 +18,15 @@ func (s *Server) mountMCP(r chi.Router) {
 		return
 	}
 	// Tools call the admin API in process, through a private router that carries only the admin routes.
+	s.admin.SetToolCatalogue(func() []admin.ToolInfo {
+		defs := mcp.DefaultTools()
+		out := make([]admin.ToolInfo, 0, len(defs))
+		for _, d := range defs {
+			out = append(out, admin.ToolInfo{Name: d.Name, Description: d.Description, Level: string(d.Level),
+				Scope: d.Scope, Method: d.Method, Path: d.Path, Summary: d.Summary})
+		}
+		return out
+	})
 	inner := chi.NewRouter()
 	s.admin.Mount(inner)
 	h := mcp.New(mcp.Config{
