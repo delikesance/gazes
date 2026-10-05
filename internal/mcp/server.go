@@ -85,6 +85,7 @@ func New(cfg Config, static *Credential) *Server {
 		}, s.handler(d))
 	}
 	s.sdk.AddReceivingMiddleware(s.filterTools)
+	s.AddResourcesAndPrompts()
 	return s
 }
 
