@@ -20,6 +20,7 @@ type Config struct {
 	CacheDir             string        `json:"cache_dir"`
 	LogLevel             string        `json:"log_level"`
 	EnableCORS           bool          `json:"enable_cors"`
+	CORSAllowedOrigins   []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
 	StreamTimeout        time.Duration `json:"stream_timeout"`
 	MaxMemoryCache       int64         `json:"max_memory_cache_bytes"`
 	TorrentPort          int           `json:"torrent_port"`
@@ -79,7 +80,8 @@ func Load() *Config {
 		DataDir:                  getEnv("DATA_DIR", "./data"),
 		CacheDir:                 getEnv("CACHE_DIR", "./cache"),
 		LogLevel:                 getEnv("LOG_LEVEL", "debug"),
-		EnableCORS:               getEnvBool("ENABLE_CORS", true),
+		EnableCORS:               getEnvBool("ENABLE_CORS", false), // the web app is same-origin through the Next rewrite
+		CORSAllowedOrigins:       splitList(getEnv("CORS_ALLOWED_ORIGINS", "")),
 		StreamTimeout:            getEnvDuration("STREAM_TIMEOUT", 30*time.Minute),
 		MaxMemoryCache:           getEnvInt64("MAX_MEMORY_CACHE_BYTES", 256*1024*1024), // 256MB default
 		TorrentPort:              getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
@@ -190,4 +192,15 @@ func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
 		}
 	}
 	return defaultVal
+}
+
+// splitList splits a comma-separated env value, dropping blanks.
+func splitList(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }

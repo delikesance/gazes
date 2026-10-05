@@ -79,7 +79,6 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 		// Bitmap tracks (PGS) are copied as-is, never converted: the browser renders them.
 		contentType = "application/octet-stream"
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 
 	codec := format
