@@ -41,6 +41,13 @@ func (l *limiter) hitChecked(key string, limit int, span time.Duration) (bool, e
 				delete(l.entries, k)
 			}
 		}
+		// Still full of live windows: shed some so the next calls do not rescan the whole map.
+		for k := range l.entries {
+			if len(l.entries) <= 45000 {
+				break
+			}
+			delete(l.entries, k)
+		}
 	}
 	w := l.entries[key]
 	if w == nil || now.After(w.reset) {

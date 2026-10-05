@@ -95,8 +95,12 @@ func fail(w http.ResponseWriter, status int, code string) {
 	writeJSON(w, status, apiError{Error: code})
 }
 
-func (s *Service) clientIP(r *http.Request) string {
-	if s.trustProxy {
+func (s *Service) clientIP(r *http.Request) string { return ClientIP(r, s.trustProxy) }
+
+// ClientIP is the caller's address. With trustProxy it is the first X-Forwarded-For entry, which
+// the edge proxy (Caddy) sets itself; the web port must therefore only be reachable through it.
+func ClientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			first, _, _ := strings.Cut(xff, ",")
 			if ip := strings.TrimSpace(first); net.ParseIP(ip) != nil {

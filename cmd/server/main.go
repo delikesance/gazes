@@ -116,7 +116,7 @@ func main() {
 
 	// The AV1 library wraps the torrent engine; any failure to open it leaves the plain engine in place.
 	var engine torrent.Engine = torrentEngine
-	serverOpts := []api.Option{api.WithAuth(accounts), api.WithRedis(redisClient)}
+	serverOpts := []api.Option{api.WithAuth(accounts), api.WithRedis(redisClient), api.WithTrustProxy(cfg.TrustProxy)}
 	libraryCtx, libraryCancel := context.WithCancel(context.Background())
 	defer libraryCancel()
 	if cfg.LibraryEnabled {

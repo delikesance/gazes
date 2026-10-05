@@ -125,7 +125,8 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "${GAZES_PORT:-8080}:3000"
+      # Loopback only: Caddy is the edge and sets X-Forwarded-For, which rate limits trust.
+      - "127.0.0.1:${GAZES_PORT:-8080}:3000"
     depends_on:
       backend:
         condition: service_healthy
