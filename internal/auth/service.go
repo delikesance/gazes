@@ -189,10 +189,16 @@ type userView struct {
 	ID     int64  `json:"id"`
 	Pseudo string `json:"pseudo"`
 	Email  string `json:"email,omitempty"`
+	// Role is only present for an administrator, so the site can show a link to the panel. The
+	// admin API re-checks the role on every request: this field only decides what to display.
+	Role string `json:"role,omitempty"`
 }
 
 func (s *Service) view(u *User) userView {
 	v := userView{ID: u.ID, Pseudo: u.Pseudo}
+	if u.Role == RoleAdmin {
+		v.Role = RoleAdmin
+	}
 	if email, err := s.keys.decryptEmail(u.EmailEnc); err == nil {
 		v.Email = email
 	}

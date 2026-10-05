@@ -1,7 +1,8 @@
 import { sealEnvelope, type KemInfo } from "./auth-crypto";
 import { solveCaptcha, type CaptchaChallenge } from "./captcha";
 
-export interface AccountUser { id: number; pseudo: string; email?: string }
+/** `role` is only present for an administrator; it decides what to display, the admin API checks it again. */
+export interface AccountUser { id: number; pseudo: string; email?: string; role?: "admin" }
 
 /** Error codes returned by internal/auth/service.go. */
 export type AuthErrorCode =
