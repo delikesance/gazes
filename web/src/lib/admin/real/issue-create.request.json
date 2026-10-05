@@ -1,0 +1,7 @@
+{
+  "title": "Sources lentes",
+  "severity": "high",
+  "evidence": "3 timeouts",
+  "suggested_fix": "augmenter le délai",
+  "source": "claude"
+}

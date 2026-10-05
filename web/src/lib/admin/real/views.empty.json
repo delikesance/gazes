@@ -1,0 +1,457 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 30,
+    "from": "2026-03-02",
+    "to": "2026-03-31",
+    "prev_from": "2026-01-31",
+    "prev_to": "2026-03-01"
+  },
+  "data": {
+    "avg_session_minutes": 0,
+    "by_timezone": [],
+    "completion_by_weekday": [
+      {
+        "weekday": 0,
+        "name": "lun",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 1,
+        "name": "mar",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 2,
+        "name": "mer",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 3,
+        "name": "jeu",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 4,
+        "name": "ven",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 5,
+        "name": "sam",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      },
+      {
+        "weekday": 6,
+        "name": "dim",
+        "sessions": 0,
+        "completed": 0,
+        "completion_pct": 0
+      }
+    ],
+    "drop_episodes": [],
+    "drop_points": [],
+    "episodes_per_active_user": {
+      "value": 0,
+      "previous": 0,
+      "delta_pct": null
+    },
+    "resume_vs_first": {
+      "first": 0,
+      "resume": 0,
+      "resume_pct": 0
+    },
+    "retention_curve": [
+      {
+        "decile": 0,
+        "from_pct": 0,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 1,
+        "from_pct": 10,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 2,
+        "from_pct": 20,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 3,
+        "from_pct": 30,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 4,
+        "from_pct": 40,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 5,
+        "from_pct": 50,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 6,
+        "from_pct": 60,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 7,
+        "from_pct": 70,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 8,
+        "from_pct": 80,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      },
+      {
+        "decile": 9,
+        "from_pct": 90,
+        "present": 0,
+        "eligible": 0,
+        "retained_pct": 0
+      }
+    ],
+    "session_length_buckets": [
+      {
+        "range_minutes": "\u003c5",
+        "sessions": 0,
+        "share_pct": 0
+      },
+      {
+        "range_minutes": "5-15",
+        "sessions": 0,
+        "share_pct": 0
+      },
+      {
+        "range_minutes": "15-30",
+        "sessions": 0,
+        "share_pct": 0
+      },
+      {
+        "range_minutes": "30-60",
+        "sessions": 0,
+        "share_pct": 0
+      },
+      {
+        "range_minutes": "\u003e60",
+        "sessions": 0,
+        "share_pct": 0
+      }
+    ],
+    "sessions_by_hour": [
+      {
+        "hour": 0,
+        "sessions": 0
+      },
+      {
+        "hour": 1,
+        "sessions": 0
+      },
+      {
+        "hour": 2,
+        "sessions": 0
+      },
+      {
+        "hour": 3,
+        "sessions": 0
+      },
+      {
+        "hour": 4,
+        "sessions": 0
+      },
+      {
+        "hour": 5,
+        "sessions": 0
+      },
+      {
+        "hour": 6,
+        "sessions": 0
+      },
+      {
+        "hour": 7,
+        "sessions": 0
+      },
+      {
+        "hour": 8,
+        "sessions": 0
+      },
+      {
+        "hour": 9,
+        "sessions": 0
+      },
+      {
+        "hour": 10,
+        "sessions": 0
+      },
+      {
+        "hour": 11,
+        "sessions": 0
+      },
+      {
+        "hour": 12,
+        "sessions": 0
+      },
+      {
+        "hour": 13,
+        "sessions": 0
+      },
+      {
+        "hour": 14,
+        "sessions": 0
+      },
+      {
+        "hour": 15,
+        "sessions": 0
+      },
+      {
+        "hour": 16,
+        "sessions": 0
+      },
+      {
+        "hour": 17,
+        "sessions": 0
+      },
+      {
+        "hour": 18,
+        "sessions": 0
+      },
+      {
+        "hour": 19,
+        "sessions": 0
+      },
+      {
+        "hour": 20,
+        "sessions": 0
+      },
+      {
+        "hour": 21,
+        "sessions": 0
+      },
+      {
+        "hour": 22,
+        "sessions": 0
+      },
+      {
+        "hour": 23,
+        "sessions": 0
+      }
+    ],
+    "sessions_series": [
+      {
+        "day": "2026-03-02",
+        "sessions": 0,
+        "prev_day": "2026-01-31",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-03",
+        "sessions": 0,
+        "prev_day": "2026-02-01",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-04",
+        "sessions": 0,
+        "prev_day": "2026-02-02",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-05",
+        "sessions": 0,
+        "prev_day": "2026-02-03",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-06",
+        "sessions": 0,
+        "prev_day": "2026-02-04",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-07",
+        "sessions": 0,
+        "prev_day": "2026-02-05",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-08",
+        "sessions": 0,
+        "prev_day": "2026-02-06",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-09",
+        "sessions": 0,
+        "prev_day": "2026-02-07",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-10",
+        "sessions": 0,
+        "prev_day": "2026-02-08",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-11",
+        "sessions": 0,
+        "prev_day": "2026-02-09",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-12",
+        "sessions": 0,
+        "prev_day": "2026-02-10",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-13",
+        "sessions": 0,
+        "prev_day": "2026-02-11",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-14",
+        "sessions": 0,
+        "prev_day": "2026-02-12",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-15",
+        "sessions": 0,
+        "prev_day": "2026-02-13",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-16",
+        "sessions": 0,
+        "prev_day": "2026-02-14",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-17",
+        "sessions": 0,
+        "prev_day": "2026-02-15",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-18",
+        "sessions": 0,
+        "prev_day": "2026-02-16",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-19",
+        "sessions": 0,
+        "prev_day": "2026-02-17",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-20",
+        "sessions": 0,
+        "prev_day": "2026-02-18",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-21",
+        "sessions": 0,
+        "prev_day": "2026-02-19",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-22",
+        "sessions": 0,
+        "prev_day": "2026-02-20",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-23",
+        "sessions": 0,
+        "prev_day": "2026-02-21",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-24",
+        "sessions": 0,
+        "prev_day": "2026-02-22",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-25",
+        "sessions": 0,
+        "prev_day": "2026-02-23",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-26",
+        "sessions": 0,
+        "prev_day": "2026-02-24",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-27",
+        "sessions": 0,
+        "prev_day": "2026-02-25",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-28",
+        "sessions": 0,
+        "prev_day": "2026-02-26",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-29",
+        "sessions": 0,
+        "prev_day": "2026-02-27",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-30",
+        "sessions": 0,
+        "prev_day": "2026-02-28",
+        "prev_sessions": 0
+      },
+      {
+        "day": "2026-03-31",
+        "sessions": 0,
+        "prev_day": "2026-03-01",
+        "prev_sessions": 0
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,119 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "data": {
+    "active_sessions": {
+      "expiring_7d": 2,
+      "valid": 3
+    },
+    "kpis": {
+      "active_30d": {
+        "value": 4,
+        "previous": 2,
+        "delta_pct": 100
+      },
+      "active_7d": {
+        "value": 3,
+        "previous": 2,
+        "delta_pct": 50
+      },
+      "dormant": {
+        "value": 2,
+        "previous": 1,
+        "delta_pct": 100
+      },
+      "no_session": {
+        "value": 3,
+        "previous": 4,
+        "delta_pct": -25
+      },
+      "total": {
+        "value": 9,
+        "previous": 7,
+        "delta_pct": 28.57142857142857
+      }
+    },
+    "segments": [
+      {
+        "avg_watch_hours": 0.1,
+        "key": "new",
+        "label": "Nouveaux (\u003c 7 j)",
+        "share_pct": 22.22222222222222,
+        "users": 2
+      },
+      {
+        "avg_watch_hours": 1.5,
+        "key": "regular",
+        "label": "Réguliers",
+        "share_pct": 11.11111111111111,
+        "users": 1
+      },
+      {
+        "avg_watch_hours": 81,
+        "key": "power",
+        "label": "Power users (\u003e 10 h/semaine)",
+        "share_pct": 11.11111111111111,
+        "users": 1
+      },
+      {
+        "avg_watch_hours": 0.16666666666666666,
+        "key": "dormant",
+        "label": "Dormants (\u003e 30 j)",
+        "share_pct": 22.22222222222222,
+        "users": 2
+      },
+      {
+        "avg_watch_hours": 0.6666666666666666,
+        "key": "at_risk",
+        "label": "À risque (aucune séance depuis 14 j+)",
+        "share_pct": 11.11111111111111,
+        "users": 1
+      },
+      {
+        "avg_watch_hours": 0,
+        "key": "never_watched",
+        "label": "Jamais regardé",
+        "share_pct": 22.22222222222222,
+        "users": 2
+      }
+    ],
+    "seniority": [
+      {
+        "key": "lt_7d",
+        "label": "\u003c 7 j",
+        "share_pct": 22.22222222222222,
+        "users": 2
+      },
+      {
+        "key": "7_30d",
+        "label": "7-30 j",
+        "share_pct": 0,
+        "users": 0
+      },
+      {
+        "key": "30_90d",
+        "label": "30-90 j",
+        "share_pct": 11.11111111111111,
+        "users": 1
+      },
+      {
+        "key": "90_180d",
+        "label": "90-180 j",
+        "share_pct": 55.55555555555556,
+        "users": 5
+      },
+      {
+        "key": "180_365d",
+        "label": "180-365 j",
+        "share_pct": 11.11111111111111,
+        "users": 1
+      },
+      {
+        "key": "gt_365d",
+        "label": "\u003e 1 an",
+        "share_pct": 0,
+        "users": 0
+      }
+    ]
+  }
+}
+
