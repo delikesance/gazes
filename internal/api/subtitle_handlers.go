@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"math"
 	"net/http"
@@ -156,6 +157,7 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Les sous-titres ne sont pas encore disponibles. Réessayez.", http.StatusGatewayTimeout)
 			return
 		}
+		s.recordPlaybackError(r.Context(), admin.PlaybackError{Code: diagnostics.SubtitleFailed, InfoHash: ih, Message: job.err.Error()})
 		http.Error(w, "Impossible d’extraire les sous-titres.", http.StatusBadGateway)
 		return
 	}

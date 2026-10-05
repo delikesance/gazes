@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"github.com/gazes/gazes/internal/playback"
 	"github.com/go-chi/chi/v5"
@@ -68,6 +70,9 @@ func (s *Server) HandlePlaybackCreate(w http.ResponseWriter, r *http.Request) {
 			status = 422
 		}
 		diagnostics.Logger(r.Context(), s.logger).Warn("playback.session_failed", "error_code", code, "err", err)
+		if errors.Is(err, context.DeadlineExceeded) { // no peer / start took longer than the manager's deadline
+			s.recordPlaybackError(r.Context(), admin.PlaybackError{Code: diagnostics.StreamTimeout, InfoHash: input.Hash, Message: err.Error()})
+		}
 		playbackError(w, status, code)
 		return
 	}
@@ -123,5 +128,6 @@ func (s *Server) HandlePlaybackMedia(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", "1")
 		playbackError(w, status, "segment_unavailable")
 		diagnostics.Logger(r.Context(), s.logger).Warn("playback.segment_failed", "segment", n, "err", err)
+		s.recordSegmentError(r.Context(), err)
 	}
 }

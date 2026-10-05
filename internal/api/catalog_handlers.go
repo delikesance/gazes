@@ -390,6 +390,7 @@ func (s *Server) HandleSeasonSources(w http.ResponseWriter, r *http.Request) {
 		return s.episodeResolver.ResolvePlaybackSources(ctx, identity)
 	})
 	if err != nil {
+		s.recordSourceError(r.Context(), item.ID, ep, err)
 		sourceFailure(w, r, err)
 		return
 	}
