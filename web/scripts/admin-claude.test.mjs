@@ -44,14 +44,50 @@ test('argument previews are compact and bounded', () => {
   assert.equal(L.argsPreview(cyclic), '{…}');
 });
 
-test('the connection command never invents a host and rejects odd ones', () => {
-  assert.match(L.connectionCommand(null), /\[HÔTE\]\/mcp/);
-  assert.match(L.connectionCommand('https://gazes.example'), /gazes https:\/\/gazes\.example\/mcp /);
-  assert.match(L.connectionCommand('https://gazes.example/'), /gazes https:\/\/gazes\.example\/mcp /);
-  assert.match(L.connectionCommand('javascript:alert(1)'), /\[HÔTE\]/);
-  assert.match(L.connectionCommand('https://a b'), /\[HÔTE\]/);
-  assert.match(L.connectionCommand(null), /Bearer \[JETON\]/);
+const TOKEN = 'gzs_' + 'A'.repeat(43);
+
+test('the base URL is normalised and odd ones are refused', () => {
+  assert.equal(L.normalizeBase('https://gazes.example'), 'https://gazes.example');
+  assert.equal(L.normalizeBase(' https://gazes.example/ '), 'https://gazes.example');
+  assert.equal(L.normalizeBase('https://gazes.example/mcp'), 'https://gazes.example');
+  assert.equal(L.normalizeBase('http://localhost:8081/'), 'http://localhost:8081');
+  assert.equal(L.normalizeBase('https://gazes.example/prefix/mcp/'), 'https://gazes.example/prefix');
+  for (const bad of ['', '   ', null, undefined, 'javascript:alert(1)', 'ftp://x', 'https://a b', 'https://u:p@host', 'https://host?x=1', 'https://host#frag', "https://host/a'b", 'https://host/a$b', 'https://host/a;b', 'not a url']) {
+    assert.equal(L.normalizeBase(bad), null, String(bad));
+  }
+  // the URL parser percent-encodes quotes: the result never holds a raw one
+  assert.equal(L.normalizeBase('https://host/a"b'), 'https://host/a%22b');
+  assert.equal(L.normalizeBase('https://host/a`b'), 'https://host/a%60b');
+  assert.equal(L.isInsecureBase('http://gazes.example'), true);
+  assert.equal(L.isInsecureBase('http://localhost:8081'), false);
+  assert.equal(L.isInsecureBase('https://gazes.example'), false);
+});
+
+test('the claude mcp add command is built from the site address and a valid token only', () => {
+  assert.equal(
+    L.mcpAddCommand('https://gazes.example/', TOKEN),
+    `claude mcp add --scope user --transport http gazes https://gazes.example/mcp --header "Authorization: Bearer ${TOKEN}"`,
+  );
+  assert.match(L.mcpAddCommand('https://gazes.example', null), /Bearer \[JETON\]"$/);
+  assert.equal(L.mcpAddCommand('', TOKEN), null);
+  assert.equal(L.mcpAddCommand('javascript:1', TOKEN), null);
+  // a token that is not exactly gzs_ + base64url never reaches a shell command
+  for (const bad of ['gzs_x', 'abc', TOKEN + '"; rm -rf ~ #', TOKEN + ' extra', 'gzs_' + 'A'.repeat(200), '$(id)', '']) {
+    assert.equal(L.mcpAddCommand('https://gazes.example', bad), null, bad);
+    assert.equal(L.mcpJsonConfig('https://gazes.example', bad), null, bad);
+  }
+  const cfg = JSON.parse(L.mcpJsonConfig('https://gazes.example/mcp', TOKEN));
+  assert.deepEqual(cfg, { mcpServers: { gazes: { type: 'http', url: 'https://gazes.example/mcp', headers: { Authorization: `Bearer ${TOKEN}` } } } });
   assert.ok(L.TOKEN_CLI_COMMANDS.every((c) => c.startsWith('gazes-admin token ')));
+});
+
+test('the token created by the API satisfies the token format and the choices are sane', () => {
+  const created = real('token-created').data;
+  assert.ok(L.TOKEN_RE.test(created.token), 'a real API token must match TOKEN_RE');
+  assert.match(L.mcpAddCommand('https://gazes.example', created.token), /Bearer gzs_/);
+  assert.deepEqual(L.SCOPE_CHOICES.filter((c) => c.defaultOn).map((c) => c.scope), ['metrics:read', 'diagnostics:read']);
+  assert.deepEqual(L.TTL_CHOICES.map((c) => c.hours), [720, 2160, 8760]);
+  assert.ok(L.TTL_CHOICES.every((c) => c.hours >= 1 && c.hours <= 8760));
 });
 
 test('audit rows keep the token as an id and never invent one', () => {

@@ -16,13 +16,13 @@ import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
 import { DataTable, EmptyState, KpiCard, SectionCard } from "@/components/admin/cards";
 import type { ColumnDef, Row, TabDef } from "@/components/admin/cards";
 import { Button, Chip, Toggle } from "@/components/admin/ui";
+import { ConnectClaude } from "./ConnectClaude";
 import { dateTimeShortFr, fmtInt, relativeFr } from "./fr-date";
 import { LIST_RESET, MONO_LABEL, MUTED_TEXT, SURFACE, WRAP_ROW } from "./styles";
 import {
   approvalStatusLabel,
   argsPreview,
   auditRowToTable,
-  connectionCommand,
   countByLevel,
   levelLabel,
   LEVEL_TONES,
@@ -48,8 +48,6 @@ export interface ClaudeViewProps {
   watch: AdminWatch;
   /** Server clock of the data (ISO), used for relative times. */
   generatedAt: string;
-  /** Public base URL of the API, when known, for the connection command. */
-  host?: string | null;
   /** Preview mode: nothing is written, buttons explain why. */
   demo?: boolean;
 }
@@ -114,18 +112,16 @@ function messageOf(e: unknown): string {
   return "Erreur inattendue";
 }
 
-export function ClaudeView({ tools, actions, approvals, killSwitch, audit, watch, generatedAt, host = null, demo = false }: ClaudeViewProps) {
+export function ClaudeView({ tools, actions, approvals, killSwitch, audit, watch, generatedAt, demo = false }: ClaudeViewProps) {
   const [items, setItems] = useState<AdminApproval[]>(approvals.items);
   const [kill, setKill] = useState<AdminKillSwitch>(killSwitch);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<"idle" | "ok" | "ko">("idle");
 
   const counts = useMemo(() => countByLevel(tools.items), [tools.items]);
   const ordered = useMemo(() => sortApprovals(items), [items]);
   const pending = pendingCount(items);
-  const command = connectionCommand(host);
 
   const refresh = useCallback(async () => {
     const [list, ks] = await Promise.all([
@@ -161,15 +157,6 @@ export function ClaudeView({ tools, actions, approvals, killSwitch, audit, watch
 
   const setSuspended = (suspended: boolean) =>
     run("kill", () => adminWrite<AdminEnvelope<AdminKillSwitch>>("PUT", "/ops/kill-switch", { suspended, reason: suspended ? reason.trim() : "" }));
-
-  const copyCommand = async () => {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied("ok");
-    } catch {
-      setCopied("ko");
-    }
-  };
 
   const toolRows: Row[] = tools.items.map((t) => ({
     name: t.name,
@@ -378,15 +365,7 @@ export function ClaudeView({ tools, actions, approvals, killSwitch, audit, watch
         footnote={audit.total > audit.items.length ? `Les ${audit.items.length} appels les plus récents sur ${fmtInt(audit.total)}.` : undefined}
       />
 
-      <SectionCard title="Connecter Claude" subtitle="Un jeton se crée uniquement avec la commande locale gazes-admin (jamais depuis le navigateur).">
-        <pre style={{ margin: 0, padding: 16, borderRadius: 20, background: "#17171a", fontFamily: "'Geist Mono', monospace", fontSize: 12, lineHeight: 1.5, overflowX: "auto", userSelect: "all" }}>{command}</pre>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-          <Button variant="secondary" icon="copy" onClick={() => void copyCommand()}>
-            {copied === "ok" ? "Copié" : copied === "ko" ? "Sélectionnez le texte" : "Copier la commande"}
-          </Button>
-          <p style={MUTED_TEXT}>Remplacez [HÔTE] par l&apos;adresse publique de l&apos;API et [JETON] par le jeton affiché une seule fois à sa création.</p>
-        </div>
-      </SectionCard>
+      <ConnectClaude demo={demo} />
 
       <DataTable
         id="watch-rules"
