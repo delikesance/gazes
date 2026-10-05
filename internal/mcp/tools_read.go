@@ -118,6 +118,15 @@ func readTools() []ToolDef {
 			},
 		},
 		{
+			Name:        "get_watch_status",
+			Level:       LevelDiagnostic,
+			Scope:       "diagnostics:read",
+			Method:      "GET",
+			Path:        "/watch",
+			Description: "Automatic monitoring: the state of each watch rule (ok, near, breached, not_measured) with its value and threshold, the last evaluations, and the before/after of the fixes triggered by a breach (verdict open, pending, improved or not_improved). Start here when woken up by a watch webhook or on a schedule. Reading evaluates nothing; the server evaluates every minute.",
+			Summary:     "State of the watch rules and effect of past fixes",
+		},
+		{
 			Name:        "list_playback_errors",
 			Level:       LevelDiagnostic,
 			Scope:       "diagnostics:read",

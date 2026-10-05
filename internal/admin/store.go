@@ -130,6 +130,39 @@ var migrations = []dbmigrate.Migration{
 		)`,
 		`CREATE INDEX IF NOT EXISTS mcp_audit_token_ts ON mcp_audit(token_id, ts)`,
 	)},
+	// M5: watch rules (state per rule, run log, before/after of the fixes they triggered).
+	{Version: 4, Name: "watch", Up: dbmigrate.SQL(
+		`CREATE TABLE IF NOT EXISTS watch_state (
+			rule TEXT PRIMARY KEY,
+			state TEXT NOT NULL,
+			value REAL,
+			since INTEGER NOT NULL,
+			issue_id TEXT,
+			last_eval INTEGER NOT NULL,
+			ok_streak INTEGER NOT NULL DEFAULT 0,
+			detail TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE TABLE IF NOT EXISTS watch_runs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			ts INTEGER NOT NULL,
+			breached INTEGER NOT NULL,
+			duration_ms INTEGER NOT NULL,
+			webhook_sent INTEGER NOT NULL DEFAULT 0,
+			webhook_failed INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE TABLE IF NOT EXISTS watch_effects (
+			issue_id TEXT PRIMARY KEY,
+			rule TEXT NOT NULL,
+			value_open REAL,
+			opened_at INTEGER NOT NULL,
+			resolved_at INTEGER,
+			value_resolved REAL,
+			value_after REAL,
+			after_at INTEGER
+		)`,
+		`CREATE INDEX IF NOT EXISTS watch_runs_ts ON watch_runs(ts)`,
+		`CREATE INDEX IF NOT EXISTS mcp_audit_ts ON mcp_audit(ts)`,
+	)},
 }
 
 // Open opens (creating if needed) the admin database at path and migrates it.

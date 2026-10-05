@@ -75,3 +75,32 @@ test('threshold input: comma accepted, bounds enforced, junk refused', () => {
     assert.ok(L.ruleUnit(th.rule) !== '');
   }
 });
+
+test('watch rules: labels, tones and values never turn "unknown" into zero', () => {
+  const w = real('watch').data;
+  assert.equal(w.rules.length, 5);
+  assert.equal(L.formatWatchValue(null, '%'), '[À MESURER]');
+  assert.equal(L.formatWatchValue(Number.NaN, '%'), '[À MESURER]');
+  assert.equal(L.formatWatchValue(0, '%'), '0 %');
+  assert.match(L.formatWatchValue(13.333, '%'), /^13,3\s%$/);
+  assert.equal(L.ruleStateLabel('breached'), 'Dépassé');
+  assert.equal(L.RULE_STATE_TONES.breached, 'danger');
+  assert.equal(L.RULE_STATE_TONES.not_measured, 'muted');
+  for (const r of w.rules) {
+    assert.notEqual(L.ruleStateLabel(r.state), r.state, r.state);
+    assert.notEqual(L.watchRuleLabel(r.rule), r.rule, r.rule);
+    if (r.state === 'not_measured') assert.equal(r.value, null);
+  }
+  assert.equal(L.breachedRules(w.rules).length, 1);
+});
+
+test('effect verdicts all have a label and a tone', () => {
+  for (const v of ['open', 'pending', 'improved', 'not_improved']) {
+    assert.notEqual(L.verdictLabel(v), v);
+    assert.ok(L.VERDICT_TONES[v]);
+  }
+  assert.equal(L.VERDICT_TONES.not_improved, 'danger');
+  const empty = real('watch.empty').data;
+  assert.equal(empty.effects.length, 0);
+  assert.equal(L.breachedRules(empty.rules).length, 0);
+});
