@@ -44,3 +44,8 @@ func (s *Store) UserRole(ctx context.Context, id int64) (string, error) {
 func (s *Service) UserRole(ctx context.Context, id int64) (string, error) {
 	return s.store.UserRole(ctx, id)
 }
+
+// SetUserRoleByID sets the role of the account with this ID (sql.ErrNoRows when unknown).
+func (s *Service) SetUserRoleByID(ctx context.Context, id int64, role string) error {
+	return s.store.SetUserRoleByID(ctx, id, role)
+}

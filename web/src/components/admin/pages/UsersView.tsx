@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { AdminApiError, adminWrite } from "@/lib/admin/api";
 import type { AdminUserDetail, AdminUsersList, AdminUsersSummary } from "@/lib/admin/types";
 import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
 import { DataTable, EmptyState, InsightCard, KpiCard, SectionCard } from "@/components/admin/cards";
@@ -63,6 +64,21 @@ export function UsersView({ summary, list, detail, detailError, query, generated
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
   const detailRef = useRef<HTMLElement>(null);
+  const [grant, setGrant] = useState<{ userId: number; tone: "ok" | "error"; text: string } | null>(null);
+  const [granting, setGranting] = useState(false);
+
+  const grantAdmin = async (userId: number, pseudo?: string) => {
+    if (!window.confirm(`Donner les droits d'administrateur à ${pseudo ?? `#${userId}`} ? Il aura accès à tout ce panel.`)) return;
+    setGranting(true);
+    try {
+      await adminWrite("POST", `/users/${userId}/role`, { role: "admin" });
+      setGrant({ userId, tone: "ok", text: "Ce compte est maintenant administrateur." });
+    } catch (e) {
+      setGrant({ userId, tone: "error", text: e instanceof AdminApiError ? `${e.message} (code ${e.code})` : "Erreur inattendue" });
+    } finally {
+      setGranting(false);
+    }
+  };
   const reveal = useRef(false);
 
   const go = (next: UsersQuery) => {
@@ -255,6 +271,12 @@ export function UsersView({ summary, list, detail, detailError, query, generated
               <div style={{ flex: "1 1 260px", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
                 <h3 style={{ ...MONO_LABEL, margin: 0, fontWeight: 500 }}>Actions admin</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <Button variant="secondary" fullWidth disabled={granting} onClick={() => void grantAdmin(detail.user_id, detail.pseudo)}>
+                    Promouvoir administrateur
+                  </Button>
+                  {grant && grant.userId === detail.user_id ? (
+                    <p role="status" style={{ ...MUTED_TEXT, fontSize: 12, color: grant.tone === "error" ? "#f87171" : undefined }}>{grant.text}</p>
+                  ) : null}
                   {ACTIONS.map((label) => (
                     <Button key={label} variant="secondary" fullWidth disabled>
                       {label} (à venir)
