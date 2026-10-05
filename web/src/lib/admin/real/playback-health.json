@@ -1,0 +1,43 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "period": {
+    "days": 30,
+    "from": "2026-03-02",
+    "to": "2026-03-31",
+    "prev_from": "2026-01-31",
+    "prev_to": "2026-03-01"
+  },
+  "data": {
+    "active_sessions": {
+      "measured": true,
+      "value": 7
+    },
+    "cache": {
+      "data": {
+        "redis": "disabled"
+      },
+      "measured": true
+    },
+    "error_rate": {
+      "delta_pct": 66.66666666666669,
+      "errors": 5,
+      "measured": true,
+      "note": "erreurs enregistrées / séances ; seuls les sites instrumentés sont comptés",
+      "previous": 25,
+      "sessions": 12,
+      "value": 41.66666666666667
+    },
+    "sources": {
+      "active": null,
+      "failing": 2,
+      "measured": false,
+      "total": null
+    },
+    "startup_ms": {
+      "measured": false,
+      "p50": null,
+      "p95": null
+    }
+  }
+}
+

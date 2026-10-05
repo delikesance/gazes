@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "data": {
+    "items": [
+      {
+        "id": "iss-8bb5be19417ccf17",
+        "created_at": "2026-03-31T10:00:00Z",
+        "updated_at": "2026-03-31T10:00:00Z",
+        "severity": "low",
+        "status": "new",
+        "title": "minimal",
+        "evidence": null,
+        "suggested_fix": null,
+        "source": null,
+        "note": null
+      },
+      {
+        "id": "iss-9962e20b6eeb6726",
+        "created_at": "2026-03-31T10:00:00Z",
+        "updated_at": "2026-03-31T10:00:00Z",
+        "severity": "high",
+        "status": "new",
+        "title": "Sources lentes",
+        "evidence": "3 timeouts",
+        "suggested_fix": "augmenter le délai",
+        "source": "claude",
+        "note": null
+      }
+    ],
+    "page": {
+      "limit": 50,
+      "offset": 0,
+      "total": 2
+    }
+  }
+}
+

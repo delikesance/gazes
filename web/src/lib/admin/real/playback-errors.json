@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-10-05T11:16:17Z",
+  "data": {
+    "items": [
+      {
+        "anime_id": 100,
+        "code": "REMUX_FAILED",
+        "episode": 1,
+        "first_seen": "2026-03-31T08:00:00Z",
+        "last_seen": "2026-03-31T08:00:00Z",
+        "occurrences": 1,
+        "source": "nyaa.si"
+      },
+      {
+        "anime_id": 100,
+        "code": "STREAM_TIMEOUT",
+        "episode": 1,
+        "first_seen": "2026-03-30T09:00:00Z",
+        "last_seen": "2026-03-30T11:00:00Z",
+        "occurrences": 2,
+        "source": "nyaa.si"
+      },
+      {
+        "anime_id": null,
+        "code": "SRC_DEAD",
+        "episode": null,
+        "first_seen": "2026-03-10T12:00:00Z",
+        "last_seen": "2026-03-10T12:00:00Z",
+        "occurrences": 1,
+        "source": null
+      },
+      {
+        "anime_id": 200,
+        "code": "STREAM_TIMEOUT",
+        "episode": 3,
+        "first_seen": "2026-03-05T12:00:00Z",
+        "last_seen": "2026-03-05T12:00:00Z",
+        "occurrences": 1,
+        "source": "c411"
+      },
+      {
+        "anime_id": 300,
+        "code": "STREAM_TIMEOUT",
+        "episode": 2,
+        "first_seen": "2026-02-10T12:00:00Z",
+        "last_seen": "2026-02-10T12:00:00Z",
+        "occurrences": 1,
+        "source": "nyaa.si"
+      }
+    ],
+    "page": {
+      "limit": 50,
+      "offset": 0,
+      "total": 5
+    },
+    "since": "2025-12-31T10:00:00Z"
+  }
+}
+
