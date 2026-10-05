@@ -16,8 +16,8 @@ Event body: `{event, rule, label, value, threshold, unit, detail, issue_id, at, 
 
 ## 2. Connecting Claude
 
-1. On the server machine: `gazes-admin token create --name claude --scopes metrics:read,diagnostics:read,ops:write --ttl 720h` (add `config:write` only if Claude should be able to PROPOSE threshold changes; a human still approves). The token is shown once.
-2. In Claude Code: `claude mcp add --transport http gazes https://<host>/mcp --header "Authorization: Bearer <token>"`.
+1. In the panel: "Claude et MCP", section "Connecter Claude". Choose the permissions (add "Agir" only if Claude should create and resolve issues; "Proposer des seuils" lets it propose a threshold change that a human still approves) and a validity, press "Générer le lien". The token is shown once. On the server machine, `gazes-admin token create --name claude --scopes metrics:read,diagnostics:read,ops:write --ttl 720h` does the same.
+2. Paste the command into a terminal (it runs `claude mcp add --scope user --transport http gazes https://<host>/mcp --header "Authorization: Bearer <token>"`) and restart Claude Code. The site relays `/mcp` to the backend.
 3. The page "Claude et MCP" shows the tools, the approval queue, the kill switch and the call log.
 
 ## 3. What to schedule in Claude

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { AdminEnvelope, AdminSettings, AdminThreshold, AdminTokens } from "@/lib/admin/types";
-import { AdminApiError, adminWrite } from "@/lib/admin/api";
+import { AdminApiError, adminGet, adminWrite } from "@/lib/admin/api";
 import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
 import { DataTable, SectionCard } from "@/components/admin/cards";
 import type { ColumnDef, Row } from "@/components/admin/cards";
@@ -27,6 +27,7 @@ const TOKEN_COLUMNS: ColumnDef[] = [
   { key: "expires", label: "Expire", type: "text", sortable: true },
   { key: "lastUsed", label: "Dernier usage", type: "text" },
   { key: "statusLabel", label: "État", type: "chip" },
+  { key: "revoke", label: "", type: "button" },
 ];
 
 const PRIVACY_FACTS = [
@@ -34,7 +35,7 @@ const PRIVACY_FACTS = [
   "Aucune adresse e-mail n'est lue par le panel : elles restent chiffrées dans la base des comptes.",
   "Chaque appel de Claude est journalisé, ses arguments sensibles sont masqués.",
   "Une action sensible n'a aucun effet sans l'approbation d'un administrateur connecté ; un jeton ne peut ni approuver, ni annuler, ni lever l'interrupteur d'arrêt.",
-  "Les jetons se créent et se révoquent uniquement avec la commande locale gazes-admin.",
+  "Un jeton se crée et se révoque uniquement depuis une session d'administrateur (ce panel) ou avec la commande locale gazes-admin : jamais avec un jeton.",
 ];
 
 function messageOf(e: unknown): string {
@@ -132,7 +133,21 @@ function ThresholdRow({ t, demo }: ThresholdRowProps) {
   );
 }
 
-export function SettingsView({ settings, tokens, generatedAt, demo = false }: SettingsViewProps) {
+export function SettingsView({ settings, tokens: initialTokens, generatedAt, demo = false }: SettingsViewProps) {
+  const [tokens, setTokens] = useState<AdminTokens | null>(initialTokens);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+
+  const revoke = async (id: number, name: string) => {
+    setTokenError(null);
+    if (demo) return setTokenError("Aperçu : aucune écriture n'est envoyée.");
+    if (!window.confirm(`Révoquer le jeton « ${name} » ? Claude ne pourra plus l'utiliser.`)) return;
+    try {
+      await adminWrite("DELETE", `/tokens/${id}`);
+      setTokens((await adminGet<AdminTokens>("/tokens")).data);
+    } catch (e) {
+      setTokenError(messageOf(e));
+    }
+  };
   const tokenRows: Row[] = (tokens?.items ?? []).map((t) => ({
     id: t.id,
     name: t.name,
@@ -144,6 +159,7 @@ export function SettingsView({ settings, tokens, generatedAt, demo = false }: Se
     lastUsed: t.last_used_at ? relativeFr(t.last_used_at, generatedAt) : "Jamais",
     statusLabel: tokenStatusLabel(t.status),
     statusLabelTone: t.status === "active" ? "accent" : "danger",
+    revoke: { label: "Révoquer", ariaLabel: `Révoquer le jeton ${t.name}`, disabled: t.status !== "active" },
   }));
   const ks = settings.kill_switch;
 
@@ -189,13 +205,18 @@ export function SettingsView({ settings, tokens, generatedAt, demo = false }: Se
           rows={tokenRows}
           rowKey="id"
           minWidth={720}
-          emptyText="Aucun jeton. Créez-en un avec la commande ci-dessous."
+          emptyText="Aucun jeton. Générez-en un dans « Claude et MCP », section « Connecter Claude »."
+          onCellClick={(row, key) => {
+            if (key === "revoke") void revoke(Number(row.id), String(row.name));
+          }}
         />
       ) : (
         <SectionCard title="Jetons d'accès" subtitle="La liste n'a pas pu être chargée." />
       )}
 
-      <SectionCard title="Créer ou révoquer un jeton" subtitle="Uniquement en ligne de commande, sur la machine du serveur : aucune route HTTP ne le permet.">
+      {tokenError ? <p role="alert" style={{ ...MUTED_TEXT, color: "#f87171" }}>Erreur : {tokenError}</p> : null}
+
+      <SectionCard title="Créer un jeton" subtitle="Le plus simple : « Claude et MCP », section « Connecter Claude » génère le jeton et la commande prête à coller. Sur la machine du serveur, la ligne de commande fait la même chose :">
         <pre style={{ margin: 0, padding: 16, borderRadius: 20, background: "#17171a", fontFamily: "'Geist Mono', monospace", fontSize: 12, lineHeight: 1.7, overflowX: "auto", userSelect: "all" }}>{TOKEN_CLI_COMMANDS.join("\n")}</pre>
         <p style={MUTED_TEXT}>Étendues : metrics:read (agrégats), diagnostics:read (lecteur, erreurs, constats), ops:write (actions réversibles), config:write (actions sensibles, soumises à approbation).</p>
       </SectionCard>

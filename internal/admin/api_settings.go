@@ -32,8 +32,9 @@ func (s *Service) mountSettings(r chi.Router) {
 	r.With(diag).Get("/mcp/tools", s.handleMCPTools)
 	r.With(diag).Get("/mcp/audit", s.handleMCPAudit)
 	r.With(diag).Get("/settings", s.handleSettings)
-	// Token metadata is for humans: tokens are created and revoked only with the local CLI.
+	// Token metadata, creation and revocation are for humans (admin session); the local gazes-admin CLI does the same.
 	r.With(s.sessionOnlyRead).Get("/tokens", s.handleTokensList)
+	s.mountTokens(r)
 }
 
 // sessionOnlyRead is sessionOnly for a GET: a Bearer token is refused whatever its scopes.
