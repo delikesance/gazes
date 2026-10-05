@@ -93,13 +93,81 @@ export function argsPreview(args: Record<string, unknown> | null | undefined, ma
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-/** The command that registers the server in Claude Code. `host` is the public base URL when known. */
-export function connectionCommand(host: string | null | undefined): string {
-  const base = host && /^https?:\/\/[^\s]+$/.test(host) ? host.replace(/\/+$/, "") : "[HÔTE]";
-  return `claude mcp add --transport http gazes ${base}/mcp --header "Authorization: Bearer [JETON]"`;
+/** A token as issued by the API: `gzs_` then base64url. Anything else is never put in a command. */
+export const TOKEN_RE = /^gzs_[A-Za-z0-9_-]{20,128}$/;
+
+/**
+ * Turns what the operator typed (or the site origin) into the base URL of the API: http(s) only, no
+ * credentials, query or fragment; a trailing slash or a trailing /mcp is dropped. Null when invalid.
+ */
+export function normalizeBase(raw: string | null | undefined): string | null {
+  const text = (raw ?? "").trim();
+  if (!text) return null;
+  let u: URL;
+  try {
+    u = new URL(text);
+  } catch {
+    return null;
+  }
+  if ((u.protocol !== "http:" && u.protocol !== "https:") || u.username || u.password || u.search || u.hash) return null;
+  const path = u.pathname.replace(/\/+$/, "").replace(/\/mcp$/, "");
+  if (!/^[A-Za-z0-9._~%/-]*$/.test(path)) return null; // nothing a shell could interpret
+  return `${u.origin}${path}`;
 }
 
-/** Token creation is local only (no HTTP route): the commands the page tells the operator to run. */
+/** True when the base would send the token over an unencrypted connection to another machine. */
+export function isInsecureBase(base: string): boolean {
+  try {
+    const u = new URL(base);
+    return u.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** The /mcp URL of a base, or null when the base is invalid. */
+export function mcpUrl(base: string | null | undefined): string | null {
+  const b = normalizeBase(base);
+  return b ? `${b}/mcp` : null;
+}
+
+/** The Claude Code command. `token` null prints a [JETON] placeholder; an invalid token is refused (null). */
+export function mcpAddCommand(base: string | null | undefined, token: string | null): string | null {
+  const url = mcpUrl(base);
+  if (!url) return null;
+  if (token !== null && !TOKEN_RE.test(token)) return null;
+  return `claude mcp add --scope user --transport http gazes ${url} --header "Authorization: Bearer ${token ?? "[JETON]"}"`;
+}
+
+/** The same server as a .mcp.json / claude_desktop style block. */
+export function mcpJsonConfig(base: string | null | undefined, token: string | null): string | null {
+  const url = mcpUrl(base);
+  if (!url) return null;
+  if (token !== null && !TOKEN_RE.test(token)) return null;
+  return JSON.stringify({ mcpServers: { gazes: { type: "http", url, headers: { Authorization: `Bearer ${token ?? "[JETON]"}` } } } }, null, 2);
+}
+
+export interface ScopeChoice {
+  scope: string;
+  label: string;
+  hint: string;
+  defaultOn: boolean;
+}
+
+export const SCOPE_CHOICES: ReadonlyArray<ScopeChoice> = [
+  { scope: "metrics:read", label: "Lire les statistiques", hint: "visionnages, utilisateurs agrégés, croissance, coûts", defaultOn: true },
+  { scope: "diagnostics:read", label: "Lire le lecteur et les constats", hint: "erreurs de lecture, sources, surveillance, constats", defaultOn: true },
+  { scope: "ops:write", label: "Agir (réversible)", hint: "créer, annoter et résoudre des constats : annulable, 30 par heure", defaultOn: false },
+  { scope: "config:write", label: "Proposer des seuils", hint: "un changement de seuil d'alerte attend votre approbation", defaultOn: false },
+];
+
+export const TTL_CHOICES: ReadonlyArray<{ hours: number; label: string }> = [
+  { hours: 720, label: "30 jours" },
+  { hours: 2160, label: "90 jours" },
+  { hours: 8760, label: "1 an" },
+];
+
+/** The same operations from the server machine (the panel does them too, for an administrator session). */
 export const TOKEN_CLI_COMMANDS = [
   "gazes-admin token create --name claude --scopes metrics:read,diagnostics:read --ttl 720h",
   "gazes-admin token list",

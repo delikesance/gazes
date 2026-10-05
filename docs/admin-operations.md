@@ -7,7 +7,7 @@ The admin panel is the web UI under `/admin`, the REST API under `/api/v1/admin`
 1. The server needs Redis (as for the rest of Gazes). The admin database opens next to the accounts database (`GAZES_ADMIN_DB`, default `<ACCOUNTS_DIR>/admin.sqlite`). If it cannot be opened the server logs an error and runs **without** admin: streaming never depends on it.
 2. Make the first administrator (run on the server machine, it opens the local databases): `gazes-admin grant <pseudo>`. Pseudos are not unique: when several accounts share one, use the account id, `gazes-admin grant '#42'`. `gazes-admin revoke <pseudo | #id>` refuses to remove the last administrator unless `--force`.
 3. Sign in on the site with that account, open `/admin`. A visitor who is not an administrator gets a plain 404.
-4. Tokens for Claude: `gazes-admin token create --name claude --scopes metrics:read,diagnostics:read,ops:write --ttl 720h` (shown once; `token list`, `token revoke <id>`). There is deliberately no HTTP route to create or revoke a token.
+4. Connect Claude: in the panel, "Claude et MCP" has a "Connecter Claude" section. Pick the permissions and a validity, press "Générer le lien": it creates a token and shows the ready-to-paste `claude mcp add --scope user --transport http gazes https://<your site>/mcp --header "Authorization: Bearer gzs_..."` (and the same as a `.mcp.json` block). The token is shown once and never stored in the browser. The site relays `/mcp` to the backend (`next.config.ts`), so the public address works. On the server machine the CLI does the same: `gazes-admin token create --name claude --scopes metrics:read,diagnostics:read --ttl 720h`, `token list`, `token revoke <id>`; in the panel, revoke from "Paramètres".
 
 ## Environment
 
@@ -26,7 +26,7 @@ One replica per period (Redis election): the metrics rollup every 10 minutes (id
 
 - The panel guard only hides the area; the Go API decides every request. Every admin route is refused without credentials (a test walks the real router to enforce it).
 - **Session** (an administrator signed in on the site): all scopes; state-changing requests also need the `X-Gazes-Admin: 1` header (CSRF). **Token**: `Authorization: Bearer gzs_...` only, never the cookie; four scopes (`metrics:read`, `diagnostics:read`, `ops:write`, `config:write`); stored as SHA-256, shown once, 30 days by default.
-- A token never receives a pseudo or an e-mail; no e-mail is ever read by the panel. Approving, rejecting, undoing and the kill switch are session-only: a token gets 403 whatever its scopes. Sensitive actions only create an approval a human decides, executed at most once.
+- A token never receives a pseudo or an e-mail; no e-mail is ever read by the panel. Approving, rejecting, undoing, the kill switch and creating or revoking a token are session-only (with the CSRF header): a token gets 403 whatever its scopes, so a token can never mint another. At most 20 tokens are active at once, and every creation and revocation is audited. Sensitive actions only create an approval a human decides, executed at most once.
 - The kill switch makes every token write fail with 423. Reversible actions are dry runs unless `dry_run:false`, 30 per hour per token.
 - Every MCP call and every decision is written to `mcp_audit` (arguments redacted and truncated).
 

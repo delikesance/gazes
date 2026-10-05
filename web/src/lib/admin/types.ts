@@ -691,3 +691,12 @@ export interface AdminWatch {
   runs: AdminWatchRun[];
   effects: AdminWatchEffect[];
 }
+
+// POST /tokens (session only): the plain token appears here ONCE and is never stored or listed again.
+export interface AdminTokenCreated {
+  token: string;
+  id: number;
+  name: string;
+  scopes: string[];
+  expires_at: string;
+}
