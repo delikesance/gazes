@@ -47,6 +47,8 @@ type Server struct {
 	library         *library.Service
 	libraryUser     func(*http.Request) (int64, bool)
 	admin           *admin.Service
+	mcpEnabled      bool
+	mcpOrigins      []string
 	errorSink       admin.ErrorSink
 }
 
@@ -152,6 +154,7 @@ func (s *Server) setupRoutes() {
 	r.Get("/healthz", s.HandleHealthz)
 
 	s.mountAdmin(r)
+	s.mountMCP(r)
 
 	// API v1 Routes
 	r.Route("/api/v1", func(api chi.Router) {

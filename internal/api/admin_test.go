@@ -49,3 +49,42 @@ func TestAdminRoutesMounting(t *testing.T) {
 		})
 	}
 }
+
+func TestMCPRouteMounting(t *testing.T) {
+	dir := t.TempDir()
+	as, err := auth.OpenStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer as.Close()
+	st, err := admin.Open(filepath.Join(dir, "admin.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	svc, err := admin.NewService(st, filepath.Join(dir, "accounts.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+
+	tests := []struct {
+		name string
+		opts []Option
+		want int
+	}{
+		{"without WithMCP", []Option{WithAdmin(svc)}, http.StatusNotFound},
+		{"WithMCP without WithAdmin", []Option{WithMCP()}, http.StatusNotFound},
+		{"WithMCP, no token", []Option{WithAdmin(svc), WithMCP()}, http.StatusUnauthorized},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := NewServer(&config.Config{}, nil, nil, nil, nil, tc.opts...)
+			rec := httptest.NewRecorder()
+			s.Router().ServeHTTP(rec, httptest.NewRequest("POST", "/mcp", nil))
+			if rec.Code != tc.want {
+				t.Fatalf("status %d, want %d", rec.Code, tc.want)
+			}
+		})
+	}
+}
