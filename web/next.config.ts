@@ -19,6 +19,18 @@ const nextConfig: NextConfig = {
   // Hydration must keep working when a browser/proxy cannot connect the dev
   // WebSocket carrying React's optional server debugging stream.
   experimental: { reactDebugChannel: false },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // Clickjacking and plugin/base-tag hardening; no script-src yet (it needs nonces for Next's inline scripts).
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
