@@ -40,3 +40,15 @@ func TestLibraryConfigDefaults(t *testing.T) {
 		t.Fatalf("overrides: %+v", c)
 	}
 }
+
+func TestAdminDBPath(t *testing.T) {
+	t.Setenv("GAZES_ADMIN_DB", "")
+	t.Setenv("ACCOUNTS_DIR", "/data/acc")
+	if got := Load().AdminDBPath; got != "/data/acc/admin.sqlite" {
+		t.Fatalf("default = %q", got)
+	}
+	t.Setenv("GAZES_ADMIN_DB", "/x/admin.sqlite")
+	if got := Load().AdminDBPath; got != "/x/admin.sqlite" {
+		t.Fatalf("override = %q", got)
+	}
+}
