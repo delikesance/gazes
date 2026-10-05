@@ -65,6 +65,10 @@ func RequireToken(store TokenVerifier, scopes ...string) func(http.Handler) http
 // RequireTokenWith is RequireToken with explicit options. The limiter is shared by every
 // handler wrapped by the returned middleware.
 func RequireTokenWith(store TokenVerifier, opts TokenOptions, scopes ...string) func(http.Handler) http.Handler {
+	if len(scopes) == 0 {
+		// A guard with no required scope would accept any valid token: a wiring mistake, caught at startup.
+		panic("admin: RequireToken needs at least one scope")
+	}
 	if opts.RatePerMinute <= 0 {
 		opts.RatePerMinute = 60
 	}

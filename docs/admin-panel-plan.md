@@ -1,6 +1,6 @@
 # Panel admin Gazes : plan d'implémentation
 
-Statut : proposition, à valider. Le design est dans le canvas « Panel admin Gazes » (9 pages, 34 composants, MCP).
+Statut : M0 à M6 livrés (voir §11 pour l'état réel et ce qui reste). Le design est dans le canvas « Panel admin Gazes » (9 pages, 34 composants, MCP).
 Objectif : un panel admin web **et** un serveur MCP pour que Claude surveille, diagnostique et corrige Gazes de façon autonome et bornée.
 
 ## 1. Constat sur le dépôt (à vérifier en phase 0)
@@ -133,3 +133,17 @@ Règle d'attribution : on commence par H ; on passe à S si la tâche exige de l
 
 ## 10. Prochaine étape
 M1, dans cet ordre : (a) agent Schéma et migrations (Sonnet), (b) agent Auth admin (Sonnet), puis (c) agent Cumul (Sonnet) ; l'agent Testeur (Haiku) sur le gabarit des deux premiers. Revue de sécurité (P) à la fin de M1.
+
+## 11. État d'avancement
+
+| Jalon | État |
+|---|---|
+| M0 préparation (graphify, reconnaissance, décisions D1 à D4) | fait |
+| M1 fondations (migrations, rôle, jetons, cumul) | fait (#16) |
+| M2 API admin de lecture, codes d'erreur de lecture | fait (#17) |
+| M3 panel web (neuf pages, kit de composants) | fait (#18, #20) |
+| M4 serveur MCP, actions bornées, approbations, interrupteur | fait (#19) |
+| M5 surveillance autonome (règles, constats, webhook, avant/après, runbooks) | fait |
+| M6 durcissement (couverture d'authentification, charge, cache, doc d'exploitation) | fait, voir [admin-operations.md](admin-operations.md) |
+
+Ce qui reste ouvert, à décider : instrumenter le démarrage p50/p95 et la limite de flux (règles aujourd'hui « non mesurées »), implémenter les sept actions déclarées mais non branchées, déplacer `/views` et `/catalog` sur des tables de cumul si l'historique grossit, planifier les routines de Claude (guide : [admin-claude-routines.md](admin-claude-routines.md)), vérifier visuellement les pages (aucun navigateur disponible pendant le développement) et faire revalider les décisions D1 à D4 par Jev.

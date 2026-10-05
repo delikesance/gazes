@@ -20,7 +20,9 @@ import (
 
 type roleStore interface {
 	SetUserRole(ctx context.Context, pseudo, role string) error
+	SetUserRoleByID(ctx context.Context, id int64, role string) error
 	RoleByPseudo(ctx context.Context, pseudo string) (string, error)
+	UserRole(ctx context.Context, id int64) (string, error)
 	CountAdmins(ctx context.Context) (int, error)
 }
 
@@ -31,8 +33,8 @@ type tokenStore interface {
 }
 
 const usage = `usage: gazes-admin <command>
-  grant <pseudo>
-  revoke <pseudo> [--force]
+  grant <pseudo | #id>
+  revoke <pseudo | #id> [--force]    (pseudos are not unique: use '#<id>' when several accounts share one)
   token create --name N --scopes a,b [--ttl 720h]
   token list
   token revoke <id>
@@ -76,7 +78,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, roles rol
 	switch args[0] {
 	case "grant":
 		if len(args) != 2 {
-			return errors.New("usage: grant <pseudo>")
+			return errors.New("usage: grant <pseudo | #id>")
 		}
 		return grant(ctx, stdout, roles, args[1])
 	case "revoke":
@@ -88,7 +90,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, roles rol
 			return err
 		}
 		if pseudo == "" || fs.NArg() != 0 {
-			return errors.New("usage: revoke <pseudo> [--force]")
+			return errors.New("usage: revoke <pseudo | #id> [--force]")
 		}
 		return revokeAdmin(ctx, stdout, roles, pseudo, *force)
 	case "token":
@@ -110,25 +112,54 @@ func splitPositional(args []string) (string, []string) {
 func roleErr(pseudo string, err error) error {
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return fmt.Errorf("no user with pseudo %q", pseudo)
+		return fmt.Errorf("no user %q", pseudo)
 	case errors.Is(err, auth.ErrAmbiguousPseudo):
 		return fmt.Errorf("pseudo %q matches several users", pseudo)
 	}
 	return err
 }
 
-func grant(ctx context.Context, out io.Writer, st roleStore, pseudo string) error {
-	if err := st.SetUserRole(ctx, pseudo, auth.RoleAdmin); err != nil {
-		return roleErr(pseudo, err)
+// parseID reads "#42" (an account id) and reports whether arg had that form.
+func parseID(arg string) (int64, bool) {
+	if len(arg) < 2 || len(arg) > 16 || arg[0] != '#' {
+		return 0, false
 	}
-	fmt.Fprintf(out, "%s is now admin\n", pseudo)
+	var n int64
+	for _, c := range arg[1:] {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + int64(c-'0')
+	}
+	return n, n > 0
+}
+
+func setRole(ctx context.Context, st roleStore, target, role string) error {
+	if id, ok := parseID(target); ok {
+		return st.SetUserRoleByID(ctx, id, role)
+	}
+	return st.SetUserRole(ctx, target, role)
+}
+
+func roleOf(ctx context.Context, st roleStore, target string) (string, error) {
+	if id, ok := parseID(target); ok {
+		return st.UserRole(ctx, id)
+	}
+	return st.RoleByPseudo(ctx, target)
+}
+
+func grant(ctx context.Context, out io.Writer, st roleStore, target string) error {
+	if err := setRole(ctx, st, target, auth.RoleAdmin); err != nil {
+		return roleErr(target, err)
+	}
+	fmt.Fprintf(out, "%s is now admin\n", target)
 	return nil
 }
 
-func revokeAdmin(ctx context.Context, out io.Writer, st roleStore, pseudo string, force bool) error {
-	role, err := st.RoleByPseudo(ctx, pseudo)
+func revokeAdmin(ctx context.Context, out io.Writer, st roleStore, target string, force bool) error {
+	role, err := roleOf(ctx, st, target)
 	if err != nil {
-		return roleErr(pseudo, err)
+		return roleErr(target, err)
 	}
 	if role == auth.RoleAdmin && !force {
 		n, err := st.CountAdmins(ctx)
@@ -139,10 +170,10 @@ func revokeAdmin(ctx context.Context, out io.Writer, st roleStore, pseudo string
 			return errors.New("refusing to remove the last admin (use --force)")
 		}
 	}
-	if err := st.SetUserRole(ctx, pseudo, auth.RoleUser); err != nil {
-		return roleErr(pseudo, err)
+	if err := setRole(ctx, st, target, auth.RoleUser); err != nil {
+		return roleErr(target, err)
 	}
-	fmt.Fprintf(out, "%s is no longer admin\n", pseudo)
+	fmt.Fprintf(out, "%s is no longer admin\n", target)
 	return nil
 }
 
