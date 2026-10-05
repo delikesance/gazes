@@ -34,7 +34,9 @@ type Server struct {
 	catalogService  *metadata.AnimeCatalogService
 	episodeResolver indexer.EpisodeSourceResolver
 	router          chi.Router
-	diagnosticRate  diagnosticLimiter
+	diagnosticRate  rateLimiter
+	routeLimits     rateLimiter
+	trustProxy      bool
 	auth            *auth.Service
 	kv              *kv.Client
 	sourceCache     *sourceCache
@@ -63,6 +65,9 @@ func (r unavailableEpisodeResolver) ResolveSeasonSources(context.Context, indexe
 func (r unavailableEpisodeResolver) ResolvePlaybackSources(context.Context, indexer.EpisodeIdentity) (*indexer.EpisodeSourcesResponse, error) {
 	return nil, r.err
 }
+
+// WithTrustProxy makes per-client rate limits read the client IP from X-Forwarded-For (set by the edge proxy).
+func WithTrustProxy(trust bool) Option { return func(s *Server) { s.trustProxy = trust } }
 
 // WithAuth enables the account routes.
 func WithAuth(svc *auth.Service) Option { return func(s *Server) { s.auth = svc } }
@@ -161,7 +166,7 @@ func (s *Server) setupRoutes() {
 		api.Get("/health", s.HandleHealth)
 		api.Post("/diagnostics/events", s.HandleDiagnosticEvents)
 		api.Get("/diagnostics/cache", s.HandleCacheDiagnostics)
-		api.Get("/search", s.HandleSearch)
+		api.With(s.rateLimit("search", 60, time.Minute)).Get("/search", s.HandleSearch)
 		api.Get("/latest", s.HandleLatest)
 
 		if s.auth != nil {
@@ -185,10 +190,10 @@ func (s *Server) setupRoutes() {
 			cat.Get("/trending", s.HandleCatalogTrending)
 			cat.Get("/seasonal", s.HandleCatalogSeasonal)
 			cat.Get("/popular", s.HandleCatalogPopular)
-			cat.Get("/foryou", s.HandleCatalogForYou)
-			cat.Post("/foryou", s.HandleCatalogForYou)
+			cat.With(s.rateLimit("foryou", 30, time.Minute)).Get("/foryou", s.HandleCatalogForYou)
+			cat.With(s.rateLimit("foryou", 30, time.Minute)).Post("/foryou", s.HandleCatalogForYou)
 			cat.Get("/schedule", s.HandleCatalogSchedule)
-			cat.Get("/search", s.HandleCatalogSearch)
+			cat.With(s.rateLimit("catalog-search", 60, time.Minute)).Get("/search", s.HandleCatalogSearch)
 			cat.Get("/anime/{id}/franchise", s.HandleFranchise)
 			cat.Get("/anime/{id}/seasons/{season}", s.HandleSeason)
 			cat.Get("/anime/{id}/seasons/{season}/episodes/{ep}/sources", s.HandleSeasonSources)
@@ -205,14 +210,14 @@ func (s *Server) setupRoutes() {
 		}
 
 		// Torrent Engine Routes
-		api.Post("/torrent/load", s.HandleLoadTorrent)
+		api.With(s.rateLimit("torrent-load", 30, time.Minute)).Post("/torrent/load", s.HandleLoadTorrent)
 		api.Get("/torrent/stats", s.HandleTorrentStats)
 		api.Get("/metadata", s.HandleMetadata)
 
 		// Video Streaming & Subtitles Routes
 		api.Get("/stream", s.HandleStream)
-		api.Get("/stream/raw", s.HandleStreamRaw)
-		api.Get("/subtitles", s.HandleSubtitles)
+		api.With(s.rateLimit("stream-raw", 120, time.Minute)).Get("/stream/raw", s.HandleStreamRaw)
+		api.With(s.rateLimit("subtitles", 60, time.Minute)).Get("/subtitles", s.HandleSubtitles)
 		api.Get("/playback/config", s.HandlePlaybackConfig)
 		api.Post("/playback/sessions", s.HandlePlaybackCreate)
 		api.Put("/playback/sessions/{session}", s.HandlePlaybackUpdate)
