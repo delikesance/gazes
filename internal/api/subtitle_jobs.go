@@ -22,6 +22,8 @@ const (
 	subtitleResultTTL     = 2 * time.Minute
 	subtitleResultEntries = 32
 	subtitleResultMaxSize = 64 << 20
+	// Each new extraction is an ffmpeg reading the swarm; beyond this many running at once, new ones are refused.
+	subtitleMaxConcurrent = 4
 )
 
 // subtitleWaitTimeout bounds one request; it stays below the frontend proxy's 30-second deadline.
@@ -44,8 +46,9 @@ type subtitleJob struct {
 // windows briefly, so a retry or a repeated seek never reads the swarm twice.
 // The zero value is ready to use.
 type subtitleJobs struct {
-	mu   sync.Mutex
-	jobs map[string]*subtitleJob
+	mu      sync.Mutex
+	jobs    map[string]*subtitleJob
+	running int // unfinished jobs, bounded by subtitleMaxConcurrent
 }
 
 func (j *subtitleJobs) purgeLocked() {
@@ -69,6 +72,7 @@ func (j *subtitleJobs) purgeLocked() {
 }
 
 // join attaches the caller to the job for key, starting it when none is running or cached.
+// It returns nil when a new extraction is needed but subtitleMaxConcurrent are already running.
 func (j *subtitleJobs) join(key string, logger *slog.Logger, args []string, ffmpeg string) *subtitleJob {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -78,6 +82,10 @@ func (j *subtitleJobs) join(key string, logger *slog.Logger, args []string, ffmp
 	j.purgeLocked()
 	job := j.jobs[key]
 	if job == nil {
+		if j.running >= subtitleMaxConcurrent {
+			return nil
+		}
+		j.running++
 		ctx, cancel := context.WithTimeout(context.Background(), subtitleJobTimeout)
 		job = &subtitleJob{done: make(chan struct{}), cancel: cancel}
 		j.jobs[key] = job
@@ -107,6 +115,7 @@ func (j *subtitleJobs) run(key string, job *subtitleJob, ctx context.Context, lo
 		err = errSubtitleTooLarge
 	}
 	j.mu.Lock()
+	j.running--
 	job.err, job.stderr, job.finished = err, stderr.String(), time.Now()
 	if err == nil {
 		job.data = out.Bytes()
