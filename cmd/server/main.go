@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Nyaa remains independent of the gateway, including during Prowlarr outages.
-	providers := []indexer.Provider{nyaa.NewClient(nyaa.DefaultBaseURL, nil)}
+	providers := []indexer.Provider{nyaa.NewClient(nyaa.DefaultBaseURL, nil), nyaa.NewSukebeiClient(nyaa.SukebeiBaseURL, nil)}
 	extraProviders, err := settings.Providers(os.Getenv)
 	if err != nil {
 		logger.Error("invalid indexer configuration", "err", err)

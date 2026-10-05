@@ -215,3 +215,41 @@ func TestClient_Search(t *testing.T) {
 		t.Errorf("expected positive SizeBytes, got %d", item.SizeBytes)
 	}
 }
+
+func TestSukebeiClientSearchesAnimeCategory(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Sukebei has its own category tree: Nyaa's 1_2/1_3/1_4 would hit doujinshi, games or nothing.
+		if c := r.URL.Query().Get("c"); c != "1_1" {
+			t.Errorf("category = %q, want 1_1 (Sukebei anime)", c)
+		}
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0"?><rss xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel></channel></rss>`))
+	}))
+	defer ts.Close()
+	client := nyaa.NewSukebeiClient(ts.URL, ts.Client())
+	if client.Name() != "sukebei.nyaa.si" {
+		t.Fatalf("name = %q", client.Name())
+	}
+	for _, category := range []string{"", "1_0", "1_3"} {
+		if _, err := client.Search(context.Background(), indexer.SearchOptions{Query: "Overflow", Category: category}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestSukebeiRSSNamespaceIsParsed(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0"?><rss xmlns:nyaa="https://sukebei.nyaa.si/xmlns/nyaa" version="2.0"><channel><item>
+<title>[Group] Overflow 01</title><link>https://sukebei.nyaa.si/download/123.torrent</link><guid>https://sukebei.nyaa.si/view/123</guid>
+<nyaa:seeders>7</nyaa:seeders><nyaa:infoHash>ABCDEF0123456789ABCDEF0123456789ABCDEF01</nyaa:infoHash><nyaa:size>1.0 GiB</nyaa:size></item></channel></rss>`))
+	}))
+	defer ts.Close()
+	items, err := nyaa.NewSukebeiClient(ts.URL, ts.Client()).Search(context.Background(), indexer.SearchOptions{Query: "Overflow"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Seeders != 7 || items[0].InfoHash != "abcdef0123456789abcdef0123456789abcdef01" || items[0].SizeBytes == 0 {
+		t.Fatalf("items = %+v", items)
+	}
+}
