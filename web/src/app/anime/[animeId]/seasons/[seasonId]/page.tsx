@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { AnimeBrowser } from "@/components/AnimeBrowser";
 import { getFranchise, getSeason } from "@/lib/api";
+
+export async function generateMetadata({ params }: { params: Promise<{ animeId: string }> }): Promise<Metadata> {
+  const { animeId } = await params;
+  return { robots: { index: false, follow: true }, alternates: { canonical: `/anime/${Number(animeId)}` } };
+}
 
 export default async function Page({
   params,

@@ -1,10 +1,21 @@
+import type { Metadata } from "next";
 import { CatalogBrowser } from "@/components/CatalogBrowser";
+import { SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
 import { getCatalogPopular, getCatalogSeasonal, searchCatalog } from "@/lib/api";
+
+type HomeSearchParams = { q?: string; genre?: string; genres?: string; exclude?: string; tab?: string; page?: string };
+
+// Search, filter and paginated views duplicate the home content: keep them out of the index.
+export async function generateMetadata({ searchParams }: { searchParams?: Promise<HomeSearchParams> }): Promise<Metadata> {
+  const p = searchParams ? await searchParams : {};
+  const variant = p?.q || p?.genre || p?.genres || p?.exclude || (p?.tab && p.tab !== "trending") || (Number(p?.page) || 1) > 1;
+  return variant ? { robots: { index: false, follow: true } } : { alternates: { canonical: "/" } };
+}
 
 export default async function Home({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; genre?: string; genres?: string; exclude?: string; tab?: string; page?: string }>;
+  searchParams?: Promise<HomeSearchParams>;
 }) {
   const params = searchParams ? await searchParams : {};
   const q = params?.q || "";
@@ -35,7 +46,11 @@ export default async function Home({
     console.error("SSR popular error:", e);
   }
 
+  const websiteLd = { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: SITE_URL, inLanguage: "fr" };
+
   return (
+    <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(websiteLd) }} />
     <CatalogBrowser
       initialData={initialData}
       initialPopular={initialPopular}
@@ -45,5 +60,6 @@ export default async function Home({
       initialTab={tab}
       initialPage={page}
     />
+    </>
   );
 }
