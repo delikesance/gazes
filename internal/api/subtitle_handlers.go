@@ -17,24 +17,11 @@ import (
 
 // HandleSubtitles extracts textual subtitles as WebVTT or styled ASS, or raw PGS (sup).
 func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
-	ih := r.URL.Query().Get("ih")
-	if ih == "" {
-		http.Error(w, "missing infohash parameter 'ih'", http.StatusBadRequest)
+	ih, fileIdx, ok := streamTarget(r)
+	trackIdx, trackOK := boundedIndex(r.URL.Query().Get("track_idx"), maxTrackIndex)
+	if !ok || !trackOK {
+		http.Error(w, "invalid infohash, file_idx or track_idx", http.StatusBadRequest)
 		return
-	}
-
-	fileIdx := 0
-	if idxStr := r.URL.Query().Get("file_idx"); idxStr != "" {
-		if idx, err := strconv.Atoi(idxStr); err == nil && idx >= 0 {
-			fileIdx = idx
-		}
-	}
-
-	trackIdx := 0
-	if trackStr := r.URL.Query().Get("track_idx"); trackStr != "" {
-		if idx, err := strconv.Atoi(trackStr); err == nil && idx >= 0 {
-			trackIdx = idx
-		}
 	}
 
 	port := 8090
@@ -132,6 +119,12 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	// client's retry collects the result instead of reading the swarm again from scratch.
 	key := fmt.Sprintf("%s|%d|%d|%s|%v|%g|%g|%v|%g", ih, fileIdx, trackIdx, format, windowed, start, duration, absoluteTimeline, origin)
 	job := s.subtitles.join(key, diagnostics.Logger(r.Context(), s.logger), args, findFFmpegBin())
+	if job == nil {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Retry-After", "5")
+		http.Error(w, "Trop d'extractions de sous-titres en cours. Réessayez.", http.StatusTooManyRequests)
+		return
+	}
 	timer := time.NewTimer(subtitleWaitTimeout)
 	defer timer.Stop()
 	select {
