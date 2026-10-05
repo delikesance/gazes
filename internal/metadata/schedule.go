@@ -154,8 +154,14 @@ func (s *AnimeCatalogService) loadSchedule(ctx context.Context, from, to int64) 
 				break
 			}
 			if page == nil {
-				partial = true
-				continue
+				// A rate-limited burst drops the latest pages (sorted by time), which
+				// empties the end of the range; retry them one by one before giving up.
+				if retried, err := s.fetchSchedulePage(ctx, from, to, start+i); err == nil {
+					page = retried
+				} else {
+					partial = true
+					continue
+				}
 			}
 			pages = append(pages, page)
 			if page.Data.Page.PageInfo.HasNextPage {
