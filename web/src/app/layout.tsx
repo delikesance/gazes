@@ -6,6 +6,7 @@ import { SiteChrome } from "@/components/SiteChrome";
 import { AuthProvider } from "@/components/AuthProvider";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 import { DM_Sans, Fraunces, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -24,9 +25,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const DESCRIPTION = "Découvrez les animes du moment, explorez leurs saisons et regardez vos épisodes sur Gazes.";
+
 export const metadata: Metadata = {
-  title: "Gazes — Découvrez votre prochain anime",
-  description: "Découvrez les animes du moment, explorez leurs saisons et regardez vos épisodes sur Gazes.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: "Gazes — Découvrez votre prochain anime", template: `%s · ${SITE_NAME}` },
+  description: DESCRIPTION,
+  openGraph: { type: "website", siteName: SITE_NAME, locale: "fr_FR", title: "Gazes — Découvrez votre prochain anime", description: DESCRIPTION },
+  twitter: { card: "summary", title: "Gazes — Découvrez votre prochain anime", description: DESCRIPTION },
 };
 
 export default function RootLayout({
