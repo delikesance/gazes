@@ -136,6 +136,12 @@ func (s *Service) Auth(scope string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authKey{}, info)))
 		}))
 		viaSession := RequireAdminSession(s.sessionIdentify, sessionUsers{s})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// A cookie is ambient authority: state-changing requests must carry a custom header,
+			// which a cross-site form or simple fetch cannot add (CSRF defence).
+			if !isSafeMethod(r.Method) && r.Header.Get("X-Gazes-Admin") != "1" {
+				writeAPIError(w, http.StatusForbidden, "csrf", "missing X-Gazes-Admin header")
+				return
+			}
 			info := authInfo{via: "session", scopes: allScopes}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authKey{}, info)))
 		}))
@@ -173,4 +179,8 @@ func (s *Service) handleMe(w http.ResponseWriter, r *http.Request) {
 		out["role"] = roleAdmin
 	}
 	writeDataNoPeriod(w, out)
+}
+
+func isSafeMethod(m string) bool {
+	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
 }
