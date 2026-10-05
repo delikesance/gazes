@@ -19,6 +19,7 @@ type Service struct {
 	now       func() time.Time
 	identify  func(*http.Request) (int64, bool)
 	users     UserLookup
+	roles     RoleSetter
 	ops       opsState
 	watchCfg  WatchConfig
 	respCache responseCache     // short cache of the heavy aggregate answers (api_cache.go)
@@ -102,6 +103,7 @@ func (s *Service) Mount(r chi.Router) {
 		r.With(s.Auth(ScopeMetricsRead)).Get("/me", s.handleMe)
 		s.mountViews(r)
 		s.mountUsers(r)
+		s.mountUserRole(r)
 		s.mountPlayback(r)
 		s.mountOps(r)
 		s.mountSettings(r)
