@@ -36,9 +36,11 @@ const (
 	schedulePageSize = 50
 	scheduleMaxPages = 20
 	scheduleWorkers  = 4
-	scheduleCacheTTL = 365 * 24 * time.Hour // aired weeks never change, the light payload is not worth refetching
+	scheduleCacheTTL = time.Hour
+	// scheduleStaleFor is how long an expired answer still serves visitors (and stands in when AniList fails) while it refreshes.
+	scheduleStaleFor = 365 * 24 * time.Hour
 	// schedulePartialTTL keeps an incomplete answer a short while so missing pages are retried.
-	schedulePartialTTL = 10 * time.Minute
+	schedulePartialTTL = 5 * time.Minute
 	// scheduleMaxWait is the longest 429 pause worth waiting out inside one request.
 	scheduleMaxWait = 6 * time.Second
 )
@@ -119,9 +121,16 @@ func (s *AnimeCatalogService) GetSchedule(ctx context.Context, from, to int64) (
 			return schedulePartialTTL
 		}
 		return scheduleCacheTTL
-	}}
+	}, StaleFor: func(*ScheduleResponse) time.Duration { return scheduleStaleFor }}
 	return s.scheduleC.Get(ctx, key, policy, func(ctx context.Context) (*ScheduleResponse, error) {
-		return s.loadSchedule(ctx, from, to)
+		resp, err := s.loadSchedule(ctx, from, to)
+		if err == nil && resp.Partial {
+			// Never replace a complete answer, even an expired one, with a truncated one.
+			if old, ok := s.scheduleC.Peek(ctx, key); ok && !old.Partial {
+				return old, nil
+			}
+		}
+		return resp, err
 	})
 }
 
