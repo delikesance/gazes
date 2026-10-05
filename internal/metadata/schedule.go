@@ -36,9 +36,9 @@ const (
 	schedulePageSize = 50
 	scheduleMaxPages = 20
 	scheduleWorkers  = 4
-	scheduleCacheTTL = 15 * time.Minute
-	// schedulePartialTTL keeps an incomplete answer only briefly so missing pages are retried.
-	schedulePartialTTL = time.Minute
+	scheduleCacheTTL = 365 * 24 * time.Hour // aired weeks never change, the light payload is not worth refetching
+	// schedulePartialTTL keeps an incomplete answer a short while so missing pages are retried.
+	schedulePartialTTL = 10 * time.Minute
 	// scheduleMaxWait is the longest 429 pause worth waiting out inside one request.
 	scheduleMaxWait = 6 * time.Second
 )
