@@ -19,6 +19,7 @@ type Service struct {
 	now      func() time.Time
 	identify func(*http.Request) (int64, bool)
 	users    UserLookup
+	ops      opsState
 
 	mu       sync.Mutex
 	tokenMWs map[string]func(http.Handler) http.Handler
@@ -98,6 +99,7 @@ func (s *Service) Mount(r chi.Router) {
 		s.mountViews(r)
 		s.mountUsers(r)
 		s.mountPlayback(r)
+		s.mountOps(r)
 	})
 }
 

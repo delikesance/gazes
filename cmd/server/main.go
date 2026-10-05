@@ -151,6 +151,7 @@ func main() {
 	if adminSvc, stopAdmin := startAdmin(cfg, logger, redisClient); adminSvc != nil {
 		defer stopAdmin()
 		serverOpts = append(serverOpts, api.WithAdmin(adminSvc))
+		serverOpts = append(serverOpts, api.WithMCP())
 		// Best-effort playback error recording (bounded queue, never blocks a playback).
 		errorRecorder := admin.NewErrorRecorder(adminSvc.Store())
 		defer errorRecorder.Close()

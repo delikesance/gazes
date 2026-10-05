@@ -24,8 +24,9 @@ func (s *Service) mountPlayback(r chi.Router) {
 	r.With(diag).Get("/issues", s.handleIssuesList)
 	r.With(diag).Get("/issues/{id}", s.handleIssueGet)
 	ops := s.Auth(ScopeOpsWrite)
-	r.With(ops).Post("/issues", s.handleIssueCreate)
-	r.With(ops).Patch("/issues/{id}", s.handleIssueUpdate)
+	opsW := r.With(ops, s.refuseTokenWhenSuspended)
+	opsW.Post("/issues", s.handleIssueCreate)
+	opsW.Patch("/issues/{id}", s.handleIssueUpdate)
 }
 
 // pbMaxSince bounds ?since= on the error list: nothing older than the longest period.
