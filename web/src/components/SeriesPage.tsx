@@ -22,6 +22,9 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
   const groups = ([["main", t("Saisons")], ["movies", t("Films")], ["extras", t("Spéciaux et histoires annexes")]] as const)
     .map(([group, title]) => ({ group, title, entries: franchise.seasons.filter((s) => s.group === group) })).filter((g) => g.entries.length);
   return <div className="series-page">
+    {(franchise.banner_image || franchise.poster_image) && <div className="series-banner" aria-hidden="true">
+      <LazyImage src={franchise.banner_image || franchise.poster_image} alt="" aspectRatio="" priority className="series-banner-art" />
+    </div>}
     <section className="series-intro">
       <div className="series-poster">
         <LazyImage src={franchise.poster_image} alt={franchise.title} aspectRatio="" priority className="series-poster-art" />
