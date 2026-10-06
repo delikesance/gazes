@@ -95,8 +95,15 @@ func TestRotate(t *testing.T) {
 	t.Run("waits for the tunnel to answer", func(t *testing.T) {
 		var polls atomic.Int32
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodGet && polls.Add(1) < 3 {
-				w.WriteHeader(http.StatusServiceUnavailable)
+			if r.Method == http.MethodGet {
+				switch polls.Add(1) {
+				case 1:
+					w.WriteHeader(http.StatusServiceUnavailable)
+				case 2:
+					_, _ = w.Write([]byte(`{"public_ip":""}`)) // 200, but the tunnel has no IP yet
+				default:
+					_, _ = w.Write([]byte(`{"public_ip":"203.0.113.9"}`))
+				}
 				return
 			}
 			w.WriteHeader(http.StatusOK)
@@ -110,6 +117,10 @@ func TestRotate(t *testing.T) {
 	t.Run("insists on bringing the tunnel back up", func(t *testing.T) {
 		var running atomic.Int32
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet {
+				_, _ = w.Write([]byte(`{"public_ip":"203.0.113.9"}`))
+				return
+			}
 			if r.Method == http.MethodPut {
 				var c statusCall
 				_ = json.NewDecoder(r.Body).Decode(&c)
