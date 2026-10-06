@@ -146,6 +146,12 @@ var migrations = []dbmigrate.Migration{
 		_, err := tx.Exec(`CREATE INDEX IF NOT EXISTS watch_sessions_started ON watch_sessions(started_at)`)
 		return err
 	}},
+	{Version: 3, Name: "watchlist", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS watchlist (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	anime_id INTEGER NOT NULL,
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (user_id, anime_id)
+)`)},
 }
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
@@ -391,6 +397,44 @@ func (s *Store) UpdateHidden(userID int64, add, remove []int64, now time.Time) e
 
 func (s *Store) ListHidden(userID int64) ([]int64, error) {
 	rows, err := s.db.Query(`SELECT anime_id FROM hidden_anime WHERE user_id = ? ORDER BY created_at DESC LIMIT 2000`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// UpdateWatchlist adds and removes anime of the viewer's "ma liste" in one transaction.
+func (s *Store) UpdateWatchlist(userID int64, add, remove []int64, now time.Time) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, id := range add {
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO watchlist(user_id, anime_id, created_at) VALUES(?,?,?)`, userID, id, now.Unix()); err != nil {
+			return err
+		}
+	}
+	for _, id := range remove {
+		if _, err := tx.Exec(`DELETE FROM watchlist WHERE user_id = ? AND anime_id = ?`, userID, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ListWatchlist returns the viewer's saved anime, most recently added first.
+func (s *Store) ListWatchlist(userID int64) ([]int64, error) {
+	rows, err := s.db.Query(`SELECT anime_id FROM watchlist WHERE user_id = ? ORDER BY created_at DESC, anime_id DESC LIMIT 2000`, userID)
 	if err != nil {
 		return nil, err
 	}
