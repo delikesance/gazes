@@ -481,3 +481,59 @@ func (s *Store) DeleteWatchData(userID int64) error {
 	}
 	return tx.Commit()
 }
+
+// SessionInfo is one signed-in device. ID is a stable public handle, never the token itself.
+type SessionInfo struct {
+	ID       string `json:"id"`
+	LastSeen int64  `json:"last_seen"`
+	Expires  int64  `json:"expires_at"`
+	Current  bool   `json:"current"`
+}
+
+const sessionIDLen = 16
+
+func sessionID(tokenHash string) string {
+	if len(tokenHash) > sessionIDLen {
+		return tokenHash[:sessionIDLen]
+	}
+	return tokenHash
+}
+
+// ListSessions returns a user's live sessions, newest first. current is the caller's token hash.
+func (s *Store) ListSessions(userID int64, now time.Time, current string) ([]SessionInfo, error) {
+	rows, err := s.db.Query(`SELECT token_hash, last_seen, expires_at FROM sessions WHERE user_id = ? AND expires_at >= ? ORDER BY last_seen DESC`, userID, now.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []SessionInfo{}
+	for rows.Next() {
+		var hash string
+		var info SessionInfo
+		if err := rows.Scan(&hash, &info.LastSeen, &info.Expires); err != nil {
+			return nil, err
+		}
+		info.ID, info.Current = sessionID(hash), hash == current
+		out = append(out, info)
+	}
+	return out, rows.Err()
+}
+
+// DeleteUserSession revokes one of the user's sessions by its public ID; false when it is not theirs.
+func (s *Store) DeleteUserSession(userID int64, id string) (bool, error) {
+	if len(id) != sessionIDLen {
+		return false, nil
+	}
+	res, err := s.db.Exec(`DELETE FROM sessions WHERE user_id = ? AND substr(token_hash, 1, ?) = ?`, userID, sessionIDLen, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
+// DeleteUser erases the account and, through the foreign keys, everything it owns.
+func (s *Store) DeleteUser(userID int64) error {
+	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, userID)
+	return err
+}

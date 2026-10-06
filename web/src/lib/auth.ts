@@ -7,7 +7,7 @@ export interface AccountUser { id: number; pseudo: string; email?: string; role?
 /** Error codes returned by internal/auth/service.go. */
 export type AuthErrorCode =
   | "invalid_request" | "invalid_email" | "invalid_pseudo" | "invalid_password"
-  | "invalid_credentials" | "email_taken" | "captcha_failed" | "rate_limited"
+  | "invalid_credentials" | "email_taken" | "not_found" | "captcha_failed" | "rate_limited"
   | "forbidden" | "unauthorized" | "server_error" | "network";
 
 export class AuthError extends Error {
@@ -38,7 +38,7 @@ export async function solveFreshCaptcha(signal?: AbortSignal): Promise<string> {
   return solveCaptcha(await fetchChallenge(), signal);
 }
 
-async function sealed<T>(route: "login" | "register", payload: Record<string, string>): Promise<T> {
+async function sealed<T>(route: "login" | "register" | "delete-account", payload: Record<string, string>): Promise<T> {
   const info = await request<KemInfo>("/auth/kem");
   return request<T>(`/auth/${route}`, json(sealEnvelope(info, route, payload)));
 }
@@ -49,6 +49,25 @@ export async function register(input: { email: string; password: string; pseudo:
 
 export async function login(input: { email: string; password: string; captcha: string }): Promise<AccountUser> {
   return (await sealed<{ user: AccountUser }>("login", input)).user;
+}
+
+/** Erases the account for good; the password is re-checked server side. */
+export async function deleteAccount(password: string): Promise<void> {
+  await sealed<void>("delete-account", { password });
+}
+
+export interface AccountSession { id: string; last_seen: number; expires_at: number; current: boolean }
+
+export async function listSessions(): Promise<AccountSession[]> {
+  return (await request<{ sessions: AccountSession[] }>("/me/sessions")).sessions;
+}
+
+export async function revokeSession(id: string): Promise<void> {
+  await request(`/me/sessions/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
+}
+
+export async function exportAccount(): Promise<unknown> {
+  return request<unknown>("/me/export");
 }
 
 export async function logout(): Promise<void> {

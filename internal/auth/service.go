@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -44,6 +45,7 @@ type Service struct {
 	proxy     *ProxyTrust
 	now       func() time.Time
 	dummyHash string
+	onDelete  func(ctx context.Context, userID int64)
 }
 
 // New opens the store and loads keys.
