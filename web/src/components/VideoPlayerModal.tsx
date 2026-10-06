@@ -1,4 +1,5 @@
 "use client";
+import { useWatchParty } from "@/lib/use-watch-party";
 import { PlayerStartup } from "./PlayerStartup";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
@@ -47,6 +48,7 @@ import {
   Sun,
   Image as ImageIcon,
   Link2,
+  Users,
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -432,11 +434,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [triggerShowControls, isBuffering, hlsMode]);
 
+  const partySeekRef = useRef<(seconds: number) => void>(undefined);
   const handleSeek = useCallback((targetSec: number) => {
     diagnosticEvent(diagnostic,"playback.seek",{position:targetSec});
     let finalSec = targetSec;
     if (finalSec < 0) finalSec = 0;
     if (totalDuration > 0 && finalSec > totalDuration) finalSec = totalDuration;
+    partySeekRef.current?.(finalSec);
     if (hlsMode) { hlsController.current?.seek(finalSec); updateProgressDisplay(finalSec); triggerShowControls(); return; }
 
     hasStartedRef.current = false;
@@ -457,12 +461,29 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     else handleSeek(shownSkip.end);
   }, [shownSkip, shownSkipAction, onNextEpisode, handleSeek]);
 
+  const party = useWatchParty({
+    isPlaying,
+    getPosition: () => hlsController.current?.position ?? (playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current)),
+    togglePlay,
+    seek: handleSeek,
+  });
+  const partySend = party.send;
+  useEffect(() => { partySeekRef.current = (seconds) => partySend("seek", seconds); }, [partySend]);
+  const [partyCopied, setPartyCopied] = useState(false);
+  const copyPartyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(party.invite());
+      setPartyCopied(true);
+      window.setTimeout(() => setPartyCopied(false), 2000);
+    } catch { /* clipboard unavailable (insecure context) */ }
+  }, [party]);
   // Seconds left before the next episode starts on its own; null while idle or cancelled.
   const [nextCountdown, setNextCountdown] = useState<number | null>(null);
   useEffect(() => {
     if (nextCountdown === null) return;
-    if (nextCountdown <= 0) { setNextCountdown(null); onNextEpisode?.(); return; }
-    const timer = window.setTimeout(() => setNextCountdown(nextCountdown - 1), 1000);
+    const timer = window.setTimeout(() => {
+      if (nextCountdown <= 1) { setNextCountdown(null); onNextEpisode?.(); } else setNextCountdown(nextCountdown - 1);
+    }, 1000);
     return () => window.clearTimeout(timer);
   }, [nextCountdown, onNextEpisode]);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -1212,6 +1233,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                           title={t("Select Audio Track")}
                         >
                           <Settings className="h-4 w-4" /><span className="player-label">{t("Réglages")}</span>
+                        </button>
+                        <button onClick={copyPartyLink} className="player-pill player-pill--icon" data-active={party.room !== null} aria-live="polite" aria-label={t(partyCopied ? "Lien copié" : "Regarder ensemble : copier l’invitation")} title={t(partyCopied ? "Lien copié" : "Regarder ensemble : copier l’invitation")}>
+                          <Users className="h-[18px] w-[18px]" />
                         </button>
                         <button onClick={copyTimeLink} className="player-pill player-pill--icon" aria-live="polite" aria-label={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")} title={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")}>
                           <Link2 className="h-[18px] w-[18px]" />
