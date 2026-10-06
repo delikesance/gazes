@@ -36,7 +36,7 @@ func TestOpenStoreMigratesLegacyDatabase(t *testing.T) {
 		t.Fatalf("user = %+v", u)
 	}
 	var v int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil || v != 5 {
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil || v != 6 {
 		t.Fatalf("user_version = %d, %v", v, err)
 	}
 	var n int

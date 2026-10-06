@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import type { Franchise } from "@/types/api";
 import { listProgress, resumeTarget, type SavedProgress } from "@/lib/watch-progress";
 import { WatchlistButton } from "./WatchlistButton";
+import { AnimeNoteButton } from "./AnimeNoteButton";
 import { LazyImage } from "./ui/LazyImage";
 
 const plain = (html?: string) => (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -55,7 +56,7 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
         {warning}
         <div className="hero-actions">
           {saved ? <Link className="design-button" href={`${base}/seasons/${saved.season}/episodes/${target?.episode ?? saved.episode}`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t(target?.next ? "Épisode suivant" : "Reprendre")} · {resumeLabel}</Link>
-            : first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        <WatchlistButton animeId={franchise.id} /></div>
+            : first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        <WatchlistButton animeId={franchise.id} /><AnimeNoteButton animeId={franchise.id} /></div>
       </div>
     </section>
     <div id="seasons">{groups.map(({ group, title, entries }) => group === "main"
