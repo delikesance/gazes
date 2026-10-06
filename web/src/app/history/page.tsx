@@ -6,6 +6,7 @@ import { Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { listProgress, type SavedProgress } from "@/lib/watch-progress";
 import { getSeason } from "@/lib/api";
+import { cachedImage } from "@/lib/image";
 import { PageGrid } from "@/components/ui/PageGrid";
 import { Scribble } from "@/components/ui/Scribble";
 import { WatchlistShelf } from "@/components/WatchlistShelf";
@@ -71,8 +72,8 @@ export default function HistoryPage() {
               <li key={item.season}>
                 <Link href={`/anime/${item.animeId || item.season}/seasons/${item.season}/episodes/${item.episode}`} className="history-card">
                   <span className="history-poster" role="img" aria-label={`${title}, ${watched} %`}>
-                    {meta?.poster && <img src={meta.poster} alt="" loading="lazy" />}
-                    {meta?.poster && watched < 100 && <img className="history-poster-gray" src={meta.poster} alt="" aria-hidden="true" loading="lazy" style={{ clipPath: `inset(0 0 ${watched}% 0)` }} />}
+                    {meta?.poster && <img src={cachedImage(meta.poster)} alt="" loading="lazy" />}
+                    {meta?.poster && watched < 100 && <img className="history-poster-gray" src={cachedImage(meta.poster)} alt="" aria-hidden="true" loading="lazy" style={{ clipPath: `inset(0 0 ${watched}% 0)` }} />}
                     <span className="history-play"><Play size={18} fill="currentColor" /></span>
                   </span>
                   <span className="history-meta">

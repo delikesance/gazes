@@ -6,6 +6,7 @@ import { Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { listProgress, resumeTarget, type SavedProgress } from "@/lib/watch-progress";
 import { cachedSeasonInfo, loadSeasonInfo } from "@/lib/season-info";
+import { cachedImage } from "@/lib/image";
 
 const LIMIT = 6;
 
@@ -44,8 +45,8 @@ export function ContinueWatching() {
         return <li key={item.season}>
           <Link href={`/anime/${item.animeId || item.season}/seasons/${item.season}/episodes/${target.episode}`} className="history-card">
             <span className="history-poster" role="img" aria-label={`${title}, ${watched} %`}>
-              {meta?.poster && <img src={meta.poster} alt="" loading="lazy" />}
-              {meta?.poster && watched < 100 && <img className="history-poster-gray" src={meta.poster} alt="" aria-hidden="true" loading="lazy" style={{ clipPath: `inset(0 0 ${watched}% 0)` }} />}
+              {meta?.poster && <img src={cachedImage(meta.poster)} alt="" loading="lazy" />}
+              {meta?.poster && watched < 100 && <img className="history-poster-gray" src={cachedImage(meta.poster)} alt="" aria-hidden="true" loading="lazy" style={{ clipPath: `inset(0 0 ${watched}% 0)` }} />}
               <span className="history-play"><Play size={18} fill="currentColor" /></span>
             </span>
             <span className="history-meta"><span className="history-episode">{target.next ? `${t("Suivant")} · ` : ""}{t("Épisode")} {target.episode}</span></span>
