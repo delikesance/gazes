@@ -1,0 +1,102 @@
+# BTCPay Server (Bitcoin only, pruned node) for Gazes donations. Separate compose project:
+#   cd deploy/btcpay && cp .env.example .env   # fill BTCPAY_DOMAIN and generate POSTGRES_PASSWORD
+#   docker compose -p gazes-btcpay up -d
+# Nothing is published except BTCPay's web UI on 127.0.0.1:23000, for the host's Caddy to proxy
+# (see README.md). Never run `down -v`: it deletes the wallet settings and the chain data.
+name: gazes-btcpay
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    logging: *logging
+
+  bitcoind:
+    image: btcpayserver/bitcoin:31.1
+    restart: unless-stopped
+    environment:
+      BITCOIN_NETWORK: mainnet
+      BITCOIN_EXTRA_ARGS: |
+        rpcport=43782
+        rpcbind=0.0.0.0:43782
+        rpcallowip=172.16.0.0/12
+        port=39388
+        whitelist=172.16.0.0/12
+        maxmempool=300
+        dbcache=512
+        prune=20000
+        disablewallet=1
+    expose: ["43782", "39388"]
+    volumes:
+      - bitcoin:/data
+    mem_limit: 2g
+    cpus: 2
+    logging: *logging
+
+  nbxplorer:
+    image: nicolasdorier/nbxplorer:2.6.19
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      bitcoind: { condition: service_started }
+    environment:
+      NBXPLORER_NETWORK: mainnet
+      NBXPLORER_CHAINS: btc
+      NBXPLORER_BIND: 0.0.0.0:32838
+      NBXPLORER_NOAUTH: "1"
+      NBXPLORER_SIGNALFILESDIR: /datadir
+      NBXPLORER_TRIMEVENTS: "10000"
+      NBXPLORER_POSTGRES: User ID=postgres;Password=${POSTGRES_PASSWORD};Host=postgres;Port=5432;Application Name=nbxplorer;MaxPoolSize=20;Database=nbxplorer
+      NBXPLORER_BTCRPCURL: http://bitcoind:43782/
+      NBXPLORER_BTCNODEENDPOINT: bitcoind:39388
+    expose: ["32838"]
+    volumes:
+      - nbxplorer:/datadir
+      - bitcoin:/root/.bitcoin # RPC cookie written by bitcoind
+    mem_limit: 1g
+    logging: *logging
+
+  btcpayserver:
+    image: btcpayserver/btcpayserver:2.4.5
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      nbxplorer: { condition: service_started }
+    environment:
+      BTCPAY_NETWORK: mainnet
+      BTCPAY_CHAINS: btc
+      BTCPAY_BIND: 0.0.0.0:49392
+      BTCPAY_ROOTPATH: /
+      BTCPAY_PROTOCOL: https
+      BTCPAY_HOST: ${BTCPAY_DOMAIN:?set BTCPAY_DOMAIN in .env}
+      BTCPAY_POSTGRES: User ID=postgres;Password=${POSTGRES_PASSWORD};Host=postgres;Port=5432;Application Name=btcpayserver;MaxPoolSize=20;Database=btcpayserver
+      BTCPAY_EXPLORERPOSTGRES: User ID=postgres;Password=${POSTGRES_PASSWORD};Host=postgres;Port=5432;Application Name=btcpayserver-nbxplorer;MaxPoolSize=20;Database=nbxplorer
+      BTCPAY_BTCEXPLORERURL: http://nbxplorer:32838/
+    ports:
+      - "127.0.0.1:23000:49392"
+    volumes:
+      - btcpay:/datadir
+      - nbxplorer:/root/.nbxplorer
+    mem_limit: 1g
+    logging: *logging
+
+volumes:
+  postgres:
+  bitcoin:
+  nbxplorer:
+  btcpay:
