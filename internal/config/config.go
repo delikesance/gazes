@@ -30,6 +30,9 @@ type Config struct {
 	WatchWebhookURL      string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_URL: where watch events are POSTed (optional)
 	WatchWebhookSecret   string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
 	WatchDiskPath        string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
+	VPNControlURL        string        `json:"-"`                         // VPN_CONTROL_URL: gluetun control server; empty = no VPN
+	VPNRotateEvery       time.Duration `json:"-"`                         // VPN_ROTATE_EVERY: periodic exit-IP rotation; 0 disables
+	VPNRotateMinGap      time.Duration `json:"-"`                         // VPN_ROTATE_MIN_GAP: shortest time between two rotations
 	TrustProxy           bool          `json:"trust_proxy"`
 	TrustedProxies       []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
@@ -102,6 +105,9 @@ func Load() *Config {
 		WatchWebhookURL:          getEnv("GAZES_WATCH_WEBHOOK_URL", ""),
 		WatchWebhookSecret:       getEnv("GAZES_WATCH_WEBHOOK_SECRET", ""),
 		WatchDiskPath:            getEnv("GAZES_WATCH_DISK_PATH", ""),
+		VPNControlURL:            getEnv("VPN_CONTROL_URL", ""),
+		VPNRotateEvery:           getEnvDuration("VPN_ROTATE_EVERY", 30*time.Minute),
+		VPNRotateMinGap:          getEnvDuration("VPN_ROTATE_MIN_GAP", 10*time.Minute),
 		TrustProxy:               getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
 		TrustedProxies:           splitList(getEnv("TRUSTED_PROXIES", "")),
 		ArrAuthoritative:         getEnvBool("ARR_AUTHORITATIVE", false),

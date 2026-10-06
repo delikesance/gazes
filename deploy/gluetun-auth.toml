@@ -1,0 +1,6 @@
+# gluetun control server: the backend (same network namespace, loopback) may restart the tunnel
+# (new Mullvad server = new exit IP) and read the public IP. The port is not published.
+[[roles]]
+name = "gazes"
+routes = ["PUT /v1/vpn/status", "GET /v1/vpn/status", "GET /v1/publicip/ip"]
+auth = "none"
