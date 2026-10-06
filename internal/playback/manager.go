@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +41,7 @@ type Session struct {
 	index       *Index
 	hash        string
 	file, audio int
+	transcode   bool // re-encode the video to H.264: the client cannot decode the source codec
 	used        time.Time
 }
 type job struct {
@@ -107,7 +109,8 @@ func (m *Manager) Close() {
 		j.cancel()
 	}
 }
-func (m *Manager) Create(ctx context.Context, hash string, file, audio int, position float64) (*Session, error) {
+// Create opens a session. noAV1 says the client cannot decode AV1, so an AV1 source is transcoded to H.264.
+func (m *Manager) Create(ctx context.Context, hash string, file, audio int, position float64, noAV1 bool) (*Session, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	r, info, err := m.engine.GetFileStream(ctx, hash, file)
@@ -133,12 +136,19 @@ func (m *Manager) Create(ctx context.Context, hash string, file, audio int, posi
 		return nil, fmt.Errorf("invalid position")
 	}
 	position = min(position, idx.Duration)
-	s := &Session{ID: uuid.NewString(), Duration: idx.Duration, Origin: idx.Origin, Metadata: meta, index: idx, hash: hash, file: file, audio: audio, Position: position, used: time.Now()}
+	s := &Session{ID: uuid.NewString(), Duration: idx.Duration, Origin: idx.Origin, Metadata: meta, index: idx, hash: hash, file: file, audio: audio, transcode: noAV1 && strings.EqualFold(meta.VideoCodec, "av1"), Position: position, used: time.Now()}
 	s.Playlist = "/api/v1/playback/sessions/" + s.ID + "/index.m3u8"
 	m.mu.Lock()
 	m.sessions[s.ID] = s
 	m.mu.Unlock()
 	return cloneSession(s), nil
+}
+// videoArgs copies the video, or re-encodes it to 8-bit H.264 (what every iPad and iPhone decodes) when transcode is set.
+func videoArgs(transcode bool) []string {
+	if !transcode {
+		return []string{"-c:v", "copy"}
+	}
+	return []string{"-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-profile:v", "high"}
 }
 func cloneSession(s *Session) *Session { v := *s; return &v }
 func (m *Manager) Get(id string) (*Session, bool) {
@@ -342,7 +352,9 @@ func (m *Manager) produce(ctx context.Context, key string, j *job, s *Session, n
 		bin = "ffmpeg"
 	}
 	input := fmt.Sprintf("%s?ih=%s&file_idx=%d&playback_session_id=%s", m.opts.RawURL, s.hash, s.file, s.ID)
-	args := []string{"-hide_banner", "-loglevel", "error", "-copyts", "-noaccurate_seek", "-ss", strconv.FormatFloat(seg.Start+s.Origin, 'f', 6, 64), "-seek_timestamp", "1", "-i", input, "-map", "0:v:0", "-c:v", "copy", "-sn", "-dn"}
+	args := []string{"-hide_banner", "-loglevel", "error", "-copyts", "-noaccurate_seek", "-ss", strconv.FormatFloat(seg.Start+s.Origin, 'f', 6, 64), "-seek_timestamp", "1", "-i", input, "-map", "0:v:0"}
+	args = append(args, videoArgs(s.transcode)...)
+	args = append(args, "-sn", "-dn")
 	if len(s.Metadata.AudioTracks) > 0 {
 		args = append(args, "-map", fmt.Sprintf("0:a:%d", s.audio))
 		if s.Metadata.AudioTracks[s.audio].Codec == "aac" {

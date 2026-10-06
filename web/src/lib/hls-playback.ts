@@ -27,6 +27,9 @@ class EpisodeStreamController extends Hls.DefaultConfig.streamController {
 }
 
 /** Owns the media lifetime. React never rebases or replaces the video on seek. */
+/** Whether this browser decodes AV1; when it cannot, the server transcodes AV1 sources to H.264. */
+function canDecodeAV1() { return typeof MediaSource !== 'undefined' && typeof MediaSource.isTypeSupported === 'function' && MediaSource.isTypeSupported('video/mp4; codecs="av01.0.08M.10"'); }
+
 export class HlsPlaybackController {
   private hls?: Hls;
   private session?: PlaybackSession;
@@ -83,7 +86,7 @@ export class HlsPlaybackController {
     try {
       const response = await fetch(`${getApiBase()}/playback/sessions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...diagnosticHeaders(this.diagnostic) }, signal: this.request.signal,
-        body: JSON.stringify({ info_hash: infoHash, file_index: fileIndex, audio_track: audioTrack, position }),
+        body: JSON.stringify({ info_hash: infoHash, file_index: fileIndex, audio_track: audioTrack, position, no_av1: !canDecodeAV1() }),
       });
       if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error === 'seek_index_unavailable' ? 'Cette source ne possède pas d’index permettant une lecture fiable.' : 'Impossible de préparer cette source pour la lecture.'); }
       const session = await response.json() as PlaybackSession;
