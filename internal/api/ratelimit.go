@@ -13,7 +13,8 @@ import (
 const ssrBudgetFactor = 10
 
 // rateLimit allows limit requests per span for each client IP on the routes it wraps.
-// ffmpeg reading its own stream through /stream/raw over loopback is exempt. A request from the
+// ffmpeg reading its own stream through /stream/raw over loopback (no X-Forwarded-For: a proxy on
+// this host relaying browsers is not exempt) is exempt. A request from the
 // trusted proxy without X-Forwarded-For is the web server's server-side render (every browser
 // request crosses Caddy, which sets the header): renders share one larger budget instead of being
 // unlimited, since a page URL (/?q=..., /genre/x?page=N) would otherwise bypass every limit. A
@@ -21,15 +22,16 @@ const ssrBudgetFactor = 10
 func (s *Server) rateLimit(name string, limit int, span time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if peerIsLoopback(r) {
+			if peerIsLoopback(r) && r.Header.Get("X-Forwarded-For") == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
-			key := s.clientKey(r)
+			// limit is shared by every request through this middleware: never reassign it.
+			key, budget := s.clientKey(r), limit
 			if s.proxy.Trusts(r) && r.Header.Get("X-Forwarded-For") == "" {
-				key, limit = "ssr", limit*ssrBudgetFactor
+				key, budget = "ssr", limit*ssrBudgetFactor
 			}
-			if !s.routeLimits.hit(name+"|"+key, limit, span) {
+			if !s.routeLimits.hit(name+"|"+key, budget, span) {
 				w.Header().Set("Retry-After", strconv.Itoa(int(span.Seconds())))
 				http.Error(w, "rate limit", http.StatusTooManyRequests)
 				return
