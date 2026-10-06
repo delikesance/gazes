@@ -889,9 +889,26 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .next-episode-card { position: absolute; right: var(--page-gutter, 24px); bottom: 96px; z-index: 30; display: grid; gap: 12px; padding: 16px 18px; border-radius: 20px; background: var(--surface-raised, #17171a); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border); }
 .next-episode-card p { margin: 0; font-size: 14px; font-weight: 500; }
 .next-episode-actions { display: flex; gap: 8px; }
-.continue-watching { padding-bottom: 28px; }
-.continue-watching .section-heading { justify-content: space-between; }
-.continue-watching .history-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+/* Shelves above the calendar: resume and watchlist each own their heading, then hand over to the tabbed section below. */
+.shelves { display: flex; flex-direction: column; gap: 40px; margin-top: 32px; }
+.shelves:empty { display: none; }
+.continue-watching .section-heading { align-items: flex-end; justify-content: space-between; margin: 0 var(--page-gutter) 18px; }
+.continue-watching .section-heading h2 { font-size: clamp(26px, 2.6vw, 34px); line-height: 1.1; font-weight: 400; }
+.continue-watching .section-heading .clay { flex-shrink: 0; }
+.continue-watching .history-grid { display: flex; gap: 16px; padding: 0 var(--page-gutter) 4px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
+.continue-watching .history-grid::-webkit-scrollbar { display: none; }
+.continue-watching .history-grid > li { flex: 0 0 clamp(150px, 12.4vw, 190px); scroll-snap-align: start; scroll-margin-inline: var(--page-gutter); }
+.continue-watching .history-card { gap: 10px; }
+.continue-watching .history-title { font-size: 14px; }
+.season-discovery .catalog-tabs-row { margin-top: 48px; }
+@media (max-width: 600px) {
+  .shelves { gap: 32px; margin-top: 24px; }
+  .continue-watching .section-heading { margin-bottom: 14px; }
+  .continue-watching .section-heading .clay { height: 32px; padding-inline: 14px; font-size: 13px; }
+  .continue-watching .history-grid { gap: 12px; }
+  .continue-watching .history-grid > li { flex-basis: 132px; }
+  .season-discovery .catalog-tabs-row { margin-top: 36px; }
+}
 
 /* Phone navigation bar */
 .mobile-nav { display: none; }
