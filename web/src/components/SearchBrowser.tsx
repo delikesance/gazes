@@ -129,7 +129,7 @@ export function SearchBrowser() {
         <p className="search-hint">{t("Clic gauche : inclure · Clic droit ou appui long : exclure")}</p>
         <GenreFilter include={include} exclude={exclude} onChange={(inc, exc) => setUrlParams({ genres: inc.join(",") || null, exclude: exc.join(",") || null })} />
       </div>
-      {shown && shown.items.length > 0 && <div data-stale={!current} className="search-results"><SeasonalGrid count={shown.items.length} evenRows={false}>
+      {shown && shown.items.length > 0 && <div data-stale={!current} className="search-results"><SeasonalGrid count={shown.items.length} evenRows={false} keepColumns>
         {shown.items.map((anime) => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={false} />)}
       </SeasonalGrid></div>}
       <div className="page-inset">

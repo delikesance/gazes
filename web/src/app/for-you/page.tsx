@@ -90,7 +90,7 @@ export default function ForYouPage() {
         <span className="eyebrow">{t("Suggestions")}</span>
         <h1 className="serif">{t("Pour vous")}</h1>
       </div>
-      {items.length > 0 && <SeasonalGrid count={items.length} evenRows={false}>
+      {items.length > 0 && <SeasonalGrid count={items.length} evenRows={false} keepColumns>
         {items.map((anime) => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={false} onHide={hide} />)}
       </SeasonalGrid>}
       <div className="page-inset">
