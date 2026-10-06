@@ -134,6 +134,26 @@ func TestRenamedSeasonEndpointUsesReleaseSeason(t *testing.T) {
 	}
 }
 
+type throttledTransport struct{}
+
+func (throttledTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	return &http.Response{StatusCode: 429, Header: http.Header{"Retry-After": {"30"}}, Body: io.NopCloser(bytes.NewReader(nil)), Request: r}, nil
+}
+
+func TestFranchiseAndSeasonAnswerThrottleWith503AndRetryAfter(t *testing.T) {
+	s := &Server{catalogService: metadata.NewAnimeCatalogService(&http.Client{Transport: throttledTransport{}})}
+	router := chi.NewRouter()
+	router.Get("/anime/{id}/franchise", s.HandleFranchise)
+	router.Get("/anime/{id}/seasons/{season}", s.HandleSeason)
+	for _, path := range []string{"/anime/1/franchise", "/anime/1/seasons/2"} {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+		if rr.Code != 503 || rr.Header().Get("Retry-After") == "" {
+			t.Errorf("%s: code=%d retry=%q body=%s", path, rr.Code, rr.Header().Get("Retry-After"), rr.Body)
+		}
+	}
+}
+
 type narutoIndexer struct{}
 
 func (narutoIndexer) Name() string { return "naruto" }

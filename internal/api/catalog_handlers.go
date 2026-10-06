@@ -250,7 +250,7 @@ func (s *Server) HandleFranchise(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := s.catalogService.GetFranchise(r.Context(), id)
 	if err != nil {
-		http.Error(w, "failed to load seasons", 502)
+		s.catalogFailure(w, r, "failed to load franchise", "failed to load seasons", err, "anime_id", id)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -266,14 +266,14 @@ func (s *Server) seasonContext(w http.ResponseWriter, r *http.Request) (*metadat
 	}
 	f, err := s.catalogService.GetFranchise(r.Context(), id)
 	if err != nil {
-		http.Error(w, "failed to load seasons", 502)
+		s.catalogFailure(w, r, "failed to load franchise", "failed to load seasons", err, "anime_id", id)
 		return nil, nil, nil
 	}
 	for _, season := range f.Seasons {
 		if season.ID == seasonID {
 			item, err := s.catalogService.GetAnimeDetailsWithEpisodes(r.Context(), seasonID)
 			if err != nil {
-				http.Error(w, "failed to load episodes", 502)
+				s.catalogFailure(w, r, "failed to load episodes", "failed to load episodes", err, "anime_id", id, "season_id", seasonID)
 				return nil, nil, nil
 			}
 			placed := item.InSeason(season.EpisodeOffset)
