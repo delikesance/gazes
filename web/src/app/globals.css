@@ -869,3 +869,8 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .genre-chips .chip[aria-current="page"] { background: var(--clay-bg); color: var(--clay-fg); }
 .genre-chips .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .genre-pager { display: flex; justify-content: center; gap: 12px; padding-top: 28px; }
+
+/* Next-episode countdown shown over the player once an episode ends */
+.next-episode-card { position: absolute; right: var(--page-gutter, 24px); bottom: 96px; z-index: 30; display: grid; gap: 12px; padding: 16px 18px; border-radius: 20px; background: var(--surface-raised, #17171a); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border); }
+.next-episode-card p { margin: 0; font-size: 14px; font-weight: 500; }
+.next-episode-actions { display: flex; gap: 8px; }
