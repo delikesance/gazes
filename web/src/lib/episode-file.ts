@@ -108,6 +108,8 @@ export function episodeCandidates(files: FileInfo[], source: EpisodeSource): Fil
     .map(match => Number(match[1]))
     .filter(number => ![360, 480, 576, 720, 810, 1080, 2160, 264, 265].includes(number) && (number < 1900 || number > 2099));
 
+  // A lone unnumbered video is a single-episode release (special/OVA-length TV entry): it is episode 1.
+  if (!candidates.length) return epNum === 1 && files.filter(f => f.is_video).length === 1;
   return candidates.length === 1 && (candidates[0] === epNum || candidates[0] === absNum);
  });
 }

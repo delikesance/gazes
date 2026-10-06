@@ -173,3 +173,10 @@ test('CJK episode markers (第19话 / 第19集) are read, and other CJK episodes
  assert.equal(episodeFile([file(0,cn)],cnSource),0);
  assert.equal(episodeFile([file(0,cn.replace('第19集','第18集'))],cnSource),null);
 });
+test('a one-file unnumbered release of a single-episode special is episode 1',()=>{
+ const special={episode_number:1,season_number:1,anime_aliases:['Dragon Ball: Yo! Son Goku and His Friends Return!!'],excluded_titles:['Dragon Ball: Curse of the Blood Rubies']};
+ const path='[AWGS] Dragon Ball Yo! Son Goku and His Friends Return!!.mp4';
+ assert.equal(episodeFile([file(0,path)],special),0);
+ assert.equal(episodeFile([file(0,path)],{...special,episode_number:2}),null);
+ assert.equal(episodeFile([file(0,path),file(1,path.replace('.mp4','.sample.mp4'))],special),null);
+});
