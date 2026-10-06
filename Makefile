@@ -11,7 +11,7 @@ GO_TAGS ?= nosqlite
 
 .PHONY: help deps build build-backend build-web dev-backend dev-web start-web \
 	test test-backend test-race test-web lint lint-backend lint-web typecheck check \
-	secrets redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-reload-backend dev-check dev-test dev-build library-install-host library-label-disk
+	secrets vpn-key redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-reload-backend dev-check dev-test dev-build library-install-host library-label-disk
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -24,13 +24,19 @@ secrets: ## Generate account encryption keys into .env (kept if already set)
 	@$(MAKE) --no-print-directory redis-secret
 	@echo ".env now holds the account keys. Back it up: losing them makes stored emails unreadable."
 
+vpn-key: ## Register a Mullvad WireGuard device and write its keys into .env (MULLVAD_ACCOUNT=... or prompt)
+	@scripts/vpn-key.sh
+
 redis-secret: ## Generate REDIS_PASSWORD into .env (kept if already set)
 	@touch .env
 	@grep -q "^REDIS_PASSWORD=" .env || echo "REDIS_PASSWORD=$$(openssl rand -hex 24)" >> .env
 
 redis-up: redis-secret ## Start the Redis shared by every stack (creates the gazes-shared network)
 	@docker network inspect gazes-shared >/dev/null 2>&1 || docker network create gazes-shared >/dev/null
-	$(DOCKER_COMPOSE) -f compose.redis.yaml up -d --wait
+	@# --no-recreate: this Redis is shared by every checkout on the host (prod, dev, pre-prod), and each one has
+	@# its own .env. Recreating it from another checkout swaps the password under the running stacks and locks
+	@# them out of Redis (the 2026-10-06 outage). To change its configuration: make redis-down, then redis-up.
+	$(DOCKER_COMPOSE) -f compose.redis.yaml up -d --wait --no-recreate
 
 redis-down: ## Stop the shared Redis (its data volume is kept)
 	$(DOCKER_COMPOSE) -f compose.redis.yaml down

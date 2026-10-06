@@ -17,6 +17,7 @@ The admin panel is the web UI under `/admin`, the REST API under `/api/v1/admin`
 | `GAZES_WATCH_WEBHOOK_URL` / `GAZES_WATCH_WEBHOOK_SECRET` | empty | watch events and their HMAC key |
 | `GAZES_WATCH_DISK_PATH` | empty | volume measured by the `disk_pct` rule (empty = not measured) |
 | `GAZES_COST_SERVER_MONTH`, `GAZES_COST_BANDWIDTH_PER_GB`, `GAZES_COST_STORAGE_PER_GB_MONTH`, `GAZES_GB_PER_WATCH_HOUR` | empty | inputs of the Business page costs (empty = `[À RENSEIGNER]`, never a made-up figure) |
+| `GAZES_SITE_URL`, `GAZES_BTCPAY_URL`, `GAZES_BTCPAY_STORE_ID`, `GAZES_BTCPAY_API_KEY`, `GAZES_BTCPAY_WEBHOOK_SECRET`, `GAZES_KOFI_URL`, `GAZES_KOFI_TOKEN`, `GAZES_DONATION_GOAL_EUR` | empty | donations, see `docs/donations.md` (empty = the `/soutenir` page says "bientôt") |
 
 ## What runs in the background
 

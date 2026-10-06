@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- artwork URLs come from the catalog CDN */
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { cachedImage } from "@/lib/image";
 
 interface PlayerStartupProps {
   /** "connect" while the torrent metadata loads, "stream" while waiting for the first video bytes. */
@@ -27,7 +28,7 @@ export function PlayerStartup({ stage, overlay, image, title, episode }: PlayerS
 
   return (
     <div className={`player-connecting${overlay ? " is-overlay" : ""}`} role="status" aria-live="polite">
-      {image && <img className="player-startup-art" src={image} alt="" aria-hidden="true" />}
+      {image && <img className="player-startup-art" src={cachedImage(image)} alt="" aria-hidden="true" />}
       <div className="player-startup-body">
         <svg className="watch-loading-ring" viewBox="0 0 72 72" aria-hidden="true">
           <circle className="watch-loading-track" cx="36" cy="36" r="32" />

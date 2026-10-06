@@ -44,6 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
   return [
     { url: SITE_URL, lastModified, changeFrequency: "daily", priority: 1 },
+    { url: `${SITE_URL}/soutenir`, changeFrequency: "monthly", priority: 0.2 },
     { url: `${SITE_URL}/changelog`, lastModified: new Date(`${CHANGELOG[0].date}T00:00:00Z`), changeFrequency: "weekly", priority: 0.3 },
     ...GENRES.map(([value]) => ({ url: `${SITE_URL}/genre/${genreSlug(value)}`, lastModified, changeFrequency: "weekly" as const, priority: 0.6 })),
     ...ids.map((id) => ({ url: `${SITE_URL}/anime/${id}`, lastModified, changeFrequency: "weekly" as const, priority: 0.7 })),

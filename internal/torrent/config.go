@@ -16,6 +16,7 @@ type EngineConfig struct {
 	EstablishedConnsPerTorrent int
 	HalfOpenConnsPerTorrent    int
 	Seed                       bool
+	Tunneled                   bool // behind a VPN: no inbound port, so no UPnP / NAT-PMP mapping
 	EnableTitForTat            bool
 	DefaultTrackers            []string
 	DHTBootstrapRouters        []string

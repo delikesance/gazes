@@ -703,3 +703,28 @@ export interface AdminTokenCreated {
   scopes: string[];
   expires_at: string;
 }
+
+// GET /donations - who gave what (internal/admin/api_donations.go); admin session only, never a token.
+export interface AdminDonation {
+  id: string;
+  provider: "btcpay" | "kofi" | "manual" | string;
+  provider_ref: string;
+  user_id: number | null;
+  pseudo: string | null;
+  donor_label: string;
+  visibility: "anonymous" | "named";
+  display_name: string;
+  amount_cents: number;
+  currency: string;
+  status: "pending" | "settled" | "expired" | string;
+  message: string;
+  created_at: number;
+  settled_at: number | null;
+}
+
+export interface AdminDonations {
+  summary: { month_cents: number; all_cents: number; count: number; donors: number };
+  donations: AdminDonation[];
+  limit: number;
+  offset: number;
+}

@@ -98,11 +98,18 @@ The development project uses separate `gazes-dev` containers and volumes (Prowla
 
 ```sh
 make secrets      # Generate account keys into .env (kept if already set)
+make vpn-key      # Register a Mullvad WireGuard device, write WIREGUARD_* into .env (MULLVAD_ACCOUNT=... or prompt)
 make up           # secrets + shared Redis + docker compose up -d --build --wait
 make down         # Stop, preserving volumes
 ```
 
-`make up` is equivalent to `docker compose up -d --build --wait` once secrets and Redis exist. Open `http://SERVER:8080` (`GAZES_PORT` changes the port). The frontend, the FFmpeg-enabled backend and Prowlarr start together. The backend also publishes the torrent port (`TORRENT_PORT`, default 42069, TCP and UDP); forward it on your router for better swarm reach. `make up-admin` additionally exposes Prowlarr on loopback (see Indexers).
+`make up` is equivalent to `docker compose up -d --build --wait` once secrets, the VPN keys and Redis exist. Open `http://SERVER:8080` (`GAZES_PORT` changes the port). The frontend, the FFmpeg-enabled backend, its Mullvad sidecar and Prowlarr start together. `make up-admin` additionally exposes Prowlarr on loopback (see Indexers).
+
+#### VPN (Mullvad)
+
+The backend runs inside the network namespace of a [gluetun](https://github.com/qdm12/gluetun) container (Mullvad, WireGuard): torrent peers, trackers, AniList and indexers all leave through the tunnel, and gluetun's firewall blocks any other route, so nothing leaks if the VPN drops. Mullvad offers no port forwarding, so peers cannot connect in (outbound only) and `TORRENT_PORT` is no longer published.
+
+The exit IP rotates: gluetun picks a random server among `VPN_COUNTRIES` each time the tunnel restarts, which the backend triggers every `VPN_ROTATE_EVERY` (default 30m, `0` disables) and immediately when AniList answers 429/502/503 (at most once per `VPN_ROTATE_MIN_GAP`, default 10m; the shared AniList cooldown is lifted since the new IP did not earn it). A rotation briefly cuts peer connections: the timer postpones it while someone streams or downloads (at most 4 ticks), the AniList-triggered one does not wait. Hostname lookups use Docker's resolver (needed for `gazes-redis`, `prowlarr`), not the tunnel. Every stack that uses the same keys counts as one Mullvad device (5 per account); the dev stack shares the `.env` keys.
 
 ### Native run
 

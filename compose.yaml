@@ -53,6 +53,48 @@ services:
         condition: service_healthy
       flaresolverr:
         condition: service_healthy
+  # Mullvad (WireGuard) sidecar: the backend shares its network namespace, so every byte it sends (torrent
+  # peers, trackers, AniList, indexers) leaves through the tunnel; gluetun's firewall blocks everything else
+  # (kill-switch). The backend rotates the exit IP through its control server (internal/vpn). Mullvad has no
+  # port forwarding: peers cannot connect in, outbound only.
+  gluetun:
+    image: qmcgaw/gluetun:v3.40.0
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      VPN_SERVICE_PROVIDER: mullvad
+      VPN_TYPE: wireguard
+      # From .env (make vpn-key). Never commit them.
+      WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY:?run make vpn-key}"
+      WIREGUARD_ADDRESSES: "${WIREGUARD_ADDRESSES:?run make vpn-key}"
+      # Several countries: each reconnect picks a random server among them, which is the IP rotation.
+      SERVER_COUNTRIES: "${VPN_COUNTRIES:-Netherlands,Germany,Sweden,Switzerland,France,Belgium,Austria,Norway}"
+      TZ: UTC
+      # Backend API (web reaches it as gluetun:8090), and the control server for loopback only.
+      FIREWALL_INPUT_PORTS: "8090"
+      # Docker networks: redis (gazes-shared), prowlarr and flaresolverr (default) must stay reachable. Docker's
+      # default pools only; 10.0.0.0/8 is left out on purpose (Mullvad's tunnel addresses live in 10.64.0.0/10).
+      FIREWALL_OUTBOUND_SUBNETS: "${VPN_LOCAL_SUBNETS:-172.16.0.0/12,192.168.0.0/16}"
+      # Docker's embedded DNS must keep resolving service names (gazes-redis, prowlarr, flaresolverr), which
+      # gluetun's own DoT resolver cannot. Cost: hostname lookups go through the host resolver, not the tunnel
+      # (payload, peers and AniList traffic still leave through Mullvad only).
+      DOT: "off"
+      DNS_KEEP_NAMESERVER: "on"
+      HTTP_CONTROL_SERVER_ADDRESS: "127.0.0.1:8000"
+    volumes:
+      - ./deploy/gluetun-auth.toml:/gluetun/auth/config.toml:ro
+    networks: [default, gazes-shared]
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
   backend:
     build:
       context: .
@@ -60,6 +102,8 @@ services:
     restart: unless-stopped
     init: true
     stop_grace_period: 30s
+    # Shares gluetun's network: no ports/networks of its own (they belong to gluetun).
+    network_mode: "service:gluetun"
     env_file:
       - path: .env
         required: false
@@ -70,6 +114,7 @@ services:
       INDEXER_CONFIG_FILE: /run/gazes/indexers.json
       LOG_LEVEL: "${LOG_LEVEL:-debug}"
       LOG_DIR: /app/diagnostics
+      VPN_CONTROL_URL: http://127.0.0.1:8000
       TORRENT_PORT: "${TORRENT_PORT:-42069}"
       ACCOUNTS_DIR: /app/accounts
       # Required: caches, upstream rate limits and auth state live in the shared Redis (make redis-up).
@@ -87,15 +132,13 @@ services:
       ALTCHA_HMAC_KEY: "${ALTCHA_HMAC_KEY:-}"
       LIBRARY_POOL_DIR: /app/library-pool
       LIBRARY_INDEX_DIR: /app/library-index
-    # Inbound peer connections (TCP + uTP/DHT). Forward the same port on your router for the best swarm reach.
-    ports:
-      - "${TORRENT_PORT:-42069}:${TORRENT_PORT:-42069}/tcp"
-      - "${TORRENT_PORT:-42069}:${TORRENT_PORT:-42069}/udp"
     volumes:
       - indexer-secrets:/run/gazes:ro
       - diagnostics:/app/diagnostics
       - torrent-data:/app/data
       - torrent-cache:/app/cache
+      # Durable copy of the AniList catalog: survives Redis restarts and backend rebuilds.
+      - catalog:/app/catalog
       - accounts:/app/accounts
       - library-index:/app/library-index
       # AV1 library pool: disks labelled GAZES* are mounted below /mnt/gazes by the host (make library-install-host).
@@ -108,8 +151,12 @@ services:
         bind:
           propagation: rshared
           create_host_path: true
-    networks: [default, gazes-shared]
     depends_on:
+      gluetun:
+        condition: service_healthy
+        # The backend lives in gluetun's network namespace: a recreated/restarted gluetun orphans it,
+        # so it must restart with it.
+        restart: true
       prowlarr-configure:
         condition: service_completed_successfully
     healthcheck:
@@ -120,7 +167,7 @@ services:
       retries: 5
   web:
     environment:
-      BACKEND_URL: http://backend:8090
+      BACKEND_URL: http://gluetun:8090
     build:
       context: .
       dockerfile: deploy/web.Dockerfile
@@ -170,6 +217,7 @@ volumes:
   diagnostics:
   torrent-data:
   torrent-cache:
+  catalog:
   accounts:
   library-index:
   caddy-data:
