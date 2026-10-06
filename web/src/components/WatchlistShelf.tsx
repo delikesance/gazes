@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CalendarPlus, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getFranchise } from "@/lib/api";
@@ -11,8 +11,8 @@ import { LazyImage } from "./ui/LazyImage";
 type Info = { title: string; poster?: string };
 const infoCache = new Map<number, Info>();
 
-/** Home shelf of the anime saved to "ma liste". */
-export function WatchlistShelf() {
+/** Shelf of the anime saved to "À voir plus tard": titled on the home page, or `embedded` in the library with a toolbar (count, `children`, calendar export). */
+export function WatchlistShelf({ embedded = false, children }: { embedded?: boolean; children?: ReactNode } = {}) {
   const { t } = useI18n();
   const saved = useWatchlist();
   const ids = saved.slice(0, 12);
@@ -48,10 +48,11 @@ export function WatchlistShelf() {
   }
 
   if (!ids.length) return null;
-  return <section className="continue-watching" aria-labelledby="watchlist-heading">
-    <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("À voir plus tard")}</span><h2 id="watchlist-heading" className="serif">{t("Ma liste")}</h2></div>
-      <button type="button" className="clay clay-secondary clay-sm" onClick={exportCalendar} disabled={exportState === "busy"}><CalendarPlus size={16} aria-hidden="true" />{t("Ajouter les sorties à mon calendrier")}</button>
-    </div>
+  const calendarButton = <button type="button" className="clay clay-secondary clay-sm" onClick={exportCalendar} disabled={exportState === "busy"}><CalendarPlus size={16} aria-hidden="true" />{t(embedded ? "Ajouter les sorties à l’agenda" : "Ajouter les sorties à mon calendrier")}</button>;
+  return <section className="continue-watching" aria-labelledby={embedded ? undefined : "watchlist-heading"} aria-label={embedded ? t("À voir plus tard") : undefined}>
+    {embedded
+      ? <div className="library-actions"><span className="eyebrow">{t("{count} animes", { count: saved.length })}</span><div className="library-buttons">{children}{calendarButton}</div></div>
+      : <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("File d’attente")}</span><h2 id="watchlist-heading" className="serif">{t("À voir plus tard")}</h2></div>{calendarButton}</div>}
     {(exportState === "empty" || exportState === "error") && <p role="status" className="catalog-message">{t(exportState === "empty" ? "Aucune sortie prévue dans les 6 prochaines semaines." : "Impossible de générer le calendrier pour l’instant.")}</p>}
     <ul className="poster-grid page-inset watchlist-grid">
       {ids.map((id) => {
@@ -62,7 +63,7 @@ export function WatchlistShelf() {
             <LazyImage src={info?.poster} alt={title} aspectRatio="" className="poster-art" />
             <div className="poster-overlay"><div><h3>{title}</h3></div></div>
           </Link>
-          <button type="button" className="poster-hide" onClick={() => removeFromWatchlist(id)} aria-label={t("Retirer {title} de ma liste", { title })} title={t("Retirer de ma liste")}><X size={16} aria-hidden="true" /></button>
+          <button type="button" className="poster-hide" onClick={() => removeFromWatchlist(id)} aria-label={t("Retirer {title} de À voir plus tard", { title })} title={t("Retirer de À voir plus tard")}><X size={16} aria-hidden="true" /></button>
         </li>;
       })}
     </ul>
