@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -15,6 +16,9 @@ const (
 	maxPartyRooms   = 500
 	maxPartyMembers = 12
 )
+
+// partyHeartbeat keeps quiet rooms alive through Next's rewrite proxy, which drops streams idle for 30 s.
+var partyHeartbeat = 15 * time.Second
 
 var (
 	partyRoomRE = regexp.MustCompile(`^[a-z0-9]{6,32}$`)
@@ -102,10 +106,15 @@ func (h *partyHub) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	fmt.Fprint(w, "event: ready\ndata: {}\n\n")
 	flusher.Flush()
+	heartbeat := time.NewTicker(partyHeartbeat)
+	defer heartbeat.Stop()
 	for {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-heartbeat.C:
+			fmt.Fprint(w, ": ping\n\n")
+			flusher.Flush()
 		case payload := <-m.ch:
 			fmt.Fprintf(w, "data: %s\n\n", payload)
 			flusher.Flush()

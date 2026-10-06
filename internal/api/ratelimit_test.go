@@ -63,3 +63,13 @@ func TestRateLimiterEvictsInsteadOfLockingOut(t *testing.T) {
 		t.Fatal("a full table must evict old keys, not refuse new clients")
 	}
 }
+
+func TestRateLimitSkipsWebServerRenderBehindProxy(t *testing.T) {
+	s := &Server{trustProxy: true}
+	for range 10 {
+		// Next's server-side fetches reach the backend from the web container without the edge's X-Forwarded-For.
+		if c := limited(s, "172.18.0.3:1", ""); c != 200 {
+			t.Fatalf("server-side render throttled as one shared client: %d", c)
+		}
+	}
+}
