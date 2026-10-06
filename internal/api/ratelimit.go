@@ -10,12 +10,16 @@ import (
 )
 
 // rateLimit allows limit requests per span for each client IP on the routes it wraps.
-// Loopback callers are exempt: ffmpeg reads its own stream through /stream/raw.
+// Internal callers are exempt: ffmpeg reads its own stream through /stream/raw over loopback, and
+// a request from the trusted proxy without X-Forwarded-For is the web server's own server-side
+// render (every browser request crosses Caddy, which sets the header), so it must not share one budget.
 func (s *Server) rateLimit(name string, limit int, span time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := auth.ClientIP(r, s.trustProxy)
-			if parsed := net.ParseIP(ip); parsed != nil && parsed.IsLoopback() {
+			trusted := s.proxy.Trusts(r)
+			ip := auth.ClientIP(r, trusted)
+			internal := trusted && r.Header.Get("X-Forwarded-For") == ""
+			if parsed := net.ParseIP(ip); internal || (parsed != nil && parsed.IsLoopback()) {
 				next.ServeHTTP(w, r)
 				return
 			}

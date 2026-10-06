@@ -199,7 +199,7 @@ func validTelemetryEvent(e clientEvent) bool {
 }
 
 func (s *Server) HandleDiagnosticEvents(w http.ResponseWriter, r *http.Request) {
-	if !s.diagnosticRate.allow(auth.ClientIP(r, s.trustProxy)) {
+	if !s.diagnosticRate.allow(auth.ClientIP(r, s.proxy.Trusts(r))) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "diagnostic rate limit", 429)
 		return

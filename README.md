@@ -178,6 +178,7 @@ Accounts are optional. Playback works without one; a signed-in viewer keeps watc
 | --- | --- | --- |
 | `ACCOUNTS_DIR` | `./accounts` (`/app/accounts`, the `accounts` volume, in Docker) | SQLite database, KEM key and dev keys |
 | `TRUST_PROXY` | `false` (`true` in compose) | Trust `X-Forwarded-For/Proto/Host` from the edge |
+| `TRUSTED_PROXIES` | empty (`web` in compose) | With `TRUST_PROXY`: the only peers (hostnames, IPs or CIDRs) whose forwarded headers are believed; empty trusts any peer |
 
 ### Redis
 

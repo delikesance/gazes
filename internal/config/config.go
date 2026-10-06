@@ -31,6 +31,7 @@ type Config struct {
 	WatchWebhookSecret   string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
 	WatchDiskPath        string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
 	TrustProxy           bool          `json:"trust_proxy"`
+	TrustedProxies       []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
 	// title matching. API keys and bindings are intentionally never serialized.
 	ArrAuthoritative bool   `json:"arr_authoritative"`
@@ -92,6 +93,7 @@ func Load() *Config {
 		WatchWebhookSecret:       getEnv("GAZES_WATCH_WEBHOOK_SECRET", ""),
 		WatchDiskPath:            getEnv("GAZES_WATCH_DISK_PATH", ""),
 		TrustProxy:               getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
+		TrustedProxies:           splitList(getEnv("TRUSTED_PROXIES", "")),
 		ArrAuthoritative:         getEnvBool("ARR_AUTHORITATIVE", false),
 		SonarrURL:                getEnv("SONARR_URL", ""),
 		SonarrAPIKey:             getEnvOrFile("SONARR_API_KEY", "SONARR_API_KEY_FILE"),
