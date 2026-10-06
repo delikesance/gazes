@@ -50,7 +50,7 @@ export default function HistoryPage() {
       <PageGrid />
       <Scribble shape="b" width={380} rotate={-6} style={{ right: 40, top: 120 }} />
       <div className="history-inner page-inset">
-        <span className="eyebrow">{t("Historique")}</span>
+        <span className="eyebrow">{t("Vos animes")}</span>
         <h1 className="serif">{t("Bibliothèque")}</h1>
         <div className="catalog-tabs library-tabs" role="group" aria-label={t("Bibliothèque")}>
           <button type="button" aria-pressed={tab === "reprendre"} onClick={() => setUrlParams({ tab: null })}>{t("Reprendre la lecture")}</button>
