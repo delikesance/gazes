@@ -12,6 +12,7 @@ import Script from "next/script";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 import { DM_Sans, Fraunces, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./mobile.css";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
