@@ -3,11 +3,53 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gazes/gazes/internal/kv"
+	"github.com/gazes/gazes/internal/metadata"
 )
+
+// mirrorEvery paces the catalog import: one AniList request per period across the whole fleet,
+// about half of the 24/min budget, the rest stays with visitors (the mirror runs as Background).
+const mirrorEvery = 5 * time.Second
+
+// startMirror copies the AniList library to disk and keeps it fresh (see metadata.MirrorStep).
+// The elected instance does one step per period; a throttle pauses it for the cooldown.
+func (s *Server) startMirror() {
+	go func() {
+		time.Sleep(20 * time.Second)
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+			wait := mirrorEvery
+			if s.kv.Elect(ctx, "mirror", mirrorEvery) {
+				before, _ := s.catalogService.MirrorProgress()
+				progress, err := s.catalogService.MirrorStep(ctx)
+				var limited *metadata.RateLimitError
+				switch {
+				case errors.Is(err, metadata.ErrMirrorDisabled):
+					cancel()
+					return
+				case errors.As(err, &limited):
+					wait = limited.RetryAfter + time.Second
+				case err != nil:
+					s.logger.Warn("catalog.mirror_failed", "err", err)
+					wait = 30 * time.Second
+				case progress.Complete && !before.Complete:
+					s.logger.Info("catalog.mirror_complete", "imported", progress.Imported)
+				case !progress.Complete && progress.Imported/1000 != before.Imported/1000:
+					s.logger.Info("catalog.mirror_progress", "imported", progress.Imported, "after_id", progress.AfterID)
+				}
+				if progress.Complete && err == nil {
+					wait = time.Minute // idle until the daily refresh is due
+				}
+			}
+			cancel()
+			time.Sleep(wait)
+		}
+	}()
+}
 
 // warmEvery is how often the elected instance renews the home-page data; entries expiring within
 // warmRenewWithin are renewed so no visitor waits on AniList.

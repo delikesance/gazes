@@ -64,6 +64,9 @@ type CacheOptions struct {
 	L1Max        int           // in-process entries (default 512)
 	FetchTimeout time.Duration // detached budget of one upstream fetch (default 30 s)
 	WaitBudget   time.Duration // how long to wait for another instance's fetch (default 35 s)
+	// Durable keeps a copy of every stored value on disk (see Durable) and reads it back when Redis
+	// has lost the key, so the entry's own TTL, not Redis' memory, decides when it is refetched.
+	Durable bool
 }
 
 // Cache is a typed two-level cache (process memory, then Redis) with stale-while-revalidate and a
@@ -217,6 +220,17 @@ func (ca *Cache[T]) Invalidate(ctx context.Context, key string) {
 		return
 	}
 	_ = ca.c.rdb.Del(ctx, ca.c.Up(ca.domain, key)).Err()
+	if d := ca.durable(); d != nil {
+		d.Delete(ca.domain, ca.c.Up(ca.domain, key))
+	}
+}
+
+// durable is the disk store behind this cache, nil when it did not opt in.
+func (ca *Cache[T]) durable() *Durable {
+	if ca.c == nil || !ca.opts.Durable {
+		return nil
+	}
+	return ca.c.durable
 }
 
 // inBackground runs fetch as Background work.
@@ -322,10 +336,31 @@ func (ca *Cache[T]) read(ctx context.Context, rk string) (entry[T], bool) {
 		if !errors.Is(err, redis.Nil) {
 			ca.c.stats.errors.Add(1)
 		}
-		return entry[T]{}, false
+		return ca.readDurable(ctx, rk)
 	}
 	e, ok := decode[T](raw)
 	return e, ok
+}
+
+// readDurable answers a Redis miss from disk and puts the value back in Redis, so the next reader
+// (on any instance) finds it there.
+func (ca *Cache[T]) readDurable(ctx context.Context, rk string) (entry[T], bool) {
+	d := ca.durable()
+	if d == nil {
+		return entry[T]{}, false
+	}
+	raw, ok := d.Get(ca.domain, rk)
+	if !ok {
+		return entry[T]{}, false
+	}
+	e, ok := decode[T](raw)
+	if !ok {
+		return entry[T]{}, false
+	}
+	if err := ca.c.rdb.Set(ctx, rk, raw, max(e.remaining(), 0)+staleWindow).Err(); err != nil {
+		ca.c.stats.errors.Add(1)
+	}
+	return e, true
 }
 
 func (ca *Cache[T]) write(ctx context.Context, rk string, v *T, ttl time.Duration) {
@@ -337,6 +372,9 @@ func (ca *Cache[T]) write(ctx context.Context, rk string, v *T, ttl time.Duratio
 	}
 	if err := ca.c.rdb.Set(ctx, rk, raw, soft+staleWindow).Err(); err != nil {
 		ca.c.stats.errors.Add(1)
+	}
+	if d := ca.durable(); d != nil {
+		d.Set(ca.domain, rk, raw)
 	}
 }
 
