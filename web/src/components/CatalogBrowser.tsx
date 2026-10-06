@@ -17,6 +17,7 @@ import { ContinueWatching } from "./ContinueWatching";
 import { SeasonalGrid } from "./SeasonalGrid";
 import { AccountCta } from "./AccountCta";
 import { MobileBack } from "./MobileBack";
+import { rememberResults } from "@/lib/navigation-history";
 import { ReleaseCalendar } from "./ReleaseCalendar";
 import type { CatalogResponse } from "@/types/api";
 import { getCatalogPopular, getCatalogForYou, getCatalogSeasonal, searchCatalog } from "@/lib/api";
@@ -91,6 +92,13 @@ export function CatalogBrowser({
     Object.entries(values).forEach(([k, v]) => v ? current.set(k, v) : current.delete(k));
     (replace ? router.replace : router.push)(`/?${current.toString()}`, { scroll });
   }
+
+  // A series page opened from these results offers a way back to them.
+  useEffect(() => {
+    if (discovery) { rememberResults(null); return; }
+    const label = q ? t("Résultats pour « {query} »", { query: q }) : t("Résultats");
+    rememberResults(`${window.location.pathname}${window.location.search}`, label.length > 28 ? t("Résultats") : label);
+  }, [discovery, q, genre, exclude, t]);
 
   useEffect(() => {
     if (!needsData) return;
