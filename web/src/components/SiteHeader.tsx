@@ -40,6 +40,19 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
   // Every way of closing the search (X, Escape, blur, submit) must also reset the filter panel and the picked genre.
   const resetSearch=()=>{setSearchOpen(false);setFilterOpen(false);setPicked(null);};
   const closeSearch=()=>{resetSearch();searchButton.current?.focus();};
+  // "/" or Ctrl/Cmd+K opens the search from anywhere outside a text field.
+  useEffect(()=>{
+    const onKey=(event:KeyboardEvent)=>{
+      const target=event.target as HTMLElement|null;
+      if(target&&(target.isContentEditable||["INPUT","TEXTAREA","SELECT"].includes(target.tagName)))return;
+      const combo=(event.ctrlKey||event.metaKey)&&event.code==="KeyK";
+      if(!combo&&(event.key!=="/"||event.ctrlKey||event.metaKey||event.altKey))return;
+      event.preventDefault();
+      setSearchOpen(true);
+    };
+    window.addEventListener("keydown",onKey);
+    return()=>window.removeEventListener("keydown",onKey);
+  },[]);
   // Tapping outside closes the search and the filters. Pointer position, not focus: Safari never focuses a tapped button.
   useEffect(()=>{
     if(!searchVisible)return;

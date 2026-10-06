@@ -11,6 +11,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AnimeCatalogCard } from "./AnimeCatalogCard";
 import { FeaturedAnimeCarousel } from "./FeaturedAnimeCarousel";
+import { WatchlistShelf } from "./WatchlistShelf";
+import { ContinueWatching } from "./ContinueWatching";
 import { SeasonalGrid } from "./SeasonalGrid";
 import { AccountCta } from "./AccountCta";
 import { ReleaseCalendar } from "./ReleaseCalendar";
@@ -148,6 +150,7 @@ export function CatalogBrowser({
           <button type="button" aria-pressed={isSuggestions} onClick={() => update({ tab: "suggestions", page: "1" }, false)}>{t("Suggestions")}</button>
         </div>
       </div>
+      {!isSuggestions && <><ContinueWatching /><WatchlistShelf /></>}
       {isSuggestions ? (data && data.items && data.items.length > 0 && <>
         <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("Suggestions")}</span><h2 id="season-heading" className="serif">{t("Pour vous")}</h2></div></div>
         <SeasonalGrid count={data.items.length} evenRows={false}>{cards}</SeasonalGrid>
