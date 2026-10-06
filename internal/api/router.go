@@ -129,7 +129,7 @@ func NewServer(
 	for _, opt := range opts {
 		opt(s)
 	}
-	s.party.clientIP = func(r *http.Request) string { return auth.ClientIP(r, s.proxy.Trusts(r)) }
+	s.party.clientIP = s.clientKey
 	s.setupRoutes()
 	return s
 }

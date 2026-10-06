@@ -92,3 +92,42 @@ func TestRateLimitIgnoresForwardedHeaderFromUntrustedPeer(t *testing.T) {
 		}
 	}
 }
+
+func TestRateLimitBoundsServerSideRenders(t *testing.T) {
+	s := &Server{proxy: auth.NewProxyTrust(true, nil)}
+	// Renders share one larger budget: a page URL must not be an unlimited way around the limit.
+	for range 2 * ssrBudgetFactor {
+		if c := limited(s, "172.18.0.3:1", ""); c != 200 {
+			t.Fatalf("render throttled within the shared budget: %d", c)
+		}
+	}
+	if c := limited(s, "172.18.0.3:1", ""); c != http.StatusTooManyRequests {
+		t.Fatalf("renders beyond the shared budget: %d", c)
+	}
+	// Browsers behind the proxy keep their own budgets.
+	if c := limited(s, "172.18.0.3:1", "203.0.113.7"); c != 200 {
+		t.Fatalf("browser throttled by the render budget: %d", c)
+	}
+}
+
+func TestRateLimitIgnoresForgedLoopbackHeader(t *testing.T) {
+	s := &Server{proxy: auth.NewProxyTrust(true, nil)}
+	for range 2 {
+		limited(s, "172.18.0.9:1", "127.0.0.1")
+	}
+	if c := limited(s, "172.18.0.9:1", "127.0.0.1"); c != http.StatusTooManyRequests {
+		t.Fatalf("a forwarded 127.0.0.1 escaped the limit: %d", c)
+	}
+}
+
+func TestClientBucketGroupsIPv6Prefix(t *testing.T) {
+	if a, b := clientBucket("2001:db8:1:2::1"), clientBucket("2001:db8:1:2:ffff::9"); a != b {
+		t.Fatalf("same /64 split: %q vs %q", a, b)
+	}
+	if a, b := clientBucket("2001:db8:1:2::1"), clientBucket("2001:db8:1:3::1"); a == b {
+		t.Fatal("different /64 merged")
+	}
+	if got := clientBucket("203.0.113.7"); got != "203.0.113.7" {
+		t.Fatalf("IPv4 changed: %q", got)
+	}
+}

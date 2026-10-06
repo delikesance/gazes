@@ -16,6 +16,7 @@ type PipelineOptions struct {
 	Quality         string
 	TimeOffset      float64
 	InputURL        string
+	Client          string // caller identity (client IP bucket) for the per-client remux cap
 }
 
 // Pipeline handles on-the-fly container remuxing (MKV -> fMP4) and HTTP range serving.
