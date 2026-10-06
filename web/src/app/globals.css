@@ -874,3 +874,6 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .next-episode-card { position: absolute; right: var(--page-gutter, 24px); bottom: 96px; z-index: 30; display: grid; gap: 12px; padding: 16px 18px; border-radius: 20px; background: var(--surface-raised, #17171a); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border); }
 .next-episode-card p { margin: 0; font-size: 14px; font-weight: 500; }
 .next-episode-actions { display: flex; gap: 8px; }
+.continue-watching { padding-bottom: 28px; }
+.continue-watching .section-heading { justify-content: space-between; }
+.continue-watching .history-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
