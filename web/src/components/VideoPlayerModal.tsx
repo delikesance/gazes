@@ -216,9 +216,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   const itemHash = item?.info_hash || item?.id || null;
   const [prevItemHash, setPrevItemHash] = useState<string | null>(itemHash);
+  // Seconds left before the next episode starts on its own; null while idle or cancelled.
+  const [nextCountdown, setNextCountdown] = useState<number | null>(null);
 
   if (itemHash !== prevItemHash) {
     setPrevItemHash(itemHash);
+    setNextCountdown(null); // the HLS player stays mounted across episodes: a pending countdown belongs to the old one
     setLoading(true);
     setError(null);
     setStats(null);
@@ -440,6 +443,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     let finalSec = targetSec;
     if (finalSec < 0) finalSec = 0;
     if (totalDuration > 0 && finalSec > totalDuration) finalSec = totalDuration;
+    setNextCountdown(null); // seeking back after the end means staying on this episode
     partySeekRef.current?.(finalSec);
     if (hlsMode) { hlsController.current?.seek(finalSec); updateProgressDisplay(finalSec); triggerShowControls(); return; }
 
@@ -477,8 +481,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       window.setTimeout(() => setPartyCopied(false), 2000);
     } catch { /* clipboard unavailable (insecure context) */ }
   }, [party]);
-  // Seconds left before the next episode starts on its own; null while idle or cancelled.
-  const [nextCountdown, setNextCountdown] = useState<number | null>(null);
+  // Playing again (replay, a party member resuming) cancels the countdown.
+  if (isPlaying && nextCountdown !== null) setNextCountdown(null);
   useEffect(() => {
     if (nextCountdown === null) return;
     const timer = window.setTimeout(() => {
