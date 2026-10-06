@@ -41,14 +41,13 @@ interface Props {
 }
 
 const LIBRARY_LOOKUP_MS = 1500;
-const isTypeSupported = (mime: string) => typeof MediaSource !== 'undefined' && typeof MediaSource.isTypeSupported === 'function' && MediaSource.isTypeSupported(mime);
 
 /** Rank pending fallbacks without disturbing attempted ones; pending library copies keep their place before the first same-language torrent. */
 function mergeSources(list: EpisodeSource[], discovered: EpisodeSource[], active: number, copies: LibraryCopy[], base: Partial<EpisodeSource>): EpisodeSource[] {
  const fixed = list.slice(0, active + 1);
  const used = new Set(fixed.map(s => s.info_hash));
  const extended = extendPlaybackSources([...fixed, ...list.slice(fixed.length).filter(s => !s.library)], discovered, active);
- const tail = withLibraryCandidates(extended.slice(fixed.length), copies.filter(c => !used.has(c.stream_id)), isTypeSupported, base);
+ const tail = withLibraryCandidates(extended.slice(fixed.length), copies.filter(c => !used.has(c.stream_id)), base);
  return [...fixed, ...tail];
 }
 
