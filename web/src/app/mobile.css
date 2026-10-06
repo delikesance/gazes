@@ -1,0 +1,43 @@
+/* Phone layout refinements (<= 767px). Loaded after globals.css, so it only overrides what the redesign changes. */
+.series-more { display: none; }
+@media (max-width: 767px) {
+  /* Floating tab pill, same family as the header pills. */
+  .mobile-nav { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); justify-content: space-between; gap: 4px; padding: 6px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
+  .mobile-nav a { flex: 1; min-width: 0; min-height: 52px; padding: 6px 4px; border-radius: 999px; }
+  .mobile-nav a[aria-current="page"] { background: var(--clay-bg); color: var(--clay-fg); }
+
+  /* Announcement: a slim strip floating just above the tab pill. */
+  .changelog-banner { bottom: calc(88px + env(safe-area-inset-bottom)); font-size: 13px; }
+
+  /* Footer: links first, legal text after, room for the floating pill. */
+  .site-footer { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+
+  /* Genres: one scrolling row instead of a wall of pills. */
+  .genre-chips { flex-wrap: nowrap; overflow-x: auto; scroll-padding-inline: var(--page-gutter); margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); scrollbar-width: none; scroll-snap-type: x proximity; }
+  .genre-chips::-webkit-scrollbar { display: none; }
+  .genre-chips .chip { flex: none; height: 44px; padding: 0 18px; scroll-snap-align: start; }
+
+  /* Seasons: a swipeable rail instead of a tall grid. */
+  .season-grid { display: flex; overflow-x: auto; scroll-padding-inline: var(--page-gutter); gap: 12px; margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); scrollbar-width: none; scroll-snap-type: x proximity; }
+  .season-grid::-webkit-scrollbar { display: none; }
+  .season-grid .season-card { flex: 0 0 132px; scroll-snap-align: start; }
+
+  /* Series page: small poster beside the title, synopsis folded until asked for. */
+  .series-intro { gap: 20px; }
+  .series-poster { flex-basis: 120px; width: 120px; }
+  .series-copy { gap: 14px; padding-top: 0; }
+  .series-copy h1 { font-size: 34px; }
+  .series-description[data-expanded="false"] { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .series-more { display: inline-flex; align-items: center; min-height: 44px; margin-top: -10px; color: var(--accent); font-size: 14px; font-weight: 500; }
+
+  /* Auth: the form sits on the page instead of inside a bordered card. */
+  .auth-page { align-items: start; padding-block: 88px 120px; }
+  .auth-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+}
+
+@media (max-width: 600px) {
+  /* Hero image: 60% opaque at the top, fading to nothing at the bottom, no dark veil. */
+  .featured-carousel .anime-hero-art { opacity: 1; }
+  .featured-carousel .anime-hero-art img { opacity: .6; -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent); }
+  .featured-carousel .anime-hero-shade { background: transparent; }
+}

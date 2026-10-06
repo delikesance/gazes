@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -10,6 +11,7 @@ const plain = (html?: string) => (html || "").replace(/<[^>]*>/g, " ").replace(/
 
 export function SeriesPage({ franchise, base, warning }: { franchise: Franchise; base: string; warning?: React.ReactNode }) {
   const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
   const main = franchise.seasons.filter((s) => s.group === "main");
   const first = main[0] || franchise.seasons[0];
   const totalEpisodes = main.reduce((sum, s) => sum + (s.episodes || 0), 0);
@@ -31,7 +33,8 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
           {main.length > 0 && <span>{t(main.length === 1 ? "{count} saison" : "{count} saisons", { count: main.length })}</span>}
           {totalEpisodes > 0 && <span>{count(totalEpisodes)}</span>}
         </p>
-        {description && <p className="series-description">{description}</p>}
+        {description && <><p className="series-description" data-expanded={expanded}>{description}</p>
+          <button type="button" className="series-more" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? t("Voir moins") : t("Lire la suite")}</button></>}
         {warning}
         <div className="hero-actions">
           {first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        <WatchlistButton animeId={franchise.id} /></div>
