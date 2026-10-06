@@ -88,7 +88,12 @@ services:
       HTTP_CONTROL_SERVER_ADDRESS: "127.0.0.1:8000"
     volumes:
       - ./deploy/gluetun-auth.toml:/gluetun/auth/config.toml:ro
-    networks: [default, gazes-shared]
+    networks:
+      default:
+        # The backend has no address of its own (it shares this namespace): keep the historical name working
+        # for any client, image or script that still says backend:8090.
+        aliases: [backend]
+      gazes-shared:
     healthcheck:
       test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
       interval: 10s
@@ -171,6 +176,8 @@ services:
     build:
       context: .
       dockerfile: deploy/web.Dockerfile
+      args:
+        BACKEND_URL: http://gluetun:8090
     restart: unless-stopped
     init: true
     ports:
