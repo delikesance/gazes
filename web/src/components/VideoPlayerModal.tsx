@@ -1176,8 +1176,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     </div>
 
                     {/* Controls Row */}
-                    <div className="player-controls flex items-center justify-between gap-3 text-xs">
-                      <div className="player-controls-main flex items-center gap-2">
+                    <div className="player-controls-row flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
                         <button onClick={togglePlay} className="player-pill player-pill--icon player-pill--solid" aria-label={isPlaying ? t("Pause (Space)") : t("Play (Space)")} title={isPlaying ? t("Pause (Space)") : t("Play (Space)")}>
                           {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
                         </button>
@@ -1217,7 +1217,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                       </div>
 
                       {/* Right: Episodes, Settings, Fullscreen */}
-                      <div className="player-controls-extra flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                         {episodes && episodes.length > 0 && onSelectEpisode && (
                           <button
                             onClick={() => { setShowEpisodes(!showEpisodes); }}

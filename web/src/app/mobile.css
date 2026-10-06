@@ -42,12 +42,6 @@
   .auth-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 }
 
-@media (max-width: 639px) {
-  /* Player dock: transport controls on one row, panel buttons on the next, nothing clipped. */
-  .player-controls { flex-wrap: wrap; row-gap: 10px; }
-  .player-controls-main, .player-controls-extra { width: 100%; justify-content: space-between; }
-}
-
 @media (max-width: 600px) {
   /* Hero image: 60% opaque at the top, fading to nothing at the bottom, no dark veil. */
   .featured-carousel .anime-hero-art { opacity: 1; }
