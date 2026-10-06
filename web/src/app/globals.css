@@ -512,6 +512,19 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .legal-page section { display: flex; flex-direction: column; gap: 6px; margin-top: 18px; }
 .legal-page h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .legal-page p { margin: 0; color: var(--design-muted); line-height: 1.65; }
+.changelog-page section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); }
+.changelog-page ul { margin: 4px 0 0; padding-left: 20px; list-style: disc; color: var(--design-muted); line-height: 1.65; }
+.changelog-page li + li { margin-top: 4px; }
+.changelog-date { color: var(--design-muted); }
+.changelog-banner { position: fixed; z-index: 45; right: var(--page-gutter); bottom: 24px; display: flex; align-items: center; gap: 4px; max-width: min(440px, calc(100vw - 2 * var(--page-gutter))); padding: 4px 4px 4px 16px; border-radius: var(--radius-pill); background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--border), 0 12px 32px rgba(0,0,0,.28); font-size: 13px; }
+.changelog-banner-icon { flex: none; color: var(--accent); }
+.changelog-banner a { flex: 1; min-width: 0; padding: 10px 6px; overflow: hidden; color: var(--foreground); text-overflow: ellipsis; white-space: nowrap; text-decoration: none; border-radius: var(--radius-pill); }
+.changelog-banner a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.changelog-banner-label { font-weight: 600; color: var(--accent); }
+.changelog-banner button { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 999px; background: transparent; color: var(--design-muted); cursor: pointer; }
+.changelog-banner button:hover { background: var(--surface-hover); color: var(--foreground); }
+.changelog-banner a:focus-visible, .changelog-banner button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 767px) { .changelog-banner { left: 12px; right: 12px; max-width: none; bottom: calc(76px + env(safe-area-inset-bottom)); } }
 .history-empty { color: var(--design-muted); }
 .history-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 28px 16px; }
 .history-card { display: flex; flex-direction: column; gap: 12px; }
