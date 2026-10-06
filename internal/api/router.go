@@ -5,12 +5,15 @@ import (
 	"github.com/gazes/gazes/internal/kv"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/auth"
 	"github.com/gazes/gazes/internal/config"
+	"github.com/gazes/gazes/internal/donations"
+	"github.com/gazes/gazes/internal/imagecache"
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/library"
 	"github.com/gazes/gazes/internal/metadata"
@@ -31,6 +34,7 @@ type Server struct {
 	streamPipeline  stream.Pipeline
 	analyzer        metadata.Analyzer
 	animeService    *metadata.AnimeService
+	images          *imagecache.Cache
 	catalogService  *metadata.AnimeCatalogService
 	party           *partyHub
 	episodeResolver indexer.EpisodeSourceResolver
@@ -50,6 +54,7 @@ type Server struct {
 	library         *library.Service
 	libraryUser     func(*http.Request) (int64, bool)
 	admin           *admin.Service
+	donations       *donations.Service
 	mcpEnabled      bool
 	mcpOrigins      []string
 	errorSink       admin.ErrorSink
@@ -90,6 +95,7 @@ func WithRedis(c *kv.Client) Option {
 		s.catalogService.SetRedis(c)
 		s.animeService.SetRedis(c)
 		s.startWarmer()
+		s.startMirror()
 	}
 }
 
@@ -121,6 +127,7 @@ func NewServer(
 		streamPipeline:  pipeline,
 		analyzer:        metadata.NewFFprobeAnalyzer(logger),
 		animeService:    metadata.NewAnimeService(nil),
+		images:          imagecache.New(imagecache.Options{Dir: filepath.Join(cfg.CatalogDir, "images"), Hosts: []string{"s4.anilist.co"}}),
 		catalogService:  metadata.NewAnimeCatalogService(nil),
 		party:           newPartyHub(),
 		episodeResolver: episodeResolver,
@@ -176,6 +183,9 @@ func (s *Server) setupRoutes() {
 		api.Get("/diagnostics/cache", s.HandleCacheDiagnostics)
 		api.With(s.rateLimit("search", 60, time.Minute)).Get("/search", s.HandleSearch)
 		api.Get("/latest", s.HandleLatest)
+		// Cover and banner art, stored on disk forever (internal/imagecache).
+		api.Method(http.MethodGet, "/img", s.images)
+		api.Method(http.MethodHead, "/img", s.images)
 		api.Get("/party/{room}/events", s.party.handleEvents)
 		api.With(s.rateLimit("party", 240, time.Minute)).Post("/party/{room}/events", s.party.handlePost)
 
@@ -195,6 +205,10 @@ func (s *Server) setupRoutes() {
 			api.Put("/me/hidden", s.auth.PutHidden)
 			api.Get("/me/watchlist", s.auth.GetWatchlist)
 			api.Put("/me/watchlist", s.auth.PutWatchlist)
+		}
+
+		if s.donations != nil {
+			s.mountDonations(api)
 		}
 
 		// Catalog & Episode Discovery

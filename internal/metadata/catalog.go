@@ -61,6 +61,7 @@ type AnimeRelation struct {
 
 // AnimeCatalogItem represents full anime metadata with episode listings and relations.
 type AnimeCatalogItem struct {
+	IsAdult           bool            `json:"is_adult,omitempty"` // only set where the query selected isAdult (detail and mirror)
 	Format            string          `json:"format,omitempty"`
 	StartDate         string          `json:"start_date,omitempty"`
 	Aliases           []string        `json:"aliases,omitempty"`
@@ -117,6 +118,10 @@ type AnimeCatalogService struct {
 	franchiseC *kv.Cache[Franchise]
 	scheduleC  *kv.Cache[ScheduleResponse]
 	aniskipC   *kv.Cache[[]SkipSegment]
+	durable    *kv.Durable // disk copy of the catalog; nil without Redis/CATALOG_DIR (the mirror then stays off)
+
+	mirrorMu    sync.Mutex
+	mirrorClock func() time.Time // tests move it to make the daily refresh due
 
 	aniskipBaseURL string
 }
@@ -135,14 +140,17 @@ func NewAnimeCatalogService(client *http.Client) *AnimeCatalogService {
 // SetRedis moves the caches and the AniList governor to Redis. Call it before serving traffic.
 func (s *AnimeCatalogService) SetRedis(c *kv.Client) {
 	s.anilist = newAnilistClient(s.anilist.http, c)
+	s.durable = c.Durable()
 	s.initCaches(c)
 }
 
 func (s *AnimeCatalogService) initCaches(c *kv.Client) {
-	s.catalogC = kv.NewCache[CatalogResponse](c, "catalog", kv.CacheOptions{L1Max: 256})
-	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail:v2", kv.CacheOptions{L1Max: 512})
-	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v3", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
-	s.scheduleC = kv.NewCache[ScheduleResponse](c, "schedule", kv.CacheOptions{L1Max: 64})
+	// Durable caches keep a disk copy (kv.Durable): a Redis restart or an AniList outage serves the
+	// last known catalog instead of an error.
+	s.catalogC = kv.NewCache[CatalogResponse](c, "catalog", kv.CacheOptions{L1Max: 256, Durable: true})
+	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail:v2", kv.CacheOptions{L1Max: 512, Durable: true})
+	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v3", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second, Durable: true})
+	s.scheduleC = kv.NewCache[ScheduleResponse](c, "schedule", kv.CacheOptions{L1Max: 64, Durable: true})
 	s.aniskipC = kv.NewCache[[]SkipSegment](c, "aniskip", kv.CacheOptions{L1Max: 512})
 }
 
@@ -250,6 +258,7 @@ query ($search: String, $genreIn: [String], $genreNotIn: [String], $tagIn: [Stri
 const detailFields = `
     id
     idMal
+    isAdult
     title {
       english
       romaji
@@ -536,6 +545,7 @@ func deriveSeasonLabel(title string, format string, seasonIndex int) string {
 }
 
 type aniListMediaItem struct {
+	IsAdult   bool     `json:"isAdult"`
 	IDMal     int      `json:"idMal"`
 	Synonyms  []string `json:"synonyms"`
 	StartDate struct {
@@ -642,6 +652,7 @@ func formatCatalogItem(m *aniListMediaItem, includeEpisodes bool) AnimeCatalogIt
 	franchiseTitle := CleanFranchiseTitle(displayTitle)
 
 	item := AnimeCatalogItem{
+		IsAdult:           m.IsAdult,
 		Format:            m.Format,
 		StartDate:         fmt.Sprintf("%04d-%02d-%02d", m.StartDate.Year, m.StartDate.Month, m.StartDate.Day),
 		Aliases:           append([]string{m.Title.English, m.Title.Romaji, m.Title.Native}, m.Synonyms...),

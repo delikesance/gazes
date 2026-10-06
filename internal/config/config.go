@@ -18,6 +18,7 @@ type Config struct {
 	Port                 int           `json:"port"`
 	DataDir              string        `json:"data_dir"`
 	CacheDir             string        `json:"cache_dir"`
+	CatalogDir           string        `json:"catalog_dir"` // CATALOG_DIR: durable copy of the AniList catalog (SQLite), kept across deploys
 	LogLevel             string        `json:"log_level"`
 	EnableCORS           bool          `json:"enable_cors"`
 	CORSAllowedOrigins   []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
@@ -30,6 +31,9 @@ type Config struct {
 	WatchWebhookURL      string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_URL: where watch events are POSTed (optional)
 	WatchWebhookSecret   string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
 	WatchDiskPath        string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
+	VPNControlURL        string        `json:"-"`                         // VPN_CONTROL_URL: gluetun control server; empty = no VPN
+	VPNRotateEvery       time.Duration `json:"-"`                         // VPN_ROTATE_EVERY: periodic exit-IP rotation; 0 disables
+	VPNRotateMinGap      time.Duration `json:"-"`                         // VPN_ROTATE_MIN_GAP: shortest time between two rotations
 	TrustProxy           bool          `json:"trust_proxy"`
 	TrustedProxies       []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
@@ -67,6 +71,16 @@ type Config struct {
 	CostBandwidthPerGB    *float64 `json:"cost_bandwidth_per_gb,omitempty"`     // GAZES_COST_BANDWIDTH_PER_GB
 	CostStoragePerGBMonth *float64 `json:"cost_storage_per_gb_month,omitempty"` // GAZES_COST_STORAGE_PER_GB_MONTH
 	GBPerWatchHour        *float64 `json:"gb_per_watch_hour,omitempty"`         // GAZES_GB_PER_WATCH_HOUR: data served per hour watched
+
+	// Donations (all optional; a provider with missing fields is off). Secrets also read GAZES_*_FILE.
+	SiteURL             string   `json:"-"` // GAZES_SITE_URL: public origin, for the post-payment redirect
+	BTCPayURL           string   `json:"-"` // GAZES_BTCPAY_URL
+	BTCPayStoreID       string   `json:"-"` // GAZES_BTCPAY_STORE_ID
+	BTCPayAPIKey        string   `json:"-"` // GAZES_BTCPAY_API_KEY
+	BTCPayWebhookSecret string   `json:"-"` // GAZES_BTCPAY_WEBHOOK_SECRET
+	KofiURL             string   `json:"-"` // GAZES_KOFI_URL: public Ko-fi page
+	KofiToken           string   `json:"-"` // GAZES_KOFI_TOKEN: webhook verification token
+	DonationGoalEUR     *float64 `json:"-"` // GAZES_DONATION_GOAL_EUR: monthly goal shown publicly
 }
 
 // Load loads configuration from environment variables with fallback defaults.
@@ -80,6 +94,7 @@ func Load() *Config {
 		Port:                     getEnvInt("PORT", 8090),
 		DataDir:                  getEnv("DATA_DIR", "./data"),
 		CacheDir:                 getEnv("CACHE_DIR", "./cache"),
+		CatalogDir:               getEnv("CATALOG_DIR", "./catalog"),
 		LogLevel:                 getEnv("LOG_LEVEL", "debug"),
 		EnableCORS:               getEnvBool("ENABLE_CORS", false), // the web app is same-origin through the Next rewrite
 		CORSAllowedOrigins:       splitList(getEnv("CORS_ALLOWED_ORIGINS", "")),
@@ -92,6 +107,9 @@ func Load() *Config {
 		WatchWebhookURL:          getEnv("GAZES_WATCH_WEBHOOK_URL", ""),
 		WatchWebhookSecret:       getEnv("GAZES_WATCH_WEBHOOK_SECRET", ""),
 		WatchDiskPath:            getEnv("GAZES_WATCH_DISK_PATH", ""),
+		VPNControlURL:            getEnv("VPN_CONTROL_URL", ""),
+		VPNRotateEvery:           getEnvDuration("VPN_ROTATE_EVERY", 30*time.Minute),
+		VPNRotateMinGap:          getEnvDuration("VPN_ROTATE_MIN_GAP", 10*time.Minute),
 		TrustProxy:               getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
 		TrustedProxies:           splitList(getEnv("TRUSTED_PROXIES", "")),
 		ArrAuthoritative:         getEnvBool("ARR_AUTHORITATIVE", false),
@@ -122,6 +140,15 @@ func Load() *Config {
 		CostBandwidthPerGB:    getEnvOptFloat("GAZES_COST_BANDWIDTH_PER_GB"),
 		CostStoragePerGBMonth: getEnvOptFloat("GAZES_COST_STORAGE_PER_GB_MONTH"),
 		GBPerWatchHour:        getEnvOptFloat("GAZES_GB_PER_WATCH_HOUR"),
+
+		SiteURL:             getEnv("GAZES_SITE_URL", ""),
+		BTCPayURL:           getEnv("GAZES_BTCPAY_URL", ""),
+		BTCPayStoreID:       getEnv("GAZES_BTCPAY_STORE_ID", ""),
+		BTCPayAPIKey:        getEnvOrFile("GAZES_BTCPAY_API_KEY", "GAZES_BTCPAY_API_KEY_FILE"),
+		BTCPayWebhookSecret: getEnvOrFile("GAZES_BTCPAY_WEBHOOK_SECRET", "GAZES_BTCPAY_WEBHOOK_SECRET_FILE"),
+		KofiURL:             getEnv("GAZES_KOFI_URL", ""),
+		KofiToken:           getEnvOrFile("GAZES_KOFI_TOKEN", "GAZES_KOFI_TOKEN_FILE"),
+		DonationGoalEUR:     getEnvOptFloat("GAZES_DONATION_GOAL_EUR"),
 	}
 }
 

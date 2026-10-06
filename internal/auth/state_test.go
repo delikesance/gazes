@@ -1,8 +1,11 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,5 +103,25 @@ func TestSharedStateFailsClosedWhenRedisIsDown(t *testing.T) {
 	a.Kem(rr, httptest.NewRequest("GET", "/auth/kem", nil))
 	if rr.Code != 503 {
 		t.Fatalf("/auth/kem must answer 503, got %d", rr.Code)
+	}
+}
+
+func TestRedisFailureIsLogged(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(old)
+	mr := miniredis.RunT(t)
+	st := NewRedisState(kv.New(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "test"))
+	mr.Close()
+	if _, err := st.Hit("req|203.0.113.9", 60, time.Minute); err == nil {
+		t.Fatal("expected an error with Redis down")
+	}
+	out := buf.String()
+	if !strings.Contains(out, "auth state unavailable") || !strings.Contains(out, "op=hit") {
+		t.Fatalf("failure not logged: %q", out)
+	}
+	if strings.Contains(out, "203.0.113.9") {
+		t.Fatalf("client IP leaked in log: %q", out)
 	}
 }

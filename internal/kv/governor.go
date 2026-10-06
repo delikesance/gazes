@@ -148,6 +148,20 @@ func (g *Governor) Penalize(ctx context.Context, d time.Duration) {
 	}
 }
 
+// ClearCooldown lifts the flat cooldown everywhere, for when the cause is gone (the exit IP that
+// earned the 429 was replaced). The circuit breaker is left alone.
+func (g *Governor) ClearCooldown(ctx context.Context) {
+	g.mu.Lock()
+	g.localBlocked = time.Time{}
+	g.mu.Unlock()
+	if g.c == nil {
+		return
+	}
+	if err := g.c.rdb.Del(ctx, g.key("cooldown")).Err(); err != nil {
+		g.c.stats.errors.Add(1)
+	}
+}
+
 // Cooldown returns the remaining shared cooldown (0 when none): the longer of the flat Penalize
 // cooldown and the circuit breaker's open time. It never takes a half-open probe.
 func (g *Governor) Cooldown(ctx context.Context) time.Duration {

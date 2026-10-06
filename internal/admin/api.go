@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gazes/gazes/internal/donations"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -25,6 +26,7 @@ type Service struct {
 	respCache responseCache     // short cache of the heavy aggregate answers (api_cache.go)
 	watchMu   sync.Mutex        // one evaluation of the watch rules at a time
 	toolsFn   func() []ToolInfo // MCP tool catalogue, set by the API layer (nil = none)
+	donations *donations.Store  // donations (nil = the donations pages answer 503)
 
 	mu       sync.Mutex
 	tokenMWs map[string]func(http.Handler) http.Handler
@@ -108,6 +110,7 @@ func (s *Service) Mount(r chi.Router) {
 		s.mountOps(r)
 		s.mountSettings(r)
 		s.mountWatch(r)
+		s.mountDonations(r)
 	})
 }
 

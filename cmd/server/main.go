@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/donations"
 	"log"
 	"log/slog"
 	"net/http"
@@ -25,6 +27,7 @@ import (
 	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/stream"
 	"github.com/gazes/gazes/internal/torrent"
+	"github.com/gazes/gazes/internal/vpn"
 )
 
 func main() {
@@ -74,6 +77,7 @@ func main() {
 	// 5. Initialize BitTorrent Engine
 	torrentCfg := torrent.DefaultEngineConfig(cfg.DataDir)
 	torrentCfg.ListenPort = cfg.TorrentPort
+	torrentCfg.Tunneled = cfg.VPNControlURL != ""
 	torrentCfg.CacheMaxBytes = cfg.TorrentCacheMaxBytes
 	torrentCfg.MetainfoDir = filepath.Join(cfg.CacheDir, "metainfo")
 	if cfg.C411APIKey != "" {
@@ -88,6 +92,37 @@ func main() {
 		os.Exit(1)
 	}
 	defer torrentEngine.Close()
+
+	// Behind the gluetun sidecar: rotate the exit IP when AniList throttles it, and on a timer.
+	if rotator := vpn.New(cfg.VPNControlURL, cfg.VPNRotateMinGap); rotator.Enabled() {
+		rotate := func(ctx context.Context) error {
+			err := rotator.Rotate(ctx)
+			switch {
+			case err == nil:
+				logger.Info("vpn exit ip rotated")
+			case !errors.Is(err, vpn.ErrCooldown):
+				logger.Warn("vpn rotation failed", "err", err)
+			}
+			return err
+		}
+		metadata.SetAnilistRotator(rotate)
+		if cfg.VPNRotateEvery > 0 {
+			// A reset cuts every peer connection: postpone the timer while someone streams or downloads,
+			// but not forever (maxDeferred ticks), so the IP still changes on a busy server.
+			go func() {
+				const maxDeferred = 4
+				deferred := 0
+				for range time.Tick(cfg.VPNRotateEvery) {
+					if torrentEngine.ActiveReaders() > 0 && deferred < maxDeferred {
+						deferred++
+						continue
+					}
+					deferred = 0
+					_ = rotate(context.Background())
+				}
+			}()
+		}
+	}
 
 	// 6. Initialize Media Streaming Pipeline
 	streamPipeline := stream.NewPipelineManager(logger)
@@ -105,6 +140,17 @@ func main() {
 		os.Exit(1)
 	}
 	defer redisClient.Close()
+	// The catalog survives Redis restarts on disk; without it the caches simply run on Redis alone.
+	// Production only: the dev stack shares Redis and the AniList budget with production, so it must
+	// neither run a second import nor elect itself leader of the production one.
+	if cfg.AppEnv == "production" {
+		if durable, err := kv.OpenDurable(filepath.Join(cfg.CatalogDir, "catalog.sqlite")); err != nil {
+			logger.Error("durable catalog store unavailable, caches run on Redis only", "err", err, "dir", cfg.CatalogDir)
+		} else {
+			defer durable.Close()
+			redisClient.SetDurable(durable)
+		}
+	}
 	catalogIndexers.SetRedis(redisClient)
 
 	// Every AniList answer is kept on disk for good: the catalog grows into our own database.
@@ -162,7 +208,8 @@ func main() {
 	}
 
 	// The admin panel is optional: any failure here leaves streaming untouched.
-	if adminSvc, stopAdmin := startAdmin(cfg, logger, redisClient); adminSvc != nil {
+	adminSvc, stopAdmin := startAdmin(cfg, logger, redisClient)
+	if adminSvc != nil {
 		defer stopAdmin()
 		serverOpts = append(serverOpts, api.WithAdmin(adminSvc))
 		serverOpts = append(serverOpts, api.WithMCP())
@@ -170,6 +217,24 @@ func main() {
 		errorRecorder := admin.NewErrorRecorder(adminSvc.Store())
 		defer errorRecorder.Close()
 		serverOpts = append(serverOpts, api.WithErrorSink(errorRecorder))
+	}
+
+	// Donations are optional too: without their database the page is simply off.
+	if donationStore, err := donations.Open(cfg.AccountsDir); err != nil {
+		logger.Error("donations disabled: cannot open donations database", "err", err)
+	} else {
+		defer donationStore.Close()
+		goal := int64(0)
+		if cfg.DonationGoalEUR != nil {
+			goal = int64(*cfg.DonationGoalEUR * 100)
+		}
+		serverOpts = append(serverOpts, api.WithDonations(donations.NewService(donationStore, donations.Config{
+			SiteURL: cfg.SiteURL, BTCPayURL: cfg.BTCPayURL, BTCPayStoreID: cfg.BTCPayStoreID, BTCPayAPIKey: cfg.BTCPayAPIKey,
+			BTCPayWebhookSecret: cfg.BTCPayWebhookSecret, KofiURL: cfg.KofiURL, KofiToken: cfg.KofiToken, GoalCents: goal,
+		})))
+		if adminSvc != nil {
+			adminSvc.SetDonations(donationStore)
+		}
 	}
 
 	server := api.NewServer(cfg, logger, catalogIndexers, engine, streamPipeline, serverOpts...)

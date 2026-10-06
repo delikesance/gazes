@@ -11,11 +11,6 @@ export function libraryLang(source: EpisodeSource): LibraryLang | null {
   return null;
 }
 
-export function canPlayCopy(copy: LibraryCopy, isTypeSupported: (mime: string) => boolean): boolean {
-  if (copy.video_codec !== 'av1') return true;
-  return isTypeSupported(AV1_MIME);
-}
-
 /** A library copy shaped like a torrent source so the player and the failover logic treat it uniformly. */
 export function librarySource(copy: LibraryCopy, base: Partial<EpisodeSource>): EpisodeSource {
   const tag = copy.lang === 'vf' ? 'VF' : 'VOSTFR';
@@ -49,18 +44,16 @@ export function librarySource(copy: LibraryCopy, base: Partial<EpisodeSource>): 
 }
 
 /**
- * Inserts each playable copy just before the first ranked source of its language (appended when there is none),
+ * Inserts each copy (an AV1 copy is transcoded server-side for browsers that cannot decode it) just before the first ranked source of its language (appended when there is none),
  * so a library copy never outranks a torrent in a better language.
  */
 export function withLibraryCandidates(
   ranked: EpisodeSource[],
   copies: LibraryCopy[],
-  isTypeSupported: (mime: string) => boolean,
   base: Partial<EpisodeSource> = {},
 ): EpisodeSource[] {
   const out = [...ranked];
   for (const copy of copies) {
-    if (!canPlayCopy(copy, isTypeSupported)) continue;
     if (out.some((s) => s.info_hash === copy.stream_id)) continue;
     const at = out.findIndex((s) => !s.library && libraryLang(s) === copy.lang);
     const source = librarySource(copy, { ...base, episode_number: base.episode_number ?? 0 });
