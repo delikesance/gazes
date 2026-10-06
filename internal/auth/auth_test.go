@@ -490,6 +490,41 @@ func TestWatchlistAddRemoveAndValidation(t *testing.T) {
 	}
 }
 
+func TestWatchlistIsCapped(t *testing.T) {
+	s := newTestService(t)
+	c := sessionCookie(s.post(t, s.Register, "register", map[string]string{"email": "cap@example.com", "password": "longenough", "pseudo": "hoarder"}))
+	put := func(add []int64) int {
+		body, _ := json.Marshal(map[string]any{"add": add})
+		req := httptest.NewRequest("PUT", "/me/watchlist", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(c)
+		rr := httptest.NewRecorder()
+		s.PutWatchlist(rr, req)
+		return rr.Code
+	}
+	next := int64(1)
+	batch := func(n int) []int64 {
+		ids := make([]int64, n)
+		for i := range ids {
+			ids[i], next = next, next+1
+		}
+		return ids
+	}
+	for range maxWatchlist / 500 {
+		if code := put(batch(500)); code != http.StatusOK {
+			t.Fatalf("filling up to the cap: %d", code)
+		}
+	}
+	// Unbounded PUTs of 500 must not grow the table forever.
+	if code := put(batch(1)); code != http.StatusConflict {
+		t.Fatalf("past the cap: got %d, want 409", code)
+	}
+	var saved int
+	if err := s.store.db.QueryRow(`SELECT COUNT(*) FROM watchlist`).Scan(&saved); err != nil || saved != maxWatchlist {
+		t.Fatalf("a refused update must not be applied: %d saved (%v)", saved, err)
+	}
+}
+
 func TestDeleteHistoryErasesLogAndHiddenButKeepsProgress(t *testing.T) {
 	s := newTestService(t)
 	c := sessionCookie(s.post(t, s.Register, "register", map[string]string{"email": "d@example.com", "password": "longenough", "pseudo": "eraser"}))
