@@ -9,6 +9,7 @@ import { getSchedule } from "@/lib/api";
 import { addDays, airingStates, apiBounds, dayKey, daysIn, groupByDay, isSameDay, monthGridRange, startOfDay, weekRange, type AiringState } from "@/lib/calendar";
 import type { ScheduleEntry } from "@/types/api";
 import { LazyImage } from "./ui/LazyImage";
+import { WatchlistQuick } from "./WatchlistQuick";
 
 type View = "week" | "month" | "list";
 
@@ -98,6 +99,7 @@ export function ReleaseCalendar() {
     const state = states.get(entry) || "upcoming";
     const hour = new Date(entry.airing_at * 1000).getHours();
     return (
+      <div key={`${entry.media_id}-${entry.episode}`} className="cal-item">
       <Link key={`${entry.media_id}-${entry.episode}`} href={entryHref(entry, state)} className="cal-card" data-state={state}>
         <span className="cal-thumb">
           <LazyImage src={entry.poster_image} alt="" aspectRatio="" className="cal-thumb-art" />
@@ -109,6 +111,8 @@ export function ReleaseCalendar() {
         <span className="cal-title">{entry.title}</span>
         {(entry.studio || entry.genres?.[0]) && <span className="cal-meta">{[entry.studio, entry.genres?.[0]].filter(Boolean).join(" · ")}</span>}
       </Link>
+      <WatchlistQuick animeId={entry.media_id} title={entry.title} className="cal-quick-card" />
+      </div>
     );
   }
 
@@ -116,6 +120,7 @@ export function ReleaseCalendar() {
     const state = states.get(entry) || "upcoming";
     const hour = new Date(entry.airing_at * 1000).getHours();
     return (
+      <div key={`${entry.media_id}-${entry.episode}`} className="cal-item">
       <Link key={`${entry.media_id}-${entry.episode}`} href={entryHref(entry, state)} className="cal-row" data-state={state}>
         <span className="cal-row-poster"><LazyImage src={entry.poster_image} alt="" aspectRatio="" className="cal-thumb-art" /></span>
         <span className="cal-row-copy">
@@ -128,6 +133,8 @@ export function ReleaseCalendar() {
           </span>
         </span>
       </Link>
+      <WatchlistQuick animeId={entry.media_id} title={entry.title} className="cal-quick-row" />
+      </div>
     );
   };
 
