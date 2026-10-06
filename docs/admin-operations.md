@@ -47,7 +47,7 @@ One replica per period (Redis election): the metrics rollup every 10 minutes (id
 | `/catalog` (cold) | 0.95 s |
 | `/views` (cold) | 2.3 s |
 
-The heavy aggregates are cached for one minute per caller kind and URL (`X-Gazes-Cache: hit|miss`), and concurrent identical requests share one computation. `/views` and `/catalog` scan `watch_sessions` directly (bounded by `started_at`, marked `TODO(rollup)`): if a deployment grows well beyond this size, move them to rollup tables first.
+The heavy aggregates are cached for one minute per caller kind and URL (`X-Gazes-Cache: hit|miss`), and concurrent identical requests share one computation. `/views` and `/catalog` read per-day aggregates (`metrics_views_daily`, `metrics_drop_daily`, `metrics_catalog_daily`, written by the rollup with the other `metrics_*` tables) when every day of the period has been rolled up, and otherwise fall back to a period-bounded scan of `watch_sessions` that gives the same answer (tests compare both). Today and yesterday are recomputed every 10 minutes, so a period that includes today lags by up to that long. After an upgrade that created these tables the startup backfill rebuilds the last 90 days. The other per-user aggregates (segments, directory, funnel, timezones, resume) still scan `watch_sessions` (`TODO(rollup)`).
 
 ## Backups and upgrades
 
