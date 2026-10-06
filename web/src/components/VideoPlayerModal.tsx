@@ -50,6 +50,7 @@ import {
   Link2,
   Users,
   PictureInPicture2,
+  Cast,
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -536,6 +537,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     const next = PLAYBACK_RATES[Math.max(0, Math.min(PLAYBACK_RATES.length - 1, index + direction))];
     setPlaybackRate(next);
   }, [playbackRate, setPlaybackRate]);
+
+  // Safari/iOS only: opens the system AirPlay picker for the video element.
+  const [canAirPlay] = useState(() => typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window);
+  const showAirPlay = useCallback(() => {
+    (videoRef.current as (HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }) | null)?.webkitShowPlaybackTargetPicker?.();
+  }, []);
 
   const togglePip = useCallback(() => {
     const video = videoRef.current;
@@ -1297,6 +1304,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         <button onClick={copyTimeLink} className="player-pill player-pill--icon" aria-live="polite" aria-label={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")} title={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")}>
                           <Link2 className="h-[18px] w-[18px]" />
                         </button>
+                        {canAirPlay && (
+                          <button onClick={showAirPlay} className="player-pill player-pill--icon" aria-label={t("AirPlay")} title={t("AirPlay")}>
+                            <Cast className="h-[18px] w-[18px]" />
+                          </button>
+                        )}
                         {canPip && (
                           <button onClick={togglePip} className="player-pill player-pill--icon" aria-label={t("Picture-in-Picture (P)")} title={t("Picture-in-Picture (P)")}>
                             <PictureInPicture2 className="h-[18px] w-[18px]" />
