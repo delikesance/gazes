@@ -105,7 +105,7 @@ func RemuxStream(ctx context.Context, w http.ResponseWriter, src io.Reader, logg
 		"pipe:1",
 	)
 
-	ffmpegBin := findFFmpegPath()
+	ffmpegBin := FFmpegPath()
 	cmd := exec.CommandContext(ctx, ffmpegBin, args...)
 	if inputSrc == "pipe:0" {
 		cmd.Stdin = src
@@ -131,7 +131,8 @@ func RemuxStream(ctx context.Context, w http.ResponseWriter, src io.Reader, logg
 	return nil
 }
 
-func findFFmpegPath() string {
+// FFmpegPath locates the ffmpeg binary: $FFMPEG_PATH, then PATH, then the usual install dirs.
+func FFmpegPath() string {
 	if p := os.Getenv("FFMPEG_PATH"); p != "" {
 		if _, err := exec.LookPath(p); err == nil {
 			return p
