@@ -72,5 +72,12 @@
 
 /* On a phone the breadcrumb in the header repeats the page title and the bottom bar: drop it. */
 @media (max-width: 767px) {
-  .header-breadcrumb-slot { display: none; }
+  /* Deep pages: the header shows one ← (to where you came from) instead of the wordmark and the trail. */
+  .catalog-header:has(.header-breadcrumb-slot:not(:empty)) .site-wordmark { display: none; }
+  .header-breadcrumb-slot { min-width: 0; flex: 1; }
+  .header-breadcrumb-slot .detail-breadcrumb > :not(.breadcrumb-back) { display: none; }
+  .header-breadcrumb-slot .detail-breadcrumb { padding: 0; height: auto; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .header-breadcrumb-slot .breadcrumb-back { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--foreground); font: inherit; font-size: 14px; font-weight: 600; }
+  .header-breadcrumb-slot .breadcrumb-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-breadcrumb-slot .breadcrumb-back:active { background: var(--surface-hover); }
 }

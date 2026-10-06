@@ -84,10 +84,10 @@ export function CatalogBrowser({
     }
   }, [initialQuery, initialGenre, initialTab, initialPage]);
 
-  function update(values: Record<string, string>, scroll = true) {
+  function update(values: Record<string, string>, scroll = true, replace = false) {
     const current = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     Object.entries(values).forEach(([k, v]) => v ? current.set(k, v) : current.delete(k));
-    router.push(`/?${current.toString()}`, { scroll });
+    (replace ? router.replace : router.push)(`/?${current.toString()}`, { scroll });
   }
 
   useEffect(() => {
@@ -147,8 +147,8 @@ export function CatalogBrowser({
     {discovery && !error && <section className="season-discovery" aria-label={t("Catalogue")}>
       <div className="catalog-tabs-row page-inset">
         <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
-          <button type="button" aria-pressed={!isSuggestions} onClick={() => update({ tab: "", page: "1" }, false)}>{t("Calendrier")}</button>
-          <button type="button" aria-pressed={isSuggestions} onClick={() => update({ tab: "suggestions", page: "1" }, false)}>{t("Suggestions")}</button>
+          <button type="button" aria-pressed={!isSuggestions} onClick={() => update({ tab: "", page: "1" }, false, true)}>{t("Calendrier")}</button>
+          <button type="button" aria-pressed={isSuggestions} onClick={() => update({ tab: "suggestions", page: "1" }, false, true)}>{t("Suggestions")}</button>
         </div>
       </div>
       {isSuggestions ? (data && data.items && data.items.length > 0 && <>
