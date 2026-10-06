@@ -224,6 +224,11 @@ func main() {
 		logger.Error("donations disabled: cannot open donations database", "err", err)
 	} else {
 		defer donationStore.Close()
+		accounts.SetOnAccountDeleted(func(ctx context.Context, userID int64) {
+			if err := donationStore.UnlinkUser(ctx, userID); err != nil {
+				logger.Warn("unlink donations of a deleted account", "err", err)
+			}
+		})
 		goal := int64(0)
 		if cfg.DonationGoalEUR != nil {
 			goal = int64(*cfg.DonationGoalEUR * 100)

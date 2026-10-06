@@ -58,6 +58,7 @@ type Server struct {
 	mcpEnabled      bool
 	mcpOrigins      []string
 	errorSink       admin.ErrorSink
+	calendarCache   calendarFeeds
 }
 
 // Option customises a Server.
@@ -182,6 +183,8 @@ func (s *Server) setupRoutes() {
 		if s.admin != nil {
 			api.Get("/status", s.admin.PublicStatus)
 		}
+		api.With(s.rateLimit("import", 6, time.Minute)).Get("/import/anilist", s.HandleAniListImport)
+		api.With(s.rateLimit("import", 6, time.Minute)).Post("/import/mal", s.HandleMALImport)
 		api.Post("/diagnostics/events", s.HandleDiagnosticEvents)
 		api.Get("/diagnostics/cache", s.HandleCacheDiagnostics)
 		api.With(s.rateLimit("search", 60, time.Minute)).Get("/search", s.HandleSearch)
@@ -204,8 +207,23 @@ func (s *Server) setupRoutes() {
 			api.Get("/me/history", s.auth.GetHistory)
 			api.Put("/me/history", s.auth.PutHistory)
 			api.Delete("/me/history", s.auth.DeleteHistory)
+			api.Post("/auth/delete-account", s.auth.DeleteAccount)
+			api.Post("/auth/recover", s.auth.Recover)
+			api.Post("/me/recovery-codes", s.auth.NewRecoveryCodes)
+			api.Get("/me/export", s.auth.Export)
+			api.Get("/me/sessions", s.auth.ListSessions)
+			api.Delete("/me/sessions/{id}", s.auth.RevokeSession)
 			api.Get("/me/hidden", s.auth.GetHidden)
 			api.Put("/me/hidden", s.auth.PutHidden)
+			api.Post("/me/calendar-feed", s.auth.NewCalendarFeed)
+			api.With(s.rateLimit("calendar", 30, time.Minute)).Get("/calendar/{token}", s.HandleCalendarFeed)
+			api.Get("/me/lists", s.auth.GetLists)
+			api.Post("/me/lists", s.auth.CreateList)
+			api.Put("/me/lists/{id}", s.auth.RenameList)
+			api.Delete("/me/lists/{id}", s.auth.DeleteList)
+			api.Put("/me/lists/{id}/items", s.auth.UpdateListItems)
+			api.Get("/me/notes", s.auth.GetNotes)
+			api.Put("/me/notes", s.auth.PutNotes)
 			api.Get("/me/watchlist", s.auth.GetWatchlist)
 			api.Put("/me/watchlist", s.auth.PutWatchlist)
 		}

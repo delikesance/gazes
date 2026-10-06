@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Play } from "lucide-react";
+import { Check, Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { episodePreviewUrl } from "@/lib/api";
 import type { EpisodeInfo } from "@/types/api";
@@ -13,7 +13,7 @@ export function splitEpisodeTitle(raw: string): { title: string | null; subtitle
  return { title: parts[0], subtitle: parts.length > 1 ? parts.slice(1).join(" · ") : null };
 }
 
-export function EpisodeCard({episode, href, current = false, seasonId}: {episode: EpisodeInfo; href: string; current?: boolean; seasonId?: number}) {
+export function EpisodeCard({episode, href, current = false, watched = false, onToggleWatched, seasonId}: {episode: EpisodeInfo; href: string; current?: boolean; watched?: boolean; onToggleWatched?: () => void; seasonId?: number}) {
  const {t, locale}=useI18n();
  const [failedImage, setFailedImage]=useState<string|null>(null);
  // Without a provider still, show the frame cut from the file when the episode was first played (404 until then).
@@ -30,9 +30,15 @@ export function EpisodeCard({episode, href, current = false, seasonId}: {episode
    <h2>{title||`${t("Épisode")} ${episode.episode_number}`}</h2>
    {subtitle&&<p>{subtitle}</p>}
    {current&&<p className="episode-status">{t("En cours de visionnage")}</p>}
+   {watched&&!current&&<p className="episode-seen">{t("Vu")}</p>}
    {episode.upcoming&&<p>{episode.airing_at?<time dateTime={new Date(episode.airing_at*1000).toISOString()}>{new Intl.DateTimeFormat(locale==="fr"?"fr-FR":"en-GB",{dateStyle:"medium",timeStyle:"short"}).format(new Date(episode.airing_at*1000))}</time>:t("Date à confirmer")}</p>}
   </div>{!episode.upcoming&&<span className="episode-play-button"><Play size={14} aria-hidden="true" /></span>}</div>
  </>;
- const className=`episode-card${episode.upcoming?" upcoming":""}${current?" current":""}${hasPreview?" has-preview":" compact-episode"}`;
- return episode.upcoming?<div className={className}>{content}</div>:<Link className={className} href={href} aria-label={`${t("Épisode")} ${episode.episode_number}${title?` — ${title}`:""}`}>{content}</Link>;
+ const className=`episode-card${episode.upcoming?" upcoming":""}${current?" current":""}${watched?" watched":""}${hasPreview?" has-preview":" compact-episode"}`;
+ if(episode.upcoming) return <div className={className}>{content}</div>;
+ const card=<Link className={className} href={href} aria-label={`${t("Épisode")} ${episode.episode_number}${title?` — ${title}`:""}`}>{content}</Link>;
+ if(!onToggleWatched) return card;
+ // The toggle sits beside the link, not inside it: a button cannot live in an anchor.
+ const label=t(watched?"Marquer comme non vu":"Marquer comme vu");
+ return <div className="episode-row">{card}<button type="button" className="episode-seen-toggle" aria-pressed={watched} aria-label={label} title={label} onClick={onToggleWatched}><Check size={14} aria-hidden="true" /></button></div>;
 }
