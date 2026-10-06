@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Check, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Scribble } from "./ui/Scribble";
+import { SUBTITLE_LIFTS, SUBTITLE_SCALES, type SubtitleStyle } from "@/lib/ass-style";
 
 export type PlayerOptionsTab = "audio" | "subtitles" | "speed" | "ambilight";
 
@@ -26,10 +27,12 @@ interface PlayerOptionsModalProps {
   playbackRate: number;
   rates: number[];
   onPlaybackRateChange: (rate: number) => void;
+  subtitleStyle: SubtitleStyle;
+  onSubtitleStyleChange: (patch: Partial<SubtitleStyle>) => void;
 }
 
 /** One frosted dialog for the tracks a viewer picks: audio and subtitles. */
-export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, selectedAudio, onSelectAudio, subtitleOptions, selectedSubtitle, onSelectSubtitle, ambilight, onAmbilightChange, playbackRate, rates, onPlaybackRateChange }: PlayerOptionsModalProps) {
+export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, selectedAudio, onSelectAudio, subtitleOptions, selectedSubtitle, onSelectSubtitle, ambilight, onAmbilightChange, playbackRate, rates, onPlaybackRateChange, subtitleStyle, onSubtitleStyleChange }: PlayerOptionsModalProps) {
   const { t } = useI18n();
   const tabs: [PlayerOptionsTab, string][] = [["audio", "Audio"], ["subtitles", "Sous-titres"], ["speed", "Vitesse"], ["ambilight", "Ambilight"]];
 
@@ -78,6 +81,23 @@ export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, se
                   {selectedSubtitle === option.index && <Check className="h-4 w-4 shrink-0" />}
                 </button>
               ))}
+              <div className="px-3 pt-3">
+                <div className="mb-2 px-1 text-xs text-zinc-400">{t("Taille du texte")}</div>
+                <div className="flex gap-1 rounded-full bg-white/[.08] p-1" role="group" aria-label={t("Taille du texte")}>
+                  {SUBTITLE_SCALES.map((scale) => (
+                    <button key={scale} aria-pressed={subtitleStyle.scale === scale} data-active={subtitleStyle.scale === scale} onClick={() => onSubtitleStyleChange({ scale })} className="player-row !min-h-9 flex-1 !justify-center !px-2">{Math.round(scale * 100)} %</button>
+                  ))}
+                </div>
+              </div>
+              <div className="px-3 pt-3">
+                <div className="mb-2 px-1 text-xs text-zinc-400">{t("Position")}</div>
+                <div className="flex gap-1 rounded-full bg-white/[.08] p-1" role="group" aria-label={t("Position")}>
+                  {SUBTITLE_LIFTS.map((lift) => (
+                    <button key={lift} aria-pressed={subtitleStyle.lift === lift} data-active={subtitleStyle.lift === lift} onClick={() => onSubtitleStyleChange({ lift })} className="player-row !min-h-9 flex-1 !justify-center !px-2">{t(lift === 0 ? "Bas" : lift === 5 ? "Relevée" : "Haute")}</button>
+                  ))}
+                </div>
+              </div>
+              <p className="px-4 pb-1 pt-3 text-xs text-zinc-400">{t("Les sous-titres image (PGS) ne peuvent pas être modifiés.")}</p>
             </div>
           )}
 
