@@ -8,7 +8,7 @@ export interface AccountUser { id: number; pseudo: string; email?: string; role?
 export type AuthErrorCode =
   | "invalid_request" | "invalid_email" | "invalid_pseudo" | "invalid_password"
   | "invalid_credentials" | "email_taken" | "not_found" | "captcha_failed" | "rate_limited"
-  | "invalid_code" | "forbidden" | "unauthorized" | "server_error" | "network";
+  | "too_many_lists" | "list_full" | "invalid_code" | "forbidden" | "unauthorized" | "server_error" | "network";
 
 export class AuthError extends Error {
   constructor(public code: AuthErrorCode) { super(code); }
@@ -94,6 +94,26 @@ export async function pullNotes(): Promise<RemoteNote[]> {
 
 export async function pushNotes(notes: RemoteNote[]): Promise<RemoteNote[]> {
   return (await request<{ notes: RemoteNote[] }>("/me/notes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) })).notes;
+}
+
+export interface UserList { id: number; name: string; anime_ids: number[] }
+
+const jsonInit = (method: string, body?: unknown): RequestInit => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
+
+export async function pullLists(): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>("/me/lists")).lists;
+}
+export async function createList(name: string): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>("/me/lists", jsonInit("POST", { name }))).lists;
+}
+export async function renameList(id: number, name: string): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>(`/me/lists/${id}`, jsonInit("PUT", { name }))).lists;
+}
+export async function deleteList(id: number): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>(`/me/lists/${id}`, jsonInit("DELETE"))).lists;
+}
+export async function updateListItems(id: number, add: number[], remove: number[]): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>(`/me/lists/${id}/items`, jsonInit("PUT", { add, remove }))).lists;
 }
 
 export async function exportAccount(): Promise<unknown> {
