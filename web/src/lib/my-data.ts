@@ -2,6 +2,7 @@
 import { deleteWatchData, exportAccount } from "./auth";
 import { clearLocalWatchLog } from "./watch-log";
 import { clearHidden } from "./hidden-anime";
+import { clearWatchedMarks } from "./watched";
 
 /** Downloads everything the account holds (profile, resume points, watch log, hidden anime, watchlist) as one JSON file. */
 export async function exportMyData() {
@@ -18,4 +19,5 @@ export async function eraseMyWatchLog() {
   await deleteWatchData();
   clearLocalWatchLog();
   clearHidden();
+  clearWatchedMarks();
 }
