@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as api from "@/lib/auth";
+import { resetLists } from "@/lib/lists";
 import { setProgressSyncEnabled, syncProgressOnLogin } from "@/lib/watch-progress";
 
 interface AuthState {
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void syncProgressOnLogin(u.id);
     return u;
   }, []);
-  const logout = useCallback(async () => { await api.logout().catch(() => {}); setProgressSyncEnabled(false); setUser(null); }, []);
+  const logout = useCallback(async () => { await api.logout().catch(() => {}); setProgressSyncEnabled(false); resetLists(); setUser(null); }, []);
 
   const value = useMemo(() => ({ user, login, register, recover, logout }), [user, login, register, recover, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
