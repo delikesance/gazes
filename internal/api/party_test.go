@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -93,5 +94,52 @@ func TestPartyRejectsBadInput(t *testing.T) {
 		if res.StatusCode != http.StatusBadRequest {
 			t.Fatalf("%s %s: got %d", tc.path, tc.body, res.StatusCode)
 		}
+	}
+}
+
+func TestPartySendsHeartbeat(t *testing.T) {
+	old := partyHeartbeat
+	partyHeartbeat = 20 * time.Millisecond
+	defer func() { partyHeartbeat = old }()
+	srv := httptest.NewServer(partyRouter(newPartyHub()))
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/party/abc123/events?from=alice", nil)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	sc := bufio.NewScanner(res.Body)
+	for sc.Scan() {
+		// An SSE comment keeps idle proxies (Next's 30 s proxy timeout) from closing a quiet room.
+		if strings.HasPrefix(sc.Text(), ":") {
+			return
+		}
+	}
+	t.Fatal("no heartbeat on an idle party stream")
+}
+
+func TestPartyCapsStreamsPerClient(t *testing.T) {
+	h := newPartyHub()
+	var held []*partyMember
+	for i := range maxPartyStreamsPerIP {
+		m := h.join("room"+strconv.Itoa(i)+"aaa", "a", "203.0.113.7")
+		if m == nil {
+			t.Fatalf("stream %d refused under the cap", i)
+		}
+		held = append(held, m)
+	}
+	// One client must not be able to fill every room and lock everyone else out.
+	if h.join("otherroom", "a", "203.0.113.7") != nil {
+		t.Fatal("client exceeded its stream cap")
+	}
+	if h.join("otherroom", "b", "203.0.113.8") == nil {
+		t.Fatal("another client was refused")
+	}
+	h.leave("room0aaa", held[0])
+	if h.join("otherroom", "a", "203.0.113.7") == nil {
+		t.Fatal("a closed stream did not free its slot")
 	}
 }

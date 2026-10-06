@@ -37,7 +37,7 @@ type Server struct {
 	router          chi.Router
 	diagnosticRate  rateLimiter
 	routeLimits     rateLimiter
-	trustProxy      bool
+	proxy           *auth.ProxyTrust
 	auth            *auth.Service
 	kv              *kv.Client
 	sourceCache     *sourceCache
@@ -67,8 +67,9 @@ func (r unavailableEpisodeResolver) ResolvePlaybackSources(context.Context, inde
 	return nil, r.err
 }
 
-// WithTrustProxy makes per-client rate limits read the client IP from X-Forwarded-For (set by the edge proxy).
-func WithTrustProxy(trust bool) Option { return func(s *Server) { s.trustProxy = trust } }
+// WithProxyTrust makes per-client rate limits read the client IP from X-Forwarded-For when the
+// request comes from a trusted proxy (the web server, relaying the edge's header).
+func WithProxyTrust(p *auth.ProxyTrust) Option { return func(s *Server) { s.proxy = p } }
 
 // WithAuth enables the account routes.
 func WithAuth(svc *auth.Service) Option { return func(s *Server) { s.auth = svc } }
@@ -128,6 +129,7 @@ func NewServer(
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.party.clientIP = func(r *http.Request) string { return auth.ClientIP(r, s.proxy.Trusts(r)) }
 	s.setupRoutes()
 	return s
 }

@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gazes/gazes/internal/auth"
 )
 
 func limited(s *Server, remote, xff string) int {
@@ -20,7 +22,7 @@ func limited(s *Server, remote, xff string) int {
 }
 
 func TestRateLimitKeysOnClientIP(t *testing.T) {
-	s := &Server{trustProxy: true}
+	s := &Server{proxy: auth.NewProxyTrust(true, nil)}
 	for range 2 {
 		if c := limited(s, "172.18.0.5:1", "203.0.113.7"); c != 200 {
 			t.Fatalf("within limit: %d", c)
@@ -61,5 +63,32 @@ func TestRateLimiterEvictsInsteadOfLockingOut(t *testing.T) {
 	}
 	if !l.hit("fresh-client", 5, time.Minute) {
 		t.Fatal("a full table must evict old keys, not refuse new clients")
+	}
+}
+
+func TestRateLimitSkipsWebServerRenderBehindProxy(t *testing.T) {
+	s := &Server{proxy: auth.NewProxyTrust(true, nil)}
+	for range 10 {
+		// Next's server-side fetches reach the backend from the web container without the edge's X-Forwarded-For.
+		if c := limited(s, "172.18.0.3:1", ""); c != 200 {
+			t.Fatalf("server-side render throttled as one shared client: %d", c)
+		}
+	}
+}
+
+func TestRateLimitIgnoresForwardedHeaderFromUntrustedPeer(t *testing.T) {
+	s := &Server{proxy: auth.NewProxyTrust(true, []string{"10.0.0.2/32"})}
+	// Another container on a shared docker network forging the edge's header: limited by its own address.
+	for range 2 {
+		limited(s, "10.0.0.9:1", "127.0.0.1")
+	}
+	if c := limited(s, "10.0.0.9:1", ""); c != http.StatusTooManyRequests {
+		t.Fatalf("untrusted peer escaped the limit: %d", c)
+	}
+	// The trusted web container without the header is a server-side render: exempt.
+	for range 5 {
+		if c := limited(s, "10.0.0.2:1", ""); c != 200 {
+			t.Fatalf("trusted SSR throttled: %d", c)
+		}
 	}
 }
