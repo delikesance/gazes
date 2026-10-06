@@ -207,6 +207,15 @@ var migrations = []dbmigrate.Migration{
 			PRIMARY KEY (day, kind, a, b)
 		)`,
 	)},
+	// A database created before playback_startups joined the baseline never got the table (the
+	// baseline only runs once): the startup-time metric and the nightly prune failed on it.
+	{Version: 7, Name: "playback_startups_table", Up: dbmigrate.SQL(
+		`CREATE TABLE IF NOT EXISTS playback_startups (
+			ts INTEGER NOT NULL,
+			ms INTEGER NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS playback_startups_ts ON playback_startups(ts)`,
+	)},
 }
 
 // Open opens (creating if needed) the admin database at path and migrates it.
