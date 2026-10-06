@@ -13,17 +13,11 @@ import (
 
 // HandleStream handles HTTP streaming and remuxing requests for a specific torrent file.
 func (s *Server) HandleStream(w http.ResponseWriter, r *http.Request) {
-	ih := r.URL.Query().Get("ih")
-	if ih == "" {
-		http.Error(w, `{"error": "missing infohash parameter 'ih'"}`, http.StatusBadRequest)
+	// ih is interpolated into the loopback URL ffmpeg reads: validate it like /stream/raw does.
+	ih, fileIdx, ok := streamTarget(r)
+	if !ok {
+		http.Error(w, `{"error": "invalid infohash or file_idx"}`, http.StatusBadRequest)
 		return
-	}
-
-	fileIdx := 0
-	if idxStr := r.URL.Query().Get("file_idx"); idxStr != "" {
-		if idx, err := strconv.Atoi(idxStr); err == nil && idx >= 0 {
-			fileIdx = idx
-		}
 	}
 
 	forceRemux := false
@@ -63,6 +57,7 @@ func (s *Server) HandleStream(w http.ResponseWriter, r *http.Request) {
 		ForceRemux:      forceRemux,
 		TimeOffset:      timeOffset,
 		InputURL:        inputURL,
+		Client:          s.clientKey(r),
 	}
 
 	if err := s.streamPipeline.ServeHTTP(w, r, reader, fileInfo.Path, fileInfo.Length, opts); err != nil {

@@ -21,9 +21,21 @@ export function foldLine(line: string): string {
   return parts.join("\r\n");
 }
 
+// A list holds up to 2000 anime: fetch their franchises a few at a time, not all at once.
+const FRANCHISE_CONCURRENCY = 6;
+
+/** Maps items through fn with at most `limit` calls in flight; results keep the input order. */
+export async function mapLimited<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => { while (next < items.length) { const i = next++; out[i] = await fn(items[i]); } };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
 /** Airings of the next six weeks for the saved anime, as an iCalendar file (null when none air). */
 export async function watchlistCalendar(ids: number[], origin: string): Promise<string | null> {
-  const franchises = await Promise.all(ids.map((id) => getFranchise(id).catch(() => null)));
+  const franchises = await mapLimited(ids, FRANCHISE_CONCURRENCY, (id) => getFranchise(id).catch(() => null));
   const owner = new Map<number, { id: number; title: string }>();
   for (const f of franchises) for (const s of f?.seasons ?? []) owner.set(s.id, { id: f!.id, title: f!.title });
   const from = Math.floor(Date.now() / 1000);
