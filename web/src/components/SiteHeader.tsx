@@ -53,6 +53,12 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
   },[]);
+  // The phone tab bar opens the search from the thumb zone.
+  useEffect(()=>{
+    const open=()=>setSearchOpen(true);
+    window.addEventListener("gazes-open-search",open);
+    return()=>window.removeEventListener("gazes-open-search",open);
+  },[]);
   // Tapping outside closes the search and the filters. Pointer position, not focus: Safari never focuses a tapped button.
   useEffect(()=>{
     if(!searchVisible)return;
