@@ -168,6 +168,45 @@ var migrations = []dbmigrate.Migration{
 		`CREATE INDEX IF NOT EXISTS watch_runs_ts ON watch_runs(ts)`,
 		`CREATE INDEX IF NOT EXISTS mcp_audit_ts ON mcp_audit(ts)`,
 	)},
+	// Per-day aggregates behind /views (session length, retention curve, drop episodes): the page
+	// reads them when every day of its period is present and scans watch_sessions otherwise.
+	{Version: 5, Name: "views_rollup", Up: dbmigrate.SQL(
+		`CREATE TABLE IF NOT EXISTS metrics_views_daily (
+			day TEXT PRIMARY KEY,
+			sessions INTEGER NOT NULL DEFAULT 0,
+			minutes REAL NOT NULL DEFAULT 0,
+			buckets TEXT NOT NULL DEFAULT '[]',
+			present TEXT NOT NULL DEFAULT '[]',
+			eligible TEXT NOT NULL DEFAULT '[]'
+		)`,
+		`CREATE TABLE IF NOT EXISTS metrics_drop_daily (
+			day TEXT NOT NULL,
+			anime_id INTEGER NOT NULL,
+			season_id INTEGER NOT NULL,
+			episode INTEGER NOT NULL,
+			title TEXT NOT NULL DEFAULT '',
+			title_at INTEGER NOT NULL DEFAULT 0,
+			sessions INTEGER NOT NULL DEFAULT 0,
+			abandoned INTEGER NOT NULL DEFAULT 0,
+			minutes TEXT NOT NULL DEFAULT '[]',
+			PRIMARY KEY (day, anime_id, season_id, episode)
+		)`,
+	)},
+	{Version: 6, Name: "catalog_rollup", Up: dbmigrate.SQL(
+		`CREATE TABLE IF NOT EXISTS metrics_catalog_daily (
+			day TEXT NOT NULL,
+			kind TEXT NOT NULL,
+			a TEXT NOT NULL,
+			b TEXT NOT NULL DEFAULT '',
+			n INTEGER NOT NULL DEFAULT 0,
+			completed INTEGER NOT NULL DEFAULT 0,
+			secs REAL NOT NULL DEFAULT 0,
+			title TEXT NOT NULL DEFAULT '',
+			title_at INTEGER NOT NULL DEFAULT 0,
+			fmt_at INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (day, kind, a, b)
+		)`,
+	)},
 }
 
 // Open opens (creating if needed) the admin database at path and migrates it.
