@@ -40,7 +40,7 @@ const pairs: [string, string][] = [
  ["Rechercher","Search"],["Rechercher un anime","Search anime"],["Rechercher un anime…","Search anime…"],
  ["Navigation principale","Main navigation"],["Navigation de pied de page","Footer navigation"],
  ["Gazes, accueil","Gazes, home"],["Haut de page","Back to top"],["Changer de thème clair/sombre","Toggle light/dark theme"],
- ["Langue","Language"],["Tous droits réservés.","All rights reserved."],
+ ["Langue","Language"],["Nouveautés","What’s new"],["Nouveau","New"],["Journal de développement","Dev log"],["Fermer l’annonce","Dismiss announcement"],["Tous droits réservés.","All rights reserved."],
  ["Gazes. Tous droits réservés.","Gazes. All rights reserved."],
  ["Gazes n’héberge pas de vidéos de façon permanente. Les flux proviennent de sources externes.","Gazes does not permanently host videos. Streams come from external sources."],
  ["Gazes — Découvrez votre prochain anime","Gazes — Discover your next anime"],
@@ -127,6 +127,10 @@ const pairs: [string, string][] = [
  ["Rechercher un anime (ex. Frieren, Dandadan, One Piece)…","Search anime (e.g. Frieren, Dandadan, One Piece)..."],
  ["Moteur BitTorrent","Swarm Engine"],["Releases","Releases"],
  ["À propos de la saison","About this season"],["Année","Year"],["Statut","Status"],["En cours","Ongoing"],["Depuis le début","From the start"],["Les saisons","Seasons"],["Retour à la série","Back to the series"],["Dans cette série","In this series"],["{count} saisons","{count} seasons"],["{count} saison","{count} season"],["En cours de visionnage","In progress"],["Aperçu enregistré","Preview saved"],
+ ["Genre","Genre"],["Genres","Genres"],["Animes {genre} en streaming","{genre} anime streaming"],
+ ["Copier le lien à cet instant","Copy link at this time"],["Lien copié","Link copied"],
+ ["Épisode suivant dans {seconds} s","Next episode in {seconds}s"],["Lancer maintenant","Play now"],["Annuler","Cancel"],
+ ["Tout voir","See all"],["Ma liste","My list"],["Regarder ensemble : copier l’invitation","Watch together: copy invite"],["Ajouter les sorties à mon calendrier","Add releases to my calendar"],["Aucune sortie prévue dans les 6 prochaines semaines.","No releases scheduled in the next 6 weeks."],["Impossible de générer le calendrier pour l’instant.","Could not build the calendar right now."],["Dans ma liste","In my list"],["À voir plus tard","Watch later"],["Retirer {title} de ma liste","Remove {title} from my list"],["Retirer de ma liste","Remove from my list"],["Navigation principale","Main navigation"],
 ];
 const dictionary = new Map<string, { fr: string; en: string }>();
 for (const [fr, en] of pairs) {const value = {fr,en};dictionary.set(fr,value);dictionary.set(en,value);}

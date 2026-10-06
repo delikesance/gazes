@@ -187,6 +187,9 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
                 workerUrl: "/subtitles/jassub-worker.js",
                 wasmUrl: "/subtitles/jassub-worker.wasm",
                 modernWasmUrl: "/subtitles/jassub-worker-modern.wasm",
+                // Preloaded, not left to JASSUB's lazy fallback: its fontselect log parser skips italic
+                // lookups ("(Family, 400, 100)"), so a track opening on italic cues stayed blank.
+                fonts: ["/subtitles/default.woff2"],
                 availableFonts: { "liberation sans": "/subtitles/default.woff2" },
                 queryFonts: false,
               });

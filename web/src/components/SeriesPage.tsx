@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { Franchise } from "@/types/api";
+import { WatchlistButton } from "./WatchlistButton";
 import { LazyImage } from "./ui/LazyImage";
 
 const plain = (html?: string) => (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -33,7 +34,7 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
         {description && <p className="series-description">{description}</p>}
         {warning}
         <div className="hero-actions">
-          {first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        </div>
+          {first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        <WatchlistButton animeId={franchise.id} /></div>
       </div>
     </section>
     <div id="seasons">{groups.map(({ group, title, entries }) => group === "main"

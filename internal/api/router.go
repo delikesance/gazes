@@ -32,9 +32,12 @@ type Server struct {
 	analyzer        metadata.Analyzer
 	animeService    *metadata.AnimeService
 	catalogService  *metadata.AnimeCatalogService
+	party           *partyHub
 	episodeResolver indexer.EpisodeSourceResolver
 	router          chi.Router
-	diagnosticRate  diagnosticLimiter
+	diagnosticRate  rateLimiter
+	routeLimits     rateLimiter
+	proxy           *auth.ProxyTrust
 	auth            *auth.Service
 	kv              *kv.Client
 	sourceCache     *sourceCache
@@ -63,6 +66,10 @@ func (r unavailableEpisodeResolver) ResolveSeasonSources(context.Context, indexe
 func (r unavailableEpisodeResolver) ResolvePlaybackSources(context.Context, indexer.EpisodeIdentity) (*indexer.EpisodeSourcesResponse, error) {
 	return nil, r.err
 }
+
+// WithProxyTrust makes per-client rate limits read the client IP from X-Forwarded-For when the
+// request comes from a trusted proxy (the web server, relaying the edge's header).
+func WithProxyTrust(p *auth.ProxyTrust) Option { return func(s *Server) { s.proxy = p } }
 
 // WithAuth enables the account routes.
 func WithAuth(svc *auth.Service) Option { return func(s *Server) { s.auth = svc } }
@@ -115,12 +122,14 @@ func NewServer(
 		analyzer:        metadata.NewFFprobeAnalyzer(logger),
 		animeService:    metadata.NewAnimeService(nil),
 		catalogService:  metadata.NewAnimeCatalogService(nil),
+		party:           newPartyHub(),
 		episodeResolver: episodeResolver,
 	}
 
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.party.clientIP = s.clientKey
 	s.setupRoutes()
 	return s
 }
@@ -138,10 +147,14 @@ func (s *Server) setupRoutes() {
 	r.Use(s.diagnosticContext)
 	r.Use(s.diagnosticRecover)
 
-	// CORS Configuration for P2P and web clients
+	// Off by default: the web app is same-origin. Opt in with ENABLE_CORS, ideally with CORS_ALLOWED_ORIGINS.
 	if s.cfg.EnableCORS {
+		origins := s.cfg.CORSAllowedOrigins
+		if len(origins) == 0 {
+			origins = []string{"*"}
+		}
 		r.Use(cors.Handler(cors.Options{
-			AllowedOrigins:   []string{"*"},
+			AllowedOrigins:   origins,
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Range", "Origin", "X-Playback-Session-ID", "X-Playback-Attempt-ID", "X-Request-ID", "X-Playback-Anime-ID", "X-Playback-Season-ID", "X-Playback-Episode"},
 			ExposedHeaders:   []string{"Content-Length", "Content-Range", "Accept-Ranges", "Content-Type", "X-Request-ID", "X-Playback-Session-ID"},
@@ -161,8 +174,10 @@ func (s *Server) setupRoutes() {
 		api.Get("/health", s.HandleHealth)
 		api.Post("/diagnostics/events", s.HandleDiagnosticEvents)
 		api.Get("/diagnostics/cache", s.HandleCacheDiagnostics)
-		api.Get("/search", s.HandleSearch)
+		api.With(s.rateLimit("search", 60, time.Minute)).Get("/search", s.HandleSearch)
 		api.Get("/latest", s.HandleLatest)
+		api.Get("/party/{room}/events", s.party.handleEvents)
+		api.With(s.rateLimit("party", 240, time.Minute)).Post("/party/{room}/events", s.party.handlePost)
 
 		if s.auth != nil {
 			api.Get("/auth/kem", s.auth.Kem)
@@ -178,6 +193,8 @@ func (s *Server) setupRoutes() {
 			api.Delete("/me/history", s.auth.DeleteHistory)
 			api.Get("/me/hidden", s.auth.GetHidden)
 			api.Put("/me/hidden", s.auth.PutHidden)
+			api.Get("/me/watchlist", s.auth.GetWatchlist)
+			api.Put("/me/watchlist", s.auth.PutWatchlist)
 		}
 
 		// Catalog & Episode Discovery
@@ -185,10 +202,10 @@ func (s *Server) setupRoutes() {
 			cat.Get("/trending", s.HandleCatalogTrending)
 			cat.Get("/seasonal", s.HandleCatalogSeasonal)
 			cat.Get("/popular", s.HandleCatalogPopular)
-			cat.Get("/foryou", s.HandleCatalogForYou)
-			cat.Post("/foryou", s.HandleCatalogForYou)
+			cat.With(s.rateLimit("foryou", 30, time.Minute)).Get("/foryou", s.HandleCatalogForYou)
+			cat.With(s.rateLimit("foryou", 30, time.Minute)).Post("/foryou", s.HandleCatalogForYou)
 			cat.Get("/schedule", s.HandleCatalogSchedule)
-			cat.Get("/search", s.HandleCatalogSearch)
+			cat.With(s.rateLimit("catalog-search", 60, time.Minute)).Get("/search", s.HandleCatalogSearch)
 			cat.Get("/anime/{id}/franchise", s.HandleFranchise)
 			cat.Get("/anime/{id}/seasons/{season}", s.HandleSeason)
 			cat.Get("/anime/{id}/seasons/{season}/episodes/{ep}/sources", s.HandleSeasonSources)
@@ -205,14 +222,14 @@ func (s *Server) setupRoutes() {
 		}
 
 		// Torrent Engine Routes
-		api.Post("/torrent/load", s.HandleLoadTorrent)
+		api.With(s.rateLimit("torrent-load", 30, time.Minute)).Post("/torrent/load", s.HandleLoadTorrent)
 		api.Get("/torrent/stats", s.HandleTorrentStats)
 		api.Get("/metadata", s.HandleMetadata)
 
 		// Video Streaming & Subtitles Routes
 		api.Get("/stream", s.HandleStream)
-		api.Get("/stream/raw", s.HandleStreamRaw)
-		api.Get("/subtitles", s.HandleSubtitles)
+		api.With(s.rateLimit("stream-raw", 120, time.Minute)).Get("/stream/raw", s.HandleStreamRaw)
+		api.With(s.rateLimit("subtitles", 60, time.Minute)).Get("/subtitles", s.HandleSubtitles)
 		api.Get("/playback/config", s.HandlePlaybackConfig)
 		api.Post("/playback/sessions", s.HandlePlaybackCreate)
 		api.Put("/playback/sessions/{session}", s.HandlePlaybackUpdate)

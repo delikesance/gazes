@@ -20,6 +20,7 @@ type Config struct {
 	CacheDir             string        `json:"cache_dir"`
 	LogLevel             string        `json:"log_level"`
 	EnableCORS           bool          `json:"enable_cors"`
+	CORSAllowedOrigins   []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
 	StreamTimeout        time.Duration `json:"stream_timeout"`
 	MaxMemoryCache       int64         `json:"max_memory_cache_bytes"`
 	TorrentPort          int           `json:"torrent_port"`
@@ -30,6 +31,7 @@ type Config struct {
 	WatchWebhookSecret   string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
 	WatchDiskPath        string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
 	TrustProxy           bool          `json:"trust_proxy"`
+	TrustedProxies       []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
 	// title matching. API keys and bindings are intentionally never serialized.
 	ArrAuthoritative bool   `json:"arr_authoritative"`
@@ -79,7 +81,8 @@ func Load() *Config {
 		DataDir:                  getEnv("DATA_DIR", "./data"),
 		CacheDir:                 getEnv("CACHE_DIR", "./cache"),
 		LogLevel:                 getEnv("LOG_LEVEL", "debug"),
-		EnableCORS:               getEnvBool("ENABLE_CORS", true),
+		EnableCORS:               getEnvBool("ENABLE_CORS", false), // the web app is same-origin through the Next rewrite
+		CORSAllowedOrigins:       splitList(getEnv("CORS_ALLOWED_ORIGINS", "")),
 		StreamTimeout:            getEnvDuration("STREAM_TIMEOUT", 30*time.Minute),
 		MaxMemoryCache:           getEnvInt64("MAX_MEMORY_CACHE_BYTES", 256*1024*1024), // 256MB default
 		TorrentPort:              getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
@@ -90,6 +93,7 @@ func Load() *Config {
 		WatchWebhookSecret:       getEnv("GAZES_WATCH_WEBHOOK_SECRET", ""),
 		WatchDiskPath:            getEnv("GAZES_WATCH_DISK_PATH", ""),
 		TrustProxy:               getEnvBool("TRUST_PROXY", false), // honour X-Forwarded-* from the edge proxy
+		TrustedProxies:           splitList(getEnv("TRUSTED_PROXIES", "")),
 		ArrAuthoritative:         getEnvBool("ARR_AUTHORITATIVE", false),
 		SonarrURL:                getEnv("SONARR_URL", ""),
 		SonarrAPIKey:             getEnvOrFile("SONARR_API_KEY", "SONARR_API_KEY_FILE"),
@@ -190,4 +194,15 @@ func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
 		}
 	}
 	return defaultVal
+}
+
+// splitList splits a comma-separated env value, dropping blanks.
+func splitList(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
