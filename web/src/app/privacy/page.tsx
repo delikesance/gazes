@@ -11,6 +11,7 @@ const CONTENT = {
       ["À quoi cela sert", "Uniquement à reprendre là où vous vous êtes arrêté et à personnaliser l’onglet Suggestions. Ces données ne sont ni vendues ni partagées. Pour les recommandations, seuls des identifiants d’animés sont envoyés à AniList, jamais votre identité."],
       ["Vos choix", "Connecté, vous pouvez à tout moment exporter vos données (« Exporter mes données ») ou effacer votre journal de visionnage et vos « pas intéressé » (« Effacer mon journal ») depuis le menu du compte. Sans compte, vider les données du site dans votre navigateur suffit."],
       ["Durée de conservation", "Le journal est conservé tant que vous ne l’effacez pas."],
+      ["Dons", "Si vous faites un don, Gazes enregistre le montant, la date, le moyen de paiement, la référence de la transaction et, si vous êtes connecté, votre compte. Seul l’administrateur y a accès. Publiquement, seul apparaît le nom que vous avez choisi d’afficher, jamais le montant ; sans choix de votre part, le don est anonyme. Votre e-mail et vos coordonnées bancaires ne sont jamais enregistrés. Pour retirer un nom affiché ou faire effacer un don, écrivez à l’administrateur."],
     ],
   },
   en: {
@@ -22,6 +23,7 @@ const CONTENT = {
       ["What it is for", "Only to resume where you left off and to personalise the Suggestions tab. It is neither sold nor shared. For recommendations, only anime identifiers are sent to AniList, never your identity."],
       ["Your choices", "Signed in, you can at any time export your data (“Export my data”) or erase your watch log and your “not interested” list (“Erase my log”) from the account menu. Without an account, clearing the site's data in your browser is enough."],
       ["How long it is kept", "The log is kept until you erase it."],
+      ["Donations", "If you donate, Gazes records the amount, date, payment method, transaction reference and, if you are signed in, your account. Only the administrator can see it. Publicly, only the name you chose to show appears, never the amount; unless you choose otherwise, the donation is anonymous. Your e-mail and bank details are never stored. To remove a displayed name or have a donation erased, contact the administrator."],
     ],
   },
 } as const;
