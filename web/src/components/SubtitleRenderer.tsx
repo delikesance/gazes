@@ -4,6 +4,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import type JASSUB from "jassub";
 import type { PgsRenderer } from "libpgs";
 import { carryAss, carryPgs } from "@/lib/subtitle-carry";
+import { DEFAULT_SUBTITLE_STYLE, styleAss, type SubtitleStyle } from "@/lib/ass-style";
 
 /** Seconds of captions per regular download, and for the short first one that appears quickly. */
 const FULL_WINDOW = 120;
@@ -21,7 +22,7 @@ function subtitleErrorCode(error: unknown): string {
   return "SUB_RENDER_FAILED";
 }
 
-export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, timeOffset, onError }: {
+export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, timeOffset, style = DEFAULT_SUBTITLE_STYLE, localContent, onError }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   /** Changes when the player replaces its video element, including audio switches. */
   streamKey?: string;
@@ -29,6 +30,10 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
   /** The track is a bitmap format (PGS, served raw as .sup) rather than text (ASS). */
   bitmap?: boolean;
   timeOffset: number;
+  /** Text size and lift of text (ASS) captions; bitmap tracks cannot be restyled. */
+  style?: SubtitleStyle;
+  /** ASS text of a file the viewer picked: used whole for every window instead of downloading from `url`. */
+  localContent?: string;
   /** Receives a user-facing message and a short machine code, or `null` to clear. */
   onError: (error: string | null, code?: string) => void;
 }) {
@@ -38,7 +43,9 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
 
   useEffect(() => {
     let video = videoRef.current;
-    if (!video || !url) { onErrorRef.current(null); return; }
+    if (!video || (!url && localContent === undefined)) { onErrorRef.current(null); return; }
+    const styleScale = style.scale;
+    const styleLift = style.lift;
     let offset = 0;
     let disposed = false;
     let renderer: JASSUB | undefined;
@@ -139,6 +146,7 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
     async function load(start: number, controller: AbortController, attempt = 0, span = FULL_WINDOW) {
       try {
         let content = (spans.get(start) ?? 0) >= span ? windows.get(start) : undefined;
+        if (content === undefined && localContent !== undefined) content = localContent;
         if (content === undefined) {
           const chunkURL = new URL(url, window.location.href);
           chunkURL.searchParams.set("start", String(start));
@@ -183,7 +191,7 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
               const { default: JASSUB } = await import("jassub");
               if (disposed || controller.signal.aborted) return;
               renderer = new JASSUB({
-                canvas: createCanvas(), subContent: carryAss(content as string, windows.values(), start), timeOffset: offset,
+                canvas: createCanvas(), subContent: styleAss(carryAss(content as string, windows.values(), start), { scale: styleScale, lift: styleLift }), timeOffset: offset,
                 workerUrl: "/subtitles/jassub-worker.js",
                 wasmUrl: "/subtitles/jassub-worker.wasm",
                 modernWasmUrl: "/subtitles/jassub-worker-modern.wasm",
@@ -195,7 +203,7 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
               });
               await renderer.ready;
             } else {
-              await renderer.renderer.setTrack(carryAss(content as string, windows.values(), start));
+              await renderer.renderer.setTrack(styleAss(carryAss(content as string, windows.values(), start), { scale: styleScale, lift: styleLift }));
             }
           }
           if (disposed || controller.signal.aborted) return;
@@ -309,7 +317,7 @@ export function SubtitleRenderer({ videoRef, streamKey, url, bitmap = false, tim
       windows.clear();
       spans.clear();
     };
-  }, [videoRef, url, bitmap]);
+  }, [videoRef, url, bitmap, style.scale, style.lift, localContent]);
   useEffect(() => {
     if (videoRef.current) sessionRef.current?.sync(videoRef.current, timeOffset);
   }, [videoRef, streamKey, timeOffset, url, bitmap]);

@@ -10,9 +10,13 @@ if grep -q '^WIREGUARD_PRIVATE_KEY=' .env && grep -q '^WIREGUARD_ADDRESSES=' .en
   exit 0
 fi
 account="${MULLVAD_ACCOUNT:-}"
-if [ -z "$account" ]; then
+if [ -z "$account" ] && [ -t 0 ]; then
   read -rsp "Mullvad account number: " account
   echo
+fi
+if [ -z "$account" ]; then
+  echo "No terminal to prompt on: run  MULLVAD_ACCOUNT=<16 digits> make vpn-key" >&2
+  exit 1
 fi
 api=https://api.mullvad.net
 pem=$(openssl genpkey -algorithm X25519)
