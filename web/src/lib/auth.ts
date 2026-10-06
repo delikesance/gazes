@@ -7,8 +7,8 @@ export interface AccountUser { id: number; pseudo: string; email?: string; role?
 /** Error codes returned by internal/auth/service.go. */
 export type AuthErrorCode =
   | "invalid_request" | "invalid_email" | "invalid_pseudo" | "invalid_password"
-  | "invalid_credentials" | "email_taken" | "captcha_failed" | "rate_limited"
-  | "forbidden" | "unauthorized" | "server_error" | "network";
+  | "invalid_credentials" | "email_taken" | "not_found" | "captcha_failed" | "rate_limited"
+  | "too_many_lists" | "list_full" | "invalid_code" | "forbidden" | "unauthorized" | "server_error" | "network";
 
 export class AuthError extends Error {
   constructor(public code: AuthErrorCode) { super(code); }
@@ -38,17 +38,86 @@ export async function solveFreshCaptcha(signal?: AbortSignal): Promise<string> {
   return solveCaptcha(await fetchChallenge(), signal);
 }
 
-async function sealed<T>(route: "login" | "register", payload: Record<string, string>): Promise<T> {
+async function sealed<T>(route: "login" | "register" | "delete-account" | "recover" | "recovery-codes", payload: Record<string, string>): Promise<T> {
   const info = await request<KemInfo>("/auth/kem");
   return request<T>(`/auth/${route}`, json(sealEnvelope(info, route, payload)));
 }
 
-export async function register(input: { email: string; password: string; pseudo: string; captcha: string }): Promise<AccountUser> {
-  return (await sealed<{ user: AccountUser }>("register", input)).user;
+/** Shown once, right after sign-up: the codes are never readable again. */
+export type RegisteredUser = AccountUser & { recoveryCodes?: string[] };
+
+export async function register(input: { email: string; password: string; pseudo: string; captcha: string }): Promise<RegisteredUser> {
+  const res = await sealed<{ user: AccountUser; recovery_codes?: string[] }>("register", input);
+  return { ...res.user, recoveryCodes: res.recovery_codes };
+}
+
+/** Sets a new password from an unused recovery code; signs the browser in on success. */
+export async function recoverAccount(input: { email: string; code: string; password: string; captcha: string }): Promise<AccountUser> {
+  return (await sealed<{ user: AccountUser }>("recover", input)).user;
+}
+
+/** Replaces every recovery code (the old ones stop working) and returns the new ones. */
+export async function newRecoveryCodes(password: string): Promise<string[]> {
+  return (await sealed<{ recovery_codes: string[] }>("recovery-codes", { password })).recovery_codes;
 }
 
 export async function login(input: { email: string; password: string; captcha: string }): Promise<AccountUser> {
   return (await sealed<{ user: AccountUser }>("login", input)).user;
+}
+
+/** Erases the account for good; the password is re-checked server side. */
+export async function deleteAccount(password: string): Promise<void> {
+  await sealed<void>("delete-account", { password });
+}
+
+export interface AccountSession { id: string; last_seen: number; expires_at: number; current: boolean }
+
+export async function listSessions(): Promise<AccountSession[]> {
+  return (await request<{ sessions: AccountSession[] }>("/me/sessions")).sessions;
+}
+
+export async function revokeSession(id: string): Promise<void> {
+  await request(`/me/sessions/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
+}
+
+/** Creates (or replaces) the secret calendar subscription URL; the old one stops working. */
+export async function createCalendarFeedUrl(): Promise<string> {
+  const { token } = await request<{ token: string }>("/me/calendar-feed", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  return new URL(`${base()}/calendar/${token}.ics`, window.location.origin).href;
+}
+
+export interface RemoteNote { anime_id: number; rating: number; note: string; updated_at: number }
+
+export async function pullNotes(): Promise<RemoteNote[]> {
+  return (await request<{ notes: RemoteNote[] }>("/me/notes")).notes;
+}
+
+export async function pushNotes(notes: RemoteNote[]): Promise<RemoteNote[]> {
+  return (await request<{ notes: RemoteNote[] }>("/me/notes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) })).notes;
+}
+
+export interface UserList { id: number; name: string; anime_ids: number[] }
+
+const jsonInit = (method: string, body?: unknown): RequestInit => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
+
+export async function pullLists(): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>("/me/lists")).lists;
+}
+export async function createList(name: string): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>("/me/lists", jsonInit("POST", { name }))).lists;
+}
+export async function renameList(id: number, name: string): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>(`/me/lists/${id}`, jsonInit("PUT", { name }))).lists;
+}
+export async function deleteList(id: number): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>(`/me/lists/${id}`, jsonInit("DELETE"))).lists;
+}
+export async function updateListItems(id: number, add: number[], remove: number[]): Promise<UserList[]> {
+  return (await request<{ lists: UserList[] }>(`/me/lists/${id}/items`, jsonInit("PUT", { add, remove }))).lists;
+}
+
+export async function exportAccount(): Promise<unknown> {
+  return request<unknown>("/me/export");
 }
 
 export async function logout(): Promise<void> {
