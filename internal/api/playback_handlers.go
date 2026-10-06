@@ -56,12 +56,13 @@ func (s *Server) HandlePlaybackCreate(w http.ResponseWriter, r *http.Request) {
 		File     int     `json:"file_index"`
 		Audio    int     `json:"audio_track"`
 		Position float64 `json:"position"`
+		NoAV1    bool    `json:"no_av1"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2048)).Decode(&input); err != nil || !playbackHash.MatchString(input.Hash) || input.File < 0 || input.Audio < 0 {
 		playbackError(w, 400, "invalid_session")
 		return
 	}
-	session, err := s.playbackManager().Create(r.Context(), input.Hash, input.File, input.Audio, input.Position)
+	session, err := s.playbackManager().Create(r.Context(), input.Hash, input.File, input.Audio, input.Position, input.NoAV1)
 	if err != nil {
 		code := "media_unavailable"
 		status := 502

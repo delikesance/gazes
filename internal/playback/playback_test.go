@@ -75,7 +75,7 @@ func TestBoundedIndexesAndRealSegments(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			m := New(fileEngine{path}, metadata.NewFFprobeAnalyzer(logger), logger, Options{Directory: t.TempDir(), RawURL: raw.URL})
 			defer m.Close()
-			s, err := m.Create(context.Background(), strings.Repeat("a", 40), 0, 0, 8)
+			s, err := m.Create(context.Background(), strings.Repeat("a", 40), 0, 0, 8, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -170,5 +170,14 @@ func TestOldGenerationsAndIndependentViewers(t *testing.T) {
 	m.Delete("two")
 	if ctx.Err() == nil {
 		t.Fatal("abandoned job remains active")
+	}
+}
+
+func TestVideoArgs(t *testing.T) {
+	if got := strings.Join(videoArgs(false), " "); got != "-c:v copy" {
+		t.Fatalf("copy args = %q", got)
+	}
+	if got := strings.Join(videoArgs(true), " "); !strings.Contains(got, "libx264") || !strings.Contains(got, "-pix_fmt yuv420p") {
+		t.Fatalf("transcode args = %q", got)
 	}
 }
