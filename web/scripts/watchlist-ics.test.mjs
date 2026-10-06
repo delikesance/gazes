@@ -8,7 +8,7 @@ import { build } from "esbuild";
 const root = path.resolve(import.meta.dirname, "..");
 const outfile = path.join(root, "node_modules", ".cache", "watchlist-ics.cjs");
 await build({ absWorkingDir: root, entryPoints: ["src/lib/watchlist-ics.ts"], outfile, bundle: true, format: "cjs", platform: "node", packages: "external", logLevel: "silent" });
-const { icsText, foldLine } = createRequire(import.meta.url)(outfile);
+const { icsText, foldLine, mapLimited } = createRequire(import.meta.url)(outfile);
 
 test("text escapes backslash before the other specials", () => {
   assert.equal(icsText("Fate\\Zero; Re:Zero, vol. 2\nfin"), "Fate\\\\Zero\\; Re:Zero\\, vol. 2\\nfin");
@@ -26,4 +26,17 @@ test("long lines fold at 75 octets without splitting a character", () => {
 
 test("short lines are left alone", () => {
   assert.equal(foldLine("UID:1-2@gazes"), "UID:1-2@gazes");
+});
+
+test("franchise lookups are bounded in flight and keep the list order", async () => {
+  let inFlight = 0, peak = 0;
+  const ids = Array.from({ length: 40 }, (_, i) => i + 1);
+  const out = await mapLimited(ids, 6, async (id) => {
+    peak = Math.max(peak, ++inFlight);
+    await new Promise((resolve) => setTimeout(resolve, id % 3));
+    inFlight--;
+    return id * 10;
+  });
+  assert.ok(peak <= 6, `peak ${peak}`);
+  assert.deepEqual(out, ids.map((id) => id * 10));
 });

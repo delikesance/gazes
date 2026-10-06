@@ -23,6 +23,19 @@ test("an item removed on another device does not come back", () => {
   assert.deepEqual(plan.keep, [1]);
 });
 
+test("an item removed on this device while signed out is removed on the server", () => {
+  // 4 was on the server at the last sync, is still there, and is gone from this device.
+  const plan = planWatchlistSync([1], [4, 1], [4, 1]);
+  assert.deepEqual(plan.remove, [4]);
+  assert.deepEqual(plan.upload, []);
+  assert.deepEqual(plan.keep, [1]);
+});
+
+test("without a snapshot for this account nothing is removed on the server", () => {
+  // Another account's (or no) snapshot: the server list is only merged in, never trimmed.
+  assert.deepEqual(planWatchlistSync([1], [4, 1], []).remove, []);
+});
+
 test("first sync on a device uploads everything missing", () => {
   assert.deepEqual(planWatchlistSync([5, 6], [6], []).upload, [5]);
 });

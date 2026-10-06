@@ -5,7 +5,7 @@ import { GenreHeader } from "@/components/GenreHeader";
 import { SeasonalGrid } from "@/components/SeasonalGrid";
 import { genreFromSlug, genreLabel } from "@/lib/genres";
 import { searchCatalog } from "@/lib/api";
-import { SITE_URL, jsonLd } from "@/lib/site";
+import { SITE_URL, jsonLd, ssrPage } from "@/lib/site";
 import Link from "next/link";
 
 type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ page?: string }> };
@@ -13,7 +13,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ page?
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const genre = genreFromSlug((await params).slug);
   if (!genre) return { robots: { index: false, follow: false } };
-  const page = Math.max(1, Number((await searchParams)?.page) || 1);
+  const page = ssrPage((await searchParams)?.page);
+  if (!page) return { robots: { index: false, follow: false } };
   const label = genreLabel(genre);
   return {
     title: `Animes ${label} en streaming`,
@@ -27,7 +28,8 @@ export default async function GenrePage({ params, searchParams }: Props) {
   const { slug } = await params;
   const genre = genreFromSlug(slug);
   if (!genre) notFound();
-  const page = Math.max(1, Number((await searchParams)?.page) || 1);
+  const page = ssrPage((await searchParams)?.page);
+  if (!page) notFound();
   let items: Awaited<ReturnType<typeof searchCatalog>>["items"] = [];
   let hasNext = false;
   try {

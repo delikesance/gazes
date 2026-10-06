@@ -108,6 +108,11 @@ func main() {
 
 	// 7. Initialize API server
 	proxy := auth.NewProxyTrust(cfg.TrustProxy, cfg.TrustedProxies)
+	if proxy.Open() {
+		// Any peer that can reach the backend can then forge X-Forwarded-For (its rate-limit identity)
+		// or omit it (counted as the web server's own render).
+		logger.Warn("TRUST_PROXY is set without TRUSTED_PROXIES: forwarded headers are believed from any peer; set TRUSTED_PROXIES to the web service")
+	}
 	accounts, err := auth.New(auth.Options{Dir: cfg.AccountsDir, Production: cfg.AppEnv == "production", Proxy: proxy, Getenv: os.Getenv, State: auth.NewRedisState(redisClient)})
 	if err != nil {
 		logger.Error("failed to initialize accounts", "err", err)
