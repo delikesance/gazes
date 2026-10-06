@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import { LocaleDocument } from "@/components/LocaleDocument";
 import { SiteFooter } from "@/components/SiteFooter";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import { MobileNav } from "@/components/MobileNav";
 import { SiteChrome } from "@/components/SiteChrome";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -52,6 +53,7 @@ export default function RootLayout({
       </head>
       <body id="top" className={`${dmSans.variable} ${fraunces.variable} ${geistMono.variable} antialiased`}>
         <LocaleDocument />
+        <ServiceWorker />
         <AuthProvider>
           <SiteChrome><Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense></SiteChrome>
           <div className="site-content">{children}</div>
