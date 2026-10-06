@@ -28,7 +28,7 @@ var pseudoPattern = regexp.MustCompile(`^[\p{L}\p{N}_.-]{3,24}$`)
 type Options struct {
 	Dir        string
 	Production bool
-	TrustProxy bool // honour X-Forwarded-For / X-Forwarded-Proto from the edge proxy
+	Proxy      *ProxyTrust // whose X-Forwarded-For / -Proto / -Host to honour; nil = nobody's
 	Getenv     func(string) string
 	// State, when set, shares nonces, captcha replay protection and rate limits across instances.
 	State State
@@ -36,14 +36,14 @@ type Options struct {
 
 // Service wires the store, keys, envelope, captcha and rate limits to HTTP handlers.
 type Service struct {
-	store      *Store
-	keys       *Keys
-	kem        *KEM
-	captcha    *Captcha
-	limits     *limiter
-	trustProxy bool
-	now        func() time.Time
-	dummyHash  string
+	store     *Store
+	keys      *Keys
+	kem       *KEM
+	captcha   *Captcha
+	limits    *limiter
+	proxy     *ProxyTrust
+	now       func() time.Time
+	dummyHash string
 }
 
 // New opens the store and loads keys.
@@ -62,7 +62,7 @@ func New(o Options) (*Service, error) {
 		return nil, err
 	}
 	dummy, _ := keys.hashPassword("gazes-dummy-password")
-	s := &Service{store: store, keys: keys, kem: kem, captcha: NewCaptcha(keys.Altcha), limits: newLimiter(), trustProxy: o.TrustProxy, now: time.Now, dummyHash: dummy}
+	s := &Service{store: store, keys: keys, kem: kem, captcha: NewCaptcha(keys.Altcha), limits: newLimiter(), proxy: o.Proxy, now: time.Now, dummyHash: dummy}
 	if o.State != nil {
 		s.kem.shared, s.captcha.shared, s.limits.shared = o.State, o.State, o.State
 	}
@@ -95,10 +95,10 @@ func fail(w http.ResponseWriter, status int, code string) {
 	writeJSON(w, status, apiError{Error: code})
 }
 
-func (s *Service) clientIP(r *http.Request) string { return ClientIP(r, s.trustProxy) }
+func (s *Service) clientIP(r *http.Request) string { return ClientIP(r, s.proxy.Trusts(r)) }
 
-// ClientIP is the caller's address. With trustProxy it is the first X-Forwarded-For entry, which
-// the edge proxy (Caddy) sets itself; the web port must therefore only be reachable through it.
+// ClientIP is the caller's address. With trustProxy (the request came from a trusted proxy, see
+// ProxyTrust) it is the first X-Forwarded-For entry, which the edge proxy (Caddy) sets itself.
 func ClientIP(r *http.Request, trustProxy bool) string {
 	if trustProxy {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
@@ -116,7 +116,7 @@ func ClientIP(r *http.Request, trustProxy bool) string {
 }
 
 func (s *Service) secure(r *http.Request) bool {
-	return r.TLS != nil || (s.trustProxy && r.Header.Get("X-Forwarded-Proto") == "https")
+	return r.TLS != nil || (s.proxy.Trusts(r) && r.Header.Get("X-Forwarded-Proto") == "https")
 }
 
 // sameOrigin blocks cross-site form posts: JSON content type plus a matching Origin.
@@ -133,7 +133,7 @@ func (s *Service) sameOrigin(r *http.Request) bool {
 		return false
 	}
 	host := r.Host
-	if s.trustProxy {
+	if s.proxy.Trusts(r) {
 		if fh := r.Header.Get("X-Forwarded-Host"); fh != "" {
 			host = fh
 		}
