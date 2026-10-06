@@ -49,6 +49,7 @@ import {
   Image as ImageIcon,
   Link2,
   Users,
+  PictureInPicture2,
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -88,6 +89,18 @@ function loadAmbilight(): AmbilightSettings {
     return raw ? { ...AMBILIGHT_DEFAULT, ...JSON.parse(raw) } : AMBILIGHT_DEFAULT;
   } catch {
     return AMBILIGHT_DEFAULT;
+  }
+}
+
+const RATE_KEY = "gazes-playback-rate";
+export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+function loadRate(): number {
+  try {
+    const rate = Number(typeof window !== "undefined" ? window.localStorage.getItem(RATE_KEY) : null);
+    return PLAYBACK_RATES.includes(rate) ? rate : 1;
+  } catch {
+    return 1;
   }
 }
 
@@ -172,6 +185,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [optionsTab, setOptionsTab] = useState<PlayerOptionsTab | null>(null);
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [ambilight, setAmbilight] = useState<AmbilightSettings>(loadAmbilight);
+  const [playbackRate, setPlaybackRateState] = useState(loadRate);
+  const [canPip] = useState(() => typeof document !== "undefined" && !!document.pictureInPictureEnabled);
 
   // Player controls state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -511,6 +526,25 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [isMuted, triggerShowControls]);
 
+  const setPlaybackRate = useCallback((rate: number) => {
+    setPlaybackRateState(rate);
+    try { window.localStorage.setItem(RATE_KEY, String(rate)); } catch { /* storage unavailable */ }
+  }, []);
+
+  const stepPlaybackRate = useCallback((direction: 1 | -1) => {
+    const index = PLAYBACK_RATES.indexOf(playbackRate);
+    const next = PLAYBACK_RATES[Math.max(0, Math.min(PLAYBACK_RATES.length - 1, index + direction))];
+    setPlaybackRate(next);
+  }, [playbackRate, setPlaybackRate]);
+
+  const togglePip = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !document.pictureInPictureEnabled) return;
+    if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+    else video.requestPictureInPicture().catch(() => {});
+    triggerShowControls();
+  }, [triggerShowControls]);
+
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -690,6 +724,17 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           e.preventDefault();
           toggleMute();
           break;
+        case "KeyP":
+          if (e.ctrlKey || e.metaKey || e.altKey || !canPip) break;
+          e.preventDefault();
+          togglePip();
+          break;
+        case "Comma":
+        case "Period":
+          if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) break;
+          e.preventDefault();
+          stepPlaybackRate(e.code === "Period" ? 1 : -1);
+          break;
         case "KeyS":
           if (e.ctrlKey || e.metaKey || e.altKey || !shownSkip) break;
           e.preventDefault();
@@ -700,7 +745,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute, shownSkip, runSkip, isMuted, volume, onNextEpisode]);
+  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute, shownSkip, runSkip, isMuted, volume, onNextEpisode, canPip, togglePip, stepPlaybackRate]);
 
 
   const matchingFiles = loadData && item && "episode_number" in item ? episodeCandidates(loadData.files,item as EpisodeSource) : [];
@@ -709,6 +754,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const streamUrl = loadData && selectedFileIdx >= 0
     ? hlsMode ? `hls:${loadData.info_hash}:${selectedFileIdx}:${selectedAudioTrack}` : getStreamUrl(loadData.info_hash, selectedFileIdx, forceRemux, timeOffset, selectedAudioTrack,diagnostic)
     : "";
+
+  // A new source resets playbackRate to defaultPlaybackRate, so set both.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.defaultPlaybackRate = playbackRate;
+    video.playbackRate = playbackRate;
+  }, [playbackRate, streamUrl, started]);
 
   useEffect(() => {
     setPlaybackError(null);
@@ -1244,6 +1297,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         <button onClick={copyTimeLink} className="player-pill player-pill--icon" aria-live="polite" aria-label={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")} title={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")}>
                           <Link2 className="h-[18px] w-[18px]" />
                         </button>
+                        {canPip && (
+                          <button onClick={togglePip} className="player-pill player-pill--icon" aria-label={t("Picture-in-Picture (P)")} title={t("Picture-in-Picture (P)")}>
+                            <PictureInPicture2 className="h-[18px] w-[18px]" />
+                          </button>
+                        )}
                         <button onClick={toggleFullscreen} className="player-pill player-pill--icon" aria-label={t("Toggle Fullscreen (F)")} title={t("Toggle Fullscreen (F)")}>
                           {isFullscreen ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
                         </button>
@@ -1277,6 +1335,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     onSelectSubtitle={handleSubtitleTrackSelect}
                     ambilight={ambilight}
                     onAmbilightChange={updateAmbilight}
+                    playbackRate={playbackRate}
+                    rates={PLAYBACK_RATES}
+                    onPlaybackRateChange={setPlaybackRate}
                   />
                 )}
               </div>
