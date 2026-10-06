@@ -116,3 +116,11 @@ func TestCalendarFeedUnknownTokenIs404(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildCalendarOmitsTheURLWithoutASiteOrigin(t *testing.T) {
+	owners := map[int]feedAnime{10: {ID: 1, Title: "Show"}}
+	ics := buildCalendar("", owners, []metadata.ScheduleEntry{{MediaID: 10, Episode: 1, AiringAt: 1_700_100_000}}, time.Unix(1_700_000_000, 0))
+	if strings.Contains(ics, "URL:") || !strings.Contains(ics, "BEGIN:VEVENT") {
+		t.Fatalf("event without a URL expected:\n%s", ics)
+	}
+}

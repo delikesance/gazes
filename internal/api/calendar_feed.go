@@ -105,9 +105,12 @@ func buildCalendar(origin string, owners map[int]feedAnime, entries []metadata.S
 			"DTSTAMP:"+icsStamp(now.Unix()),
 			"DTSTART:"+icsStamp(e.AiringAt),
 			"DTEND:"+icsStamp(e.AiringAt+1440),
-			"SUMMARY:"+icsText(fmt.Sprintf("%s · épisode %d", anime.Title, e.Episode)),
-			fmt.Sprintf("URL:%s/anime/%d", origin, anime.ID),
-			"END:VEVENT")
+			"SUMMARY:"+icsText(fmt.Sprintf("%s · épisode %d", anime.Title, e.Episode)))
+		// A relative URL is not valid in a calendar: without a configured site origin, leave it out.
+		if origin != "" {
+			lines = append(lines, fmt.Sprintf("URL:%s/anime/%d", origin, anime.ID))
+		}
+		lines = append(lines, "END:VEVENT")
 	}
 	lines = append(lines, "END:VCALENDAR")
 	for i, l := range lines {
