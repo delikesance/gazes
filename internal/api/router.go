@@ -187,6 +187,8 @@ func (s *Server) setupRoutes() {
 			api.Delete("/me/history", s.auth.DeleteHistory)
 			api.Get("/me/hidden", s.auth.GetHidden)
 			api.Put("/me/hidden", s.auth.PutHidden)
+			api.Get("/me/watchlist", s.auth.GetWatchlist)
+			api.Put("/me/watchlist", s.auth.PutWatchlist)
 		}
 
 		// Catalog & Episode Discovery
