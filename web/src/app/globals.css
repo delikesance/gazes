@@ -1000,6 +1000,6 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .search-results { margin-top: 28px; transition: opacity .15s; }
 .search-results[data-stale="true"] { opacity: .5; }
 .search-page .catalog-message { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
-@media (max-width: 767px) { .search-inner { padding-top: 24px; } .search-field { height: 52px; } .search-field input { font-size: 16px; } }
+@media (max-width: 767px) { .genre-filter { flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(var(--page-gutter) * -1); padding-inline: var(--page-gutter); scrollbar-width: none; } .genre-filter::-webkit-scrollbar { display: none; } .genre-filter button { flex-shrink: 0; } .search-inner { padding-top: 24px; } .search-field { height: 52px; } .search-field input { font-size: 16px; } }
 
 .header-search-toggle[aria-current="page"] { background: var(--clay-bg); color: var(--clay-fg); }

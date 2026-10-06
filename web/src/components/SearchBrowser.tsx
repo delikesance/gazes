@@ -56,7 +56,7 @@ export function SearchBrowser() {
   // The field follows the address (back button, cleared filters) but never while the viewer is typing in it.
   useEffect(() => {
     const el = inputRef.current;
-    if (el && document.activeElement !== el) { el.value = q; }
+    if (el && (document.activeElement !== el || el.value === "")) { el.value = q; }
   }, [q]);
   useEffect(() => {
     if (window.matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
