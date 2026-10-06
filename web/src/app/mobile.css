@@ -30,6 +30,13 @@
   .series-description[data-expanded="false"] { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .series-more { display: inline-flex; align-items: center; min-height: 44px; margin-top: -10px; color: var(--accent); font-size: 14px; font-weight: 500; }
 
+  /* Dev log: one card per release. */
+  .changelog-page section { margin-top: 12px; padding: 20px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface-card); }
+
+  /* Legal text: calmer rhythm, separated sections. */
+  .legal-page section { margin-top: 0; padding-block: 20px; border-top: 1px solid var(--border); }
+  .legal-page p { font-size: 15px; line-height: 1.6; }
+
   /* Auth: the form sits on the page instead of inside a bordered card. */
   .auth-page { align-items: start; padding-block: 88px 120px; }
   .auth-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
@@ -38,6 +45,6 @@
 @media (max-width: 600px) {
   /* Hero image: 60% opaque at the top, fading to nothing at the bottom, no dark veil. */
   .featured-carousel .anime-hero-art { opacity: 1; }
-  .featured-carousel .anime-hero-art img { opacity: .6; -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent); }
+  .featured-carousel .anime-hero-art img { -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); }
   .featured-carousel .anime-hero-shade { background: transparent; }
 }
