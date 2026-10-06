@@ -164,6 +164,14 @@ var migrations = []dbmigrate.Migration{
 	token_hash TEXT NOT NULL UNIQUE,
 	created_at INTEGER NOT NULL
 )`)},
+	{Version: 6, Name: "anime_notes", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS anime_notes (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	anime_id INTEGER NOT NULL,
+	rating INTEGER NOT NULL DEFAULT 0,
+	note TEXT NOT NULL DEFAULT '',
+	updated_at INTEGER NOT NULL,
+	PRIMARY KEY (user_id, anime_id)
+)`)},
 }
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
