@@ -172,6 +172,19 @@ var migrations = []dbmigrate.Migration{
 	updated_at INTEGER NOT NULL,
 	PRIMARY KEY (user_id, anime_id)
 )`)},
+	{Version: 7, Name: "user_lists", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS user_lists (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	name TEXT NOT NULL,
+	created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS user_lists_user ON user_lists(user_id);
+CREATE TABLE IF NOT EXISTS user_list_items (
+	list_id INTEGER NOT NULL REFERENCES user_lists(id) ON DELETE CASCADE,
+	anime_id INTEGER NOT NULL,
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (list_id, anime_id)
+)`)},
 }
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.

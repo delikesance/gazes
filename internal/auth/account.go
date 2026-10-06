@@ -68,7 +68,8 @@ func (s *Service) Export(w http.ResponseWriter, r *http.Request) {
 	hidden, err3 := s.store.ListHidden(u.ID)
 	watchlist, err4 := s.store.ListWatchlist(u.ID)
 	notes, err5 := s.store.ListNotes(u.ID)
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil {
+	lists, err6 := s.store.ListsOf(u.ID)
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil {
 		fail(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -76,7 +77,7 @@ func (s *Service) Export(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"pseudo": v.Pseudo, "email": v.Email, "exported_at": s.now().Unix(),
-		"progress": progress, "history": history, "hidden": hidden, "watchlist": watchlist, "notes": notes,
+		"progress": progress, "history": history, "hidden": hidden, "watchlist": watchlist, "notes": notes, "lists": lists,
 	})
 }
 
