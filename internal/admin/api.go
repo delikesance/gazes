@@ -84,13 +84,26 @@ func (s *Service) adminDB() *sql.DB { return s.store.db }
 // aggregates.
 func (s *Service) accountsDB() *sql.DB { return s.rollup.accounts }
 
-// BackfillIfEmpty recomputes the last days days when metrics_daily has no row yet.
+// viewsBackfillDays is how far back the /views aggregates are built when their table is empty
+// (the longest period the page offers), e.g. right after the migration that created it.
+const viewsBackfillDays = 90
+
+// BackfillIfEmpty recomputes the last days days when metrics_daily has no row yet, and the last
+// 90 days when the per-day /views aggregates have none (an upgrade from before they existed).
 func (s *Service) BackfillIfEmpty(ctx context.Context, days int) error {
-	var n int
-	if err := s.adminDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM metrics_daily`).Scan(&n); err != nil {
+	var daily, views int
+	if err := s.adminDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM metrics_daily`).Scan(&daily); err != nil {
 		return err
 	}
-	if n > 0 {
+	if err := s.adminDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM metrics_views_daily`).Scan(&views); err != nil {
+		return err
+	}
+	switch {
+	case daily == 0:
+		// Nothing rolled up yet: the caller's window.
+	case views == 0:
+		days = max(days, viewsBackfillDays)
+	default:
 		return nil
 	}
 	return s.rollup.Backfill(ctx, s.now(), days)

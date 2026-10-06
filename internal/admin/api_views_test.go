@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -355,6 +356,84 @@ func TestViewsAuthAndPrivacy(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+// The per-day rollup must give exactly what the scan of watch_sessions gives, and the page must
+// fall back to the scan when a day of its period has not been rolled up.
+func TestViewsRollupMatchesTheScan(t *testing.T) {
+	f := newViewsFixture(t, true)
+	ctx := context.Background()
+	if _, ok, err := f.svc.loadViewsRollup(ctx, "2026-03-25", "2026-03-31"); err != nil || !ok {
+		t.Fatalf("the rollup must cover the period: ok=%v err=%v", ok, err)
+	}
+	viaRollup := f.data(t, "/api/v1/admin/views?period=7")
+
+	f.svc.respCache.clear()
+	if _, err := f.svc.adminDB().Exec(`DELETE FROM metrics_views_daily WHERE day = '2026-03-27'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := f.svc.loadViewsRollup(ctx, "2026-03-25", "2026-03-31"); ok {
+		t.Fatal("a missing day must send the page back to the scan")
+	}
+	viaScan := f.data(t, "/api/v1/admin/views?period=7")
+	for _, key := range []string{"avg_session_minutes", "session_length_buckets", "retention_curve", "drop_points", "drop_episodes"} {
+		if !reflect.DeepEqual(viaRollup[key], viaScan[key]) {
+			t.Fatalf("%s differs\n rollup %v\n   scan %v", key, viaRollup[key], viaScan[key])
+		}
+	}
+}
+
+// An upgrade creates the /views aggregates empty next to a filled metrics_daily: the startup
+// backfill must build them, or every page would scan until the rollup loop caught up.
+func TestBackfillBuildsTheViewsAggregatesAfterAnUpgrade(t *testing.T) {
+	f := newViewsFixture(t, true)
+	ctx := context.Background()
+	for _, table := range []string{"metrics_views_daily", "metrics_drop_daily"} {
+		if _, err := f.svc.adminDB().Exec(`DELETE FROM ` + table); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.svc.BackfillIfEmpty(ctx, 14); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := f.svc.loadViewsRollup(ctx, "2026-03-25", "2026-03-31"); err != nil || !ok {
+		t.Fatalf("the backfill must rebuild the aggregates: ok=%v err=%v", ok, err)
+	}
+	// With both tables filled it does nothing more.
+	if err := f.svc.BackfillIfEmpty(ctx, 14); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// /catalog must answer identically from the per-day rollup and from the scan, for every format filter.
+func TestCatalogRollupMatchesTheScan(t *testing.T) {
+	f := newViewsFixture(t, true)
+	ctx := context.Background()
+	if _, ok, err := f.svc.loadCatalogRollup(ctx, "2026-03-25", "2026-03-31"); err != nil || !ok {
+		t.Fatalf("the rollup must cover the period: ok=%v err=%v", ok, err)
+	}
+	formats := []string{"all", "tv", "movie", "ova"}
+	viaRollup := map[string]map[string]any{}
+	for _, format := range formats {
+		viaRollup[format] = f.data(t, "/api/v1/admin/catalog?period=7&format="+format)
+	}
+	if n, _ := viaRollup["all"]["anime_total"].(float64); n < 3 {
+		t.Fatalf("the fixture must hold several anime, got %v", viaRollup["all"]["anime_total"])
+	}
+
+	f.svc.respCache.clear()
+	if _, err := f.svc.adminDB().Exec(`DELETE FROM metrics_views_daily WHERE day = '2026-03-27'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := f.svc.loadCatalogRollup(ctx, "2026-03-25", "2026-03-31"); ok {
+		t.Fatal("a missing day must send the page back to the scan")
+	}
+	for _, format := range formats {
+		viaScan := f.data(t, "/api/v1/admin/catalog?period=7&format="+format)
+		if !reflect.DeepEqual(viaRollup[format], viaScan) {
+			t.Fatalf("format %s differs\n rollup %v\n   scan %v", format, viaRollup[format], viaScan)
 		}
 	}
 }
