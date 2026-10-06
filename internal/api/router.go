@@ -11,6 +11,7 @@ import (
 	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/auth"
 	"github.com/gazes/gazes/internal/config"
+	"github.com/gazes/gazes/internal/donations"
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/library"
 	"github.com/gazes/gazes/internal/metadata"
@@ -50,6 +51,7 @@ type Server struct {
 	library         *library.Service
 	libraryUser     func(*http.Request) (int64, bool)
 	admin           *admin.Service
+	donations       *donations.Service
 	mcpEnabled      bool
 	mcpOrigins      []string
 	errorSink       admin.ErrorSink
@@ -195,6 +197,10 @@ func (s *Server) setupRoutes() {
 			api.Put("/me/hidden", s.auth.PutHidden)
 			api.Get("/me/watchlist", s.auth.GetWatchlist)
 			api.Put("/me/watchlist", s.auth.PutWatchlist)
+		}
+
+		if s.donations != nil {
+			s.mountDonations(api)
 		}
 
 		// Catalog & Episode Discovery

@@ -67,6 +67,16 @@ type Config struct {
 	CostBandwidthPerGB    *float64 `json:"cost_bandwidth_per_gb,omitempty"`     // GAZES_COST_BANDWIDTH_PER_GB
 	CostStoragePerGBMonth *float64 `json:"cost_storage_per_gb_month,omitempty"` // GAZES_COST_STORAGE_PER_GB_MONTH
 	GBPerWatchHour        *float64 `json:"gb_per_watch_hour,omitempty"`         // GAZES_GB_PER_WATCH_HOUR: data served per hour watched
+
+	// Donations (all optional; a provider with missing fields is off). Secrets also read GAZES_*_FILE.
+	SiteURL             string   `json:"-"` // GAZES_SITE_URL: public origin, for the post-payment redirect
+	BTCPayURL           string   `json:"-"` // GAZES_BTCPAY_URL
+	BTCPayStoreID       string   `json:"-"` // GAZES_BTCPAY_STORE_ID
+	BTCPayAPIKey        string   `json:"-"` // GAZES_BTCPAY_API_KEY
+	BTCPayWebhookSecret string   `json:"-"` // GAZES_BTCPAY_WEBHOOK_SECRET
+	KofiURL             string   `json:"-"` // GAZES_KOFI_URL: public Ko-fi page
+	KofiToken           string   `json:"-"` // GAZES_KOFI_TOKEN: webhook verification token
+	DonationGoalEUR     *float64 `json:"-"` // GAZES_DONATION_GOAL_EUR: monthly goal shown publicly
 }
 
 // Load loads configuration from environment variables with fallback defaults.
@@ -122,6 +132,15 @@ func Load() *Config {
 		CostBandwidthPerGB:    getEnvOptFloat("GAZES_COST_BANDWIDTH_PER_GB"),
 		CostStoragePerGBMonth: getEnvOptFloat("GAZES_COST_STORAGE_PER_GB_MONTH"),
 		GBPerWatchHour:        getEnvOptFloat("GAZES_GB_PER_WATCH_HOUR"),
+
+		SiteURL:             getEnv("GAZES_SITE_URL", ""),
+		BTCPayURL:           getEnv("GAZES_BTCPAY_URL", ""),
+		BTCPayStoreID:       getEnv("GAZES_BTCPAY_STORE_ID", ""),
+		BTCPayAPIKey:        getEnvOrFile("GAZES_BTCPAY_API_KEY", "GAZES_BTCPAY_API_KEY_FILE"),
+		BTCPayWebhookSecret: getEnvOrFile("GAZES_BTCPAY_WEBHOOK_SECRET", "GAZES_BTCPAY_WEBHOOK_SECRET_FILE"),
+		KofiURL:             getEnv("GAZES_KOFI_URL", ""),
+		KofiToken:           getEnvOrFile("GAZES_KOFI_TOKEN", "GAZES_KOFI_TOKEN_FILE"),
+		DonationGoalEUR:     getEnvOptFloat("GAZES_DONATION_GOAL_EUR"),
 	}
 }
 
