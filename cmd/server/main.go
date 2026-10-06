@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/donations"
 	"log"
 	"log/slog"
 	"net/http"
@@ -162,7 +163,8 @@ func main() {
 	}
 
 	// The admin panel is optional: any failure here leaves streaming untouched.
-	if adminSvc, stopAdmin := startAdmin(cfg, logger, redisClient); adminSvc != nil {
+	adminSvc, stopAdmin := startAdmin(cfg, logger, redisClient)
+	if adminSvc != nil {
 		defer stopAdmin()
 		serverOpts = append(serverOpts, api.WithAdmin(adminSvc))
 		serverOpts = append(serverOpts, api.WithMCP())
@@ -170,6 +172,24 @@ func main() {
 		errorRecorder := admin.NewErrorRecorder(adminSvc.Store())
 		defer errorRecorder.Close()
 		serverOpts = append(serverOpts, api.WithErrorSink(errorRecorder))
+	}
+
+	// Donations are optional too: without their database the page is simply off.
+	if donationStore, err := donations.Open(cfg.AccountsDir); err != nil {
+		logger.Error("donations disabled: cannot open donations database", "err", err)
+	} else {
+		defer donationStore.Close()
+		goal := int64(0)
+		if cfg.DonationGoalEUR != nil {
+			goal = int64(*cfg.DonationGoalEUR * 100)
+		}
+		serverOpts = append(serverOpts, api.WithDonations(donations.NewService(donationStore, donations.Config{
+			SiteURL: cfg.SiteURL, BTCPayURL: cfg.BTCPayURL, BTCPayStoreID: cfg.BTCPayStoreID, BTCPayAPIKey: cfg.BTCPayAPIKey,
+			BTCPayWebhookSecret: cfg.BTCPayWebhookSecret, KofiURL: cfg.KofiURL, KofiToken: cfg.KofiToken, GoalCents: goal,
+		})))
+		if adminSvc != nil {
+			adminSvc.SetDonations(donationStore)
+		}
 	}
 
 	server := api.NewServer(cfg, logger, catalogIndexers, engine, streamPipeline, serverOpts...)

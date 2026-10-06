@@ -6,6 +6,7 @@ export const ADMIN_NAV = [
   { label: "Croissance", href: "/admin/growth" },
   { label: "Lecteur et flux", href: "/admin/playback" },
   { label: "Business", href: "/admin/business" },
+  { label: "Dons", href: "/admin/donations" },
   { label: "Claude et MCP", href: "/admin/claude" },
   { label: "Paramètres", href: "/admin/settings" },
 ] as const;
