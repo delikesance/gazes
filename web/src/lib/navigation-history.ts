@@ -16,3 +16,8 @@ export function trackRoute(path: string) {
 export function canGoBackInApp() {
  return cameFromApp;
 }
+
+/** True once the viewer has moved between pages of the app, so a back step stays inside it. */
+export function canGoBack() {
+ return previous !== null;
+}

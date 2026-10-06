@@ -160,6 +160,7 @@ button:disabled { cursor: default; opacity: .35; }
 .hero-skeleton div { max-width: 540px; height: 35px; margin-bottom: 15px; background: #27272a; border-radius: 5px; animation: pulse 2s ease-in-out infinite; }
 .hero-skeleton div:last-child { max-width: 240px; height: 38px; }
 .detail-page { min-height: 100vh; padding-bottom: 64px; }
+.breadcrumb-back { display: none; }
 .detail-breadcrumb { position: absolute; inset: 0 0 auto; padding: 26px var(--page-gutter); z-index: 1; display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; color: #e4e4e7; }
 .detail-breadcrumb a:hover { text-decoration: underline; }
 .detail-content { padding: 16px var(--page-gutter) 0; }

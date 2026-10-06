@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { Franchise } from "@/types/api";
+import { listProgress, type SavedProgress } from "@/lib/watch-progress";
 import { WatchlistButton } from "./WatchlistButton";
 import { LazyImage } from "./ui/LazyImage";
 
@@ -12,6 +13,16 @@ const plain = (html?: string) => (html || "").replace(/<[^>]*>/g, " ").replace(/
 export function SeriesPage({ franchise, base, warning }: { franchise: Franchise; base: string; warning?: React.ReactNode }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  const [saved, setSaved] = useState<SavedProgress | null>(null);
+  // The most recent unfinished episode of any season of this series: the primary button resumes it.
+  useEffect(() => {
+    const ids = new Set(franchise.seasons.map((s) => s.id));
+    const refresh = () => setSaved(listProgress().find((item) => ids.has(item.season)) ?? null);
+    refresh();
+    window.addEventListener("gazes-progress-change", refresh);
+    window.addEventListener("storage", refresh);
+    return () => { window.removeEventListener("gazes-progress-change", refresh); window.removeEventListener("storage", refresh); };
+  }, [franchise.seasons]);
   const main = franchise.seasons.filter((s) => s.group === "main");
   const first = main[0] || franchise.seasons[0];
   const totalEpisodes = main.reduce((sum, s) => sum + (s.episodes || 0), 0);
@@ -21,6 +32,8 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
   const count = (n: number | undefined) => n ? t(n === 1 ? "{count} épisode" : "{count} épisodes", { count: n }) : t("Nombre d’épisodes inconnu");
   const groups = ([["main", t("Saisons")], ["movies", t("Films")], ["extras", t("Spéciaux et histoires annexes")]] as const)
     .map(([group, title]) => ({ group, title, entries: franchise.seasons.filter((s) => s.group === group) })).filter((g) => g.entries.length);
+  const savedSeason = saved ? franchise.seasons.find((s) => s.id === saved.season) : undefined;
+  const resumeLabel = saved ? `${savedSeason?.season_number && savedSeason.group === "main" ? `S${savedSeason.season_number} · ` : ""}${t("Épisode")} ${saved.episode}` : "";
   return <div className="series-page">
     {(franchise.banner_image || franchise.poster_image) && <div className="series-banner" data-fallback={!franchise.banner_image} aria-hidden="true">
       <LazyImage src={franchise.banner_image || franchise.poster_image} alt="" aspectRatio="" priority className="series-banner-art" />
@@ -40,7 +53,8 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
           <button type="button" className="series-more" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? t("Voir moins") : t("Lire la suite")}</button></>}
         {warning}
         <div className="hero-actions">
-          {first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        <WatchlistButton animeId={franchise.id} /></div>
+          {saved ? <Link className="design-button" href={`${base}/seasons/${saved.season}/episodes/${saved.episode}`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Reprendre")} · {resumeLabel}</Link>
+            : first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        <WatchlistButton animeId={franchise.id} /></div>
       </div>
     </section>
     <div id="seasons">{groups.map(({ group, title, entries }) => group === "main"
