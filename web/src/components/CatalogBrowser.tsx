@@ -15,6 +15,7 @@ import { WatchlistShelf } from "./WatchlistShelf";
 import { ContinueWatching } from "./ContinueWatching";
 import { SeasonalGrid } from "./SeasonalGrid";
 import { AccountCta } from "./AccountCta";
+import { MobileBack } from "./MobileBack";
 import { ReleaseCalendar } from "./ReleaseCalendar";
 import type { CatalogResponse } from "@/types/api";
 import { getCatalogPopular, getCatalogForYou, getCatalogSeasonal, searchCatalog } from "@/lib/api";
@@ -141,6 +142,7 @@ export function CatalogBrowser({
   const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && !exclude && !isSuggestions} onHide={isSuggestions ? hide : undefined} />);
 
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
+    {!discovery && <MobileBack fallback="/" label={t("Catalogue")} />}
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
     {heroLoading && !error && <div className="hero-skeleton" role="status" aria-label={t("Chargement du catalogue")}><div /><div /></div>}
     {discovery && !error && !heroLoading && <div className="shelves"><ContinueWatching /><WatchlistShelf /></div>}

@@ -81,3 +81,5 @@
   .header-breadcrumb-slot .breadcrumb-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .header-breadcrumb-slot .breadcrumb-back:active { background: var(--surface-hover); }
 }
+
+@media (min-width: 768px) { .header-breadcrumb-slot .crumb-mobile { display: none; } }
