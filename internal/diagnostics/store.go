@@ -393,6 +393,28 @@ func (s *Store) maintain() {
 		}
 		_ = s.db.QueryRow("SELECT COALESCE(SUM(length(payload)+256),0) FROM events").Scan(&bytes)
 	}
+	// The logical size above ignores the four indexes and page overhead, which can double it: the
+	// file then reaches max_page_count while "bytes" is far below the limit, and every insert fails
+	// with "database or disk is full". Also bound the pages in use, keeping 20 % free for new events.
+	var pageSize, maxPages int64
+	_ = s.db.QueryRow("PRAGMA page_size").Scan(&pageSize)
+	_ = s.db.QueryRow("PRAGMA max_page_count").Scan(&maxPages)
+	for pageSize > 0 && maxPages > 0 {
+		var count, free int64
+		_ = s.db.QueryRow("PRAGMA page_count").Scan(&count)
+		_ = s.db.QueryRow("PRAGMA freelist_count").Scan(&free)
+		if count-free <= maxPages*8/10 {
+			break
+		}
+		res, err := s.db.Exec("DELETE FROM events WHERE seq IN (SELECT seq FROM events ORDER BY timestamp LIMIT 1000)")
+		if err != nil {
+			s.warn(err)
+			break
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			break
+		}
+	}
 	_, _ = s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	_, _ = s.db.Exec("PRAGMA incremental_vacuum(4096)")
 	if st, e := os.Stat(filepath.Join(s.o.Dir, "events.sqlite")); e == nil && st.Size() > limit {
@@ -424,7 +446,15 @@ func (s *Store) run() {
 			_ = s.file.Sync()
 		}
 		if err := s.replay(); err != nil {
-			s.warn(err)
+			if strings.Contains(err.Error(), "full") {
+				// The page cap is reached: free the oldest events now instead of waiting for the
+				// next periodic maintenance, then copy what could not be stored.
+				s.maintain()
+				err = s.replay()
+			}
+			if err != nil {
+				s.warn(err)
+			}
 		}
 		pending = 0
 		if time.Since(s.lastMaintenance) > time.Minute {
