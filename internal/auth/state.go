@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/gazes/gazes/internal/kv"
@@ -36,23 +37,33 @@ func (r redisState) ctx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 2*time.Second)
 }
 
+// logged reports a Redis failure (the callers only see "unavailable") and passes err through.
+// The key is not logged: it can embed a client IP.
+func logged(op string, err error) error {
+	if err != nil {
+		slog.Error("auth state unavailable", "op", op, "error", err)
+	}
+	return err
+}
+
 func (r redisState) Put(key string, ttl time.Duration) error {
 	ctx, cancel := r.ctx()
 	defer cancel()
-	return r.c.Raw().Set(ctx, r.c.Auth(key), 1, ttl).Err()
+	return logged("put", r.c.Raw().Set(ctx, r.c.Auth(key), 1, ttl).Err())
 }
 
 func (r redisState) Take(key string) (bool, error) {
 	ctx, cancel := r.ctx()
 	defer cancel()
 	n, err := r.c.Raw().Del(ctx, r.c.Auth(key)).Result()
-	return n > 0, err
+	return n > 0, logged("take", err)
 }
 
 func (r redisState) Once(key string, ttl time.Duration) (bool, error) {
 	ctx, cancel := r.ctx()
 	defer cancel()
-	return r.c.Raw().SetNX(ctx, r.c.Auth(key), 1, ttl).Result()
+	ok, err := r.c.Raw().SetNX(ctx, r.c.Auth(key), 1, ttl).Result()
+	return ok, logged("once", err)
 }
 
 var hitScript = redis.NewScript(`
@@ -65,7 +76,7 @@ func (r redisState) Hit(key string, limit int, span time.Duration) (bool, error)
 	defer cancel()
 	n, err := hitScript.Run(ctx, r.c.Raw(), []string{r.c.Auth("limit", key)}, span.Milliseconds()).Int64()
 	if err != nil {
-		return false, err
+		return false, logged("hit", err)
 	}
 	return n <= int64(limit), nil
 }
@@ -73,7 +84,7 @@ func (r redisState) Hit(key string, limit int, span time.Duration) (bool, error)
 func (r redisState) Reset(key string) error {
 	ctx, cancel := r.ctx()
 	defer cancel()
-	return r.c.Raw().Del(ctx, r.c.Auth("limit", key)).Err()
+	return logged("reset", r.c.Raw().Del(ctx, r.c.Auth("limit", key)).Err())
 }
 
 var errStateUnavailable = errors.New("auth state unavailable")
