@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { CatalogBrowser } from "@/components/CatalogBrowser";
 import { MAX_SSR_PAGE, SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
-import { getCatalogPopular, getCatalogSeasonal, searchCatalog } from "@/lib/api";
+import { getCatalogPopular, getCatalogSeasonal } from "@/lib/api";
 
 type HomeSearchParams = { q?: string; genre?: string; genres?: string; exclude?: string; tab?: string; page?: string };
 
@@ -24,15 +25,21 @@ export default async function Home({
   const tab = params?.tab || "trending";
   const page = Math.max(1, Number(params?.page) || 1);
 
+  // Searches live on their own page; older links and bookmarks keep working.
+  if (q || genre || exclude) {
+    const next = new URLSearchParams();
+    if (q) next.set("q", q);
+    if (genre) next.set("genres", genre);
+    if (exclude) next.set("exclude", exclude);
+    redirect(`/search?${next.toString()}`);
+  }
+  if (tab === "suggestions" || tab === "popular") redirect("/for-you");
+
   let initialData = null;
   let initialPopular = null;
   try {
     if (page > MAX_SSR_PAGE) {
       // Deep pages are loaded in the browser, under its own rate limit.
-    } else if (q || genre || exclude) {
-      initialData = await searchCatalog(q, genre, page, 24, exclude);
-    } else if (tab === "suggestions" || tab === "popular") {
-      // Personalised from the viewer's local history: loaded in the browser.
     } else if (page > 1) {
       initialData = await getCatalogSeasonal(page, 24);
     }
@@ -41,7 +48,7 @@ export default async function Home({
   }
 
   try {
-    if (!q && !genre && !exclude && page === 1) {
+    if (page === 1) {
       initialPopular = await getCatalogPopular(1, 12);
     }
   } catch (e) {

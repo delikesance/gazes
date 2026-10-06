@@ -95,7 +95,8 @@ export async function searchCatalog(
   genre: string = "",
   page: number = 1,
   perPage: number = 24,
-  exclude: string = ""
+  exclude: string = "",
+  signal?: AbortSignal
 ): Promise<CatalogResponse> {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
@@ -105,7 +106,7 @@ export async function searchCatalog(
   if (page > 1) params.set("page", page.toString());
   if (perPage !== 24) params.set("per_page", perPage.toString());
 
-  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/search?${params.toString()}`, CATALOG_CACHE);
+  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/search?${params.toString()}`, { signal, ...CATALOG_CACHE });
   if (!res.ok) {
     throw httpError("Impossible de charger le catalogue.", "CAT", res);
   }

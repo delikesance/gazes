@@ -11,5 +11,6 @@ export function GenreHeader({ genre }: { genre: string }) {
     <nav aria-label={t("Genres")} className="genre-chips">
       {GENRES.map(([value, label]) => <Link key={value} href={`/genre/${genreSlug(value)}`} className="chip" aria-current={value === genre ? "page" : undefined}>{label}</Link>)}
     </nav>
+    <Link href={`/search?genres=${encodeURIComponent(genre)}`} className="text-action">{t("Affiner la recherche")}</Link>
   </header>;
 }

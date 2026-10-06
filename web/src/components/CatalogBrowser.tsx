@@ -16,8 +16,6 @@ import { WatchlistShelf } from "./WatchlistShelf";
 import { ContinueWatching } from "./ContinueWatching";
 import { SeasonalGrid } from "./SeasonalGrid";
 import { AccountCta } from "./AccountCta";
-import { MobileBack } from "./MobileBack";
-import { rememberResults } from "@/lib/navigation-history";
 import { ReleaseCalendar } from "./ReleaseCalendar";
 import type { CatalogResponse } from "@/types/api";
 import { getCatalogPopular, getCatalogForYou, getCatalogSeasonal, searchCatalog } from "@/lib/api";
@@ -93,13 +91,6 @@ export function CatalogBrowser({
     (replace ? router.replace : router.push)(`/?${current.toString()}`, { scroll });
   }
 
-  // A series page opened from these results offers a way back to them.
-  useEffect(() => {
-    if (discovery) { rememberResults(null); return; }
-    const label = q ? t("Résultats pour « {query} »", { query: q }) : t("Résultats");
-    rememberResults(`${window.location.pathname}${window.location.search}`, label.length > 28 ? t("Résultats") : label);
-  }, [discovery, q, genre, exclude, t]);
-
   useEffect(() => {
     if (!needsData) return;
     let active = true;
@@ -151,7 +142,6 @@ export function CatalogBrowser({
   const cards = data?.items?.map(anime => <AnimeCatalogCard key={anime.media_id || anime.id} anime={anime} seasonal={!q && !genre && !exclude && !isSuggestions} onHide={isSuggestions ? hide : undefined} />);
 
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
-    {!discovery && <MobileBack fallback="/" label={t("Catalogue")} />}
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
     {heroLoading && !error && <div className="hero-skeleton" role="status" aria-label={t("Chargement du catalogue")}><div /><div /></div>}
     {discovery && !error && !heroLoading && <div className="shelves"><ContinueWatching /><WatchlistShelf /></div>}

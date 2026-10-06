@@ -60,7 +60,7 @@ export function MobileNav() {
     <ResumeChip hidden={hidden} />
     <nav className="mobile-nav" data-hidden={hidden} aria-label={t("Navigation principale")}>
       <Link href={items[0].href} aria-current={items[0].active ? "page" : undefined} onClick={onTap(items[0].active)}><Compass size={20} aria-hidden="true" /><span>{items[0].label}</span></Link>
-      <button type="button" onClick={() => { setHidden(false); window.dispatchEvent(new Event("gazes-open-search")); }}><Search size={20} aria-hidden="true" /><span>{t("Rechercher")}</span></button>
+      <Link href="/search" aria-current={pathname === "/search" ? "page" : undefined} onClick={onTap(pathname === "/search")}><Search size={20} aria-hidden="true" /><span>{t("Rechercher")}</span></Link>
       {items.slice(1).map(({ href, label, icon: Icon, active }) => <Link key={href} href={href} aria-current={active ? "page" : undefined} onClick={onTap(active)}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>)}
     </nav>
   </>;
