@@ -29,10 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return u;
   }, []);
   const register = useCallback<typeof api.register>(async (input) => {
-    const u = await api.register(input);
+    const registered = await api.register(input);
+    const { recoveryCodes: _codes, ...u } = registered;
+    void _codes;
     setUser(u);
     void syncProgressOnLogin(u.id);
-    return u;
+    return registered;
   }, []);
   const logout = useCallback(async () => { await api.logout().catch(() => {}); setProgressSyncEnabled(false); setUser(null); }, []);
 
