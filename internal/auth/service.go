@@ -586,7 +586,10 @@ func (s *Service) PutWatchlist(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := s.store.UpdateWatchlist(u.ID, body.Add, body.Remove, s.now()); err != nil {
+	if err := s.store.UpdateWatchlist(u.ID, body.Add, body.Remove, s.now()); errors.Is(err, ErrWatchlistFull) {
+		fail(w, http.StatusConflict, "watchlist_full")
+		return
+	} else if err != nil {
 		fail(w, http.StatusInternalServerError, "server_error")
 		return
 	}
