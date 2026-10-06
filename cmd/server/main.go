@@ -22,6 +22,7 @@ import (
 	"github.com/gazes/gazes/internal/indexer/settings"
 	"github.com/gazes/gazes/internal/kv"
 	"github.com/gazes/gazes/internal/library"
+	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/stream"
 	"github.com/gazes/gazes/internal/torrent"
 )
@@ -105,6 +106,13 @@ func main() {
 	}
 	defer redisClient.Close()
 	catalogIndexers.SetRedis(redisClient)
+
+	// Every AniList answer is kept on disk for good: the catalog grows into our own database.
+	if err := metadata.OpenAnilistStore(filepath.Join(cfg.AccountsDir, "anilist.sqlite")); err != nil {
+		logger.Warn("anilist store unavailable, answers are only cached in Redis", "err", err)
+	} else {
+		defer metadata.CloseAnilistStore()
+	}
 
 	// 7. Initialize API server
 	proxy := auth.NewProxyTrust(cfg.TrustProxy, cfg.TrustedProxies)

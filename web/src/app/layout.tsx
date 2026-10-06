@@ -3,6 +3,7 @@ import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import { LocaleDocument } from "@/components/LocaleDocument";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { KeyboardNav } from "@/components/KeyboardNav";
 import { MobileNav } from "@/components/MobileNav";
 import { SiteChrome } from "@/components/SiteChrome";
 import { ChangelogBanner } from "@/components/ChangelogBanner";
@@ -12,6 +13,7 @@ import Script from "next/script";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 import { DM_Sans, Fraunces, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./mobile.css";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -59,7 +61,7 @@ export default function RootLayout({
           <SiteChrome><Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense></SiteChrome>
           <div className="site-content">{children}</div>
         </AuthProvider>
-        <SiteChrome><SiteFooter /><Suspense fallback={null}><MobileNav /></Suspense><ChangelogBanner /></SiteChrome>
+        <SiteChrome><SiteFooter /><Suspense fallback={null}><MobileNav /></Suspense><KeyboardNav /><ChangelogBanner /></SiteChrome>
       </body>
     </html>
   );

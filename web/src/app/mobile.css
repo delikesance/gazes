@@ -1,0 +1,95 @@
+/* Phone layout refinements (<= 767px). Loaded after globals.css, so it only overrides what the redesign changes. */
+.series-more { display: none; }
+@media (max-width: 767px) {
+  /* Floating tab pill, same family as the header pills. */
+  .mobile-nav { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); justify-content: space-between; gap: 4px; padding: 6px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
+  .mobile-nav { transition: transform .25s ease; }
+  .resume-chip { position: fixed; z-index: 39; left: 12px; right: 12px; bottom: calc(88px + env(safe-area-inset-bottom)); display: flex; align-items: center; height: 48px; padding-left: 16px; border-radius: 999px; background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--accent); transition: transform .25s ease, opacity .25s ease; }
+  .resume-chip[data-hidden="true"] { transform: translateY(calc(100% + 120px)); }
+  .resume-chip a { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 100%; color: var(--foreground); font-size: 13px; font-weight: 600; }
+  .resume-chip-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .resume-chip-ep { flex-shrink: 0; font-family: var(--font-mono, "Geist Mono", monospace); font-size: 12px; font-weight: 400; color: var(--design-muted); }
+  .resume-chip button { flex-shrink: 0; display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: none; color: var(--design-muted); }
+  .mobile-nav[data-hidden="true"] { transform: translateY(calc(100% + 24px)); }
+  .mobile-nav a, .mobile-nav button { flex: 1; min-width: 0; min-height: 52px; padding: 6px 4px; border-radius: 999px; }
+  .mobile-nav button { display: grid; justify-items: center; gap: 2px; border: 0; background: none; color: var(--design-muted); font: inherit; font-size: 11px; font-weight: 500; }
+  .mobile-nav a:active, .mobile-nav button:active { background: var(--surface-hover); }
+  .mobile-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Account menu as a bottom sheet. */
+  .account-backdrop { position: fixed; inset: 0; z-index: 59; background: rgba(0, 0, 0, .64); }
+  .account-menu { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 60; width: auto; max-height: 80dvh; overflow-y: auto; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); border-radius: 28px 28px 0 0; gap: 6px; }
+  .account-menu .account-row { height: 52px; font-size: 15px; }
+  /* Search lives in the bar: the header keeps only the wordmark, the theme and the account. */
+  .header-search-toggle { display: none; }
+  @media (prefers-reduced-motion: reduce) { .mobile-nav { transition: none; } }
+  .mobile-nav a[aria-current="page"] { background: var(--clay-bg); color: var(--clay-fg); }
+
+  /* Announcement: a slim strip floating just above the tab pill. */
+  .changelog-banner { bottom: calc(88px + env(safe-area-inset-bottom)); font-size: 13px; }
+
+  /* Footer: links first, legal text after, room for the floating pill. */
+  .site-footer { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+
+  /* Genres: one scrolling row instead of a wall of pills. */
+  .genre-chips { flex-wrap: nowrap; overflow-x: auto; scroll-padding-inline: var(--page-gutter); margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); scrollbar-width: none; scroll-snap-type: x proximity; }
+  .genre-chips::-webkit-scrollbar { display: none; }
+  .genre-chips .chip { flex: none; height: 44px; padding: 0 18px; scroll-snap-align: start; }
+
+  /* Seasons: a swipeable rail instead of a tall grid. */
+  .season-grid { display: flex; overflow-x: auto; scroll-padding-inline: var(--page-gutter); gap: 12px; margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); scrollbar-width: none; scroll-snap-type: x proximity; }
+  .season-grid::-webkit-scrollbar { display: none; }
+  .season-grid .season-card { flex: 0 0 132px; scroll-snap-align: start; }
+
+  /* Series page: small poster beside the title, synopsis folded until asked for. */
+  /* The banner is shown a bit stronger on a phone and may fall back to the poster. */
+  .series-banner, .series-banner[data-fallback="true"] { display: block; top: -110px; left: calc(var(--page-gutter) * -1); right: calc(var(--page-gutter) * -1); width: auto; height: 520px; transform: none; opacity: .6; -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); }
+  .series-intro { gap: 20px; }
+  .series-poster { flex-basis: 120px; width: 120px; }
+  .series-copy { gap: 14px; padding-top: 0; }
+  .series-copy h1 { font-size: 34px; }
+  .series-description[data-expanded="false"] { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .series-more { display: inline-flex; align-items: center; min-height: 44px; margin-top: -10px; color: var(--accent); font-size: 14px; font-weight: 500; }
+
+  /* Dev log: one card per release. */
+  .changelog-page section { margin-top: 12px; padding: 20px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface-card); }
+
+  /* Legal text: calmer rhythm, separated sections. */
+  .legal-page section { margin-top: 0; padding-block: 20px; border-top: 1px solid var(--border); }
+  .legal-page p { font-size: 15px; line-height: 1.6; }
+
+  /* Auth: the form sits on the page instead of inside a bordered card. */
+  .auth-page { align-items: start; padding-block: 88px 120px; }
+  .auth-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+}
+
+@media (max-width: 600px) {
+  /* Hero image: 60% opaque at the top, fading to nothing at the bottom, no dark veil. */
+  .featured-carousel .anime-hero-art { opacity: 1; }
+  .featured-carousel .anime-hero-art img { -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); }
+  .featured-carousel .anime-hero-shade { background: transparent; }
+}
+
+/* Touch screens have no hover: poster cards show their title and details under the poster, like the seasonal grid. */
+@media (hover: none) {
+  .poster-card:not(.seasonal-card) { aspect-ratio: auto; background: transparent; border-radius: 0; overflow: visible; }
+  .poster-card:not(.seasonal-card) .poster-art { height: auto; aspect-ratio: 460 / 650; border-radius: var(--radius-poster); overflow: hidden; }
+  .poster-card:not(.seasonal-card) .poster-overlay { position: static; opacity: 1; background: none; padding: 10px 0 0; gap: 0; }
+  .poster-card:not(.seasonal-card) .poster-play { display: none; }
+  .poster-card:not(.seasonal-card) .poster-overlay h3 { font-size: 14px; color: var(--foreground); }
+  .poster-card:not(.seasonal-card) .poster-overlay p { color: var(--design-muted); }
+  .poster-card:not(.seasonal-card):hover img { transform: none; }
+}
+
+/* On a phone the breadcrumb in the header repeats the page title and the bottom bar: drop it. */
+@media (max-width: 767px) {
+  /* Deep pages: the header shows one ← (to where you came from) instead of the wordmark and the trail. */
+  .catalog-header:has(.header-breadcrumb-slot:not(:empty)) .site-wordmark { display: none; }
+  .header-breadcrumb-slot { min-width: 0; flex: 1; }
+  .header-breadcrumb-slot .detail-breadcrumb > :not(.breadcrumb-back) { display: none; }
+  .header-breadcrumb-slot .detail-breadcrumb { padding: 0; height: auto; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .header-breadcrumb-slot .breadcrumb-back { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--foreground); font: inherit; font-size: 14px; font-weight: 600; }
+  .header-breadcrumb-slot .breadcrumb-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-breadcrumb-slot .breadcrumb-back:active { background: var(--surface-hover); }
+}
+
+@media (min-width: 768px) { .account-backdrop { display: none; } .resume-chip { display: none; } .header-breadcrumb-slot .crumb-mobile { display: none; } }

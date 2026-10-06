@@ -241,7 +241,7 @@ func (s *AnimeCatalogService) fetchSchedulePage(ctx context.Context, from, to in
 
 func (s *AnimeCatalogService) fetchSchedulePageOnce(ctx context.Context, from, to int64, page int) (*schedulePage, error) {
 	var parsed schedulePage
-	if err := s.anilist.post(ctx, scheduleQuery, map[string]any{"page": page, "perPage": schedulePageSize, "from": from, "to": to}, &parsed); err != nil {
+	if err := s.anilist.postFresh(ctx, scheduleQuery, map[string]any{"page": page, "perPage": schedulePageSize, "from": from, "to": to}, &parsed, scheduleStoreMaxAge); err != nil {
 		return nil, err
 	}
 	if len(parsed.Errors) > 0 {

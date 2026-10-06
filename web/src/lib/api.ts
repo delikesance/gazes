@@ -47,10 +47,13 @@ async function fetchRetryingThrottle(url: string, init?: RequestInit): Promise<R
   return res;
 }
 
+/** Catalog answers are kept for good by the backend: Next reuses them for 5 min (browsers follow the Cache-Control header). */
+const CATALOG_CACHE = { next: { revalidate: 300 } } as const;
+
 export async function getCatalogTrending(page: number = 1, perPage: number = 20): Promise<CatalogResponse> {
   const url = `${getApiBase()}/catalog/trending?page=${page}&per_page=${perPage}`;
   console.log("[API CLIENT] Fetching:", url);
-  const res = await fetch(url);
+  const res = await fetch(url, CATALOG_CACHE);
   console.log("[API CLIENT] Response status:", res.status, res.statusText);
   if (!res.ok) {
     throw new Error(`Failed to fetch trending anime: ${res.statusText}`);
@@ -61,7 +64,7 @@ export async function getCatalogTrending(page: number = 1, perPage: number = 20)
 }
 
 export async function getCatalogPopular(page: number = 1, perPage: number = 20, signal?: AbortSignal): Promise<CatalogResponse> {
-  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/popular?page=${page}&per_page=${perPage}`, { signal });
+  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/popular?page=${page}&per_page=${perPage}`, { signal, ...CATALOG_CACHE });
   if (!res.ok) {
     throw httpError("Impossible de charger les animes populaires.", "CAT", res);
   }
@@ -92,7 +95,8 @@ export async function searchCatalog(
   genre: string = "",
   page: number = 1,
   perPage: number = 24,
-  exclude: string = ""
+  exclude: string = "",
+  signal?: AbortSignal
 ): Promise<CatalogResponse> {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
@@ -102,7 +106,7 @@ export async function searchCatalog(
   if (page > 1) params.set("page", page.toString());
   if (perPage !== 24) params.set("per_page", perPage.toString());
 
-  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/search?${params.toString()}`);
+  const res = await fetchRetryingThrottle(`${getApiBase()}/catalog/search?${params.toString()}`, { signal, ...CATALOG_CACHE });
   if (!res.ok) {
     throw httpError("Impossible de charger le catalogue.", "CAT", res);
   }
@@ -110,7 +114,7 @@ export async function searchCatalog(
 }
 
 export async function getAnimeCatalogDetail(id: number): Promise<AnimeCatalogItem> {
-  const res = await fetch(`${getApiBase()}/catalog/anime/${id}`);
+  const res = await fetch(`${getApiBase()}/catalog/anime/${id}`, CATALOG_CACHE);
   if (!res.ok) {
     throw new Error(`Failed to fetch anime details: ${res.statusText}`);
   }
@@ -228,16 +232,16 @@ export function formatBytes(bytes: number, decimals: number = 2): string {
 }
 
 export async function getFranchise(id: number, signal?: AbortSignal): Promise<import("@/types/api").Franchise> {
- return catalogFetch(`/catalog/anime/${id}/franchise`, signal);
+ return catalogFetch(`/catalog/anime/${id}/franchise`, signal, undefined, true);
 }
 export async function getSeason(id: number, season: number, signal?: AbortSignal): Promise<AnimeCatalogItem> {
- return catalogFetch(`/catalog/anime/${id}/seasons/${season}`, signal);
+ return catalogFetch(`/catalog/anime/${id}/seasons/${season}`, signal, undefined, true);
 }
 export async function getSeasonSources(id: number, season: number, episode: number, signal?: AbortSignal, session?:string, discovery: 'fast' | 'full' = 'fast'): Promise<EpisodeSourcesResponse> {
  return catalogFetch(`/catalog/anime/${id}/seasons/${season}/episodes/${episode}/sources${discovery==='full'?'?discovery=full':''}`, signal,session?{playback_session_id:session}:undefined);
 }
-async function catalogFetch<T>(path: string, signal?: AbortSignal,diagnostic?:PlaybackDiagnostic): Promise<T> {
- const response = await fetch(`${getApiBase()}${path}`, { signal,headers:diagnosticHeaders(diagnostic) });
+async function catalogFetch<T>(path: string, signal?: AbortSignal,diagnostic?:PlaybackDiagnostic, cacheable = false): Promise<T> {
+ const response = await fetch(`${getApiBase()}${path}`, { signal,headers:diagnosticHeaders(diagnostic), ...(cacheable ? CATALOG_CACHE : {}) });
  if (!response.ok) {
   const body=await response.json().catch(()=>({}));
   const message=response.status===404?"Cette saison ou cet épisode est introuvable.":"Les fournisseurs de torrents sont temporairement indisponibles.";
@@ -247,13 +251,13 @@ async function catalogFetch<T>(path: string, signal?: AbortSignal,diagnostic?:Pl
 }
 
 export async function getSchedule(from: number, to: number, signal?: AbortSignal): Promise<ScheduleResponse> {
- const response = await fetch(`${getApiBase()}/catalog/schedule?from=${from}&to=${to}`, { signal });
+ const response = await fetch(`${getApiBase()}/catalog/schedule?from=${from}&to=${to}`, { signal, ...CATALOG_CACHE });
  if (!response.ok) throw httpError("Impossible de charger le calendrier des sorties.", "CAL", response);
  return response.json();
 }
 
 export async function getCatalogSeasonal(page = 1, perPage = 24): Promise<CatalogResponse> {
- const response = await fetch(`${getApiBase()}/catalog/seasonal?page=${page}&per_page=${perPage}`);
+ const response = await fetch(`${getApiBase()}/catalog/seasonal?page=${page}&per_page=${perPage}`, CATALOG_CACHE);
  if (!response.ok) throw httpError("Impossible de charger les sorties de cette saison.", "CAT", response);
  return response.json();
 }

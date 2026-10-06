@@ -141,7 +141,7 @@ func (s *AnimeCatalogService) SetRedis(c *kv.Client) {
 func (s *AnimeCatalogService) initCaches(c *kv.Client) {
 	s.catalogC = kv.NewCache[CatalogResponse](c, "catalog", kv.CacheOptions{L1Max: 256})
 	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail:v2", kv.CacheOptions{L1Max: 512})
-	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v2", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
+	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v3", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
 	s.scheduleC = kv.NewCache[ScheduleResponse](c, "schedule", kv.CacheOptions{L1Max: 64})
 	s.aniskipC = kv.NewCache[[]SkipSegment](c, "aniskip", kv.CacheOptions{L1Max: 512})
 }
@@ -1246,7 +1246,7 @@ func (s *AnimeCatalogService) GetAnimeDetailsWithEpisodes(ctx context.Context, i
 	}
 	return s.detailC.Get(ctx, strconv.Itoa(id), kv.Policy[AnimeCatalogItem]{TTL: 2 * time.Hour}, func(ctx context.Context) (*AnimeCatalogItem, error) {
 		var parsed aniListDetailResponse
-		if err := s.anilist.post(ctx, animeDetailWithEpisodesQuery, map[string]interface{}{"id": id}, &parsed); err != nil {
+		if err := s.anilist.postFresh(ctx, animeDetailWithEpisodesQuery, map[string]interface{}{"id": id}, &parsed, detailStoreMaxAge); err != nil {
 			return nil, err
 		}
 		if len(parsed.Errors) > 0 {
@@ -1280,7 +1280,7 @@ func (s *AnimeCatalogService) prefetchDetails(ctx context.Context, ids []int) {
 	for start := 0; start < len(missing); start += maxDetailBatch {
 		batch := missing[start:min(start+maxDetailBatch, len(missing))]
 		var parsed aniListPageResponse
-		err := s.anilist.post(ctx, animeDetailBatchQuery, map[string]interface{}{"ids": batch, "perPage": len(batch)}, &parsed)
+		err := s.anilist.postFresh(ctx, animeDetailBatchQuery, map[string]interface{}{"ids": batch, "perPage": len(batch)}, &parsed, detailStoreMaxAge)
 		if err != nil || len(parsed.Errors) > 0 {
 			return
 		}
@@ -1297,7 +1297,7 @@ func (s *AnimeCatalogService) prefetchDetails(ctx context.Context, ids []int) {
 
 func (s *AnimeCatalogService) doGraphQLPageQuery(ctx context.Context, query string, variables map[string]interface{}) (*CatalogResponse, error) {
 	var parsed aniListPageResponse
-	if err := s.anilist.post(ctx, query, variables, &parsed); err != nil {
+	if err := s.anilist.postFresh(ctx, query, variables, &parsed, listingStoreMaxAge); err != nil {
 		return nil, err
 	}
 	if len(parsed.Errors) > 0 {
