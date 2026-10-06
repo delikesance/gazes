@@ -807,7 +807,13 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 
 /* Series and season detail pages: flat, list-based layouts */
 .detail-page .detail-content { max-width: 1320px; margin-inline: auto; padding: 120px var(--page-gutter) 0; }
-.series-banner { display: none; }
+.detail-page { overflow-x: clip; }
+.series-page { position: relative; isolation: isolate; }
+/* Full-bleed banner behind the intro, faded out toward the bottom like the home hero. A poster fallback is phone-only. */
+.series-banner { position: absolute; z-index: -1; top: -120px; left: 50%; width: 100vw; height: 640px; transform: translateX(-50%); opacity: .3; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 92%); }
+.series-banner[data-fallback="true"] { display: none; }
+.series-banner .series-banner-art { width: 100%; height: 100%; }
+.series-banner .series-banner-art img { object-fit: cover; object-position: center top; }
 .series-intro { display: flex; flex-wrap: wrap; gap: 56px; align-items: flex-start; }
 .series-poster { flex: 0 0 260px; width: 260px; aspect-ratio: 2 / 3; }
 .series-poster .series-poster-art { width: 100%; height: 100%; border-radius: var(--radius-card); }
