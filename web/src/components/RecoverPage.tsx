@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { KeyRound, Loader2, Lock, Mail } from "lucide-react";
-import { AuthError, recoverAccount, solveFreshCaptcha } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { AuthError, solveFreshCaptcha } from "@/lib/auth";
+import { useAuth } from "./AuthProvider";
 import { useI18n } from "@/lib/i18n";
 import { PageGrid } from "./ui/PageGrid";
 import { Scribble } from "./ui/Scribble";
@@ -18,6 +20,8 @@ const ERRORS: Record<string, string> = {
 /** Sets a new password from the e-mail and one of the recovery codes given at sign-up. */
 export function RecoverPage() {
   const { t } = useI18n();
+  const { recover } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
@@ -31,9 +35,8 @@ export function RecoverPage() {
     setError("");
     try {
       const captcha = await solveFreshCaptcha();
-      await recoverAccount({ email: email.trim(), code: code.trim(), password, captcha });
-      // A full load restarts the session state (sync, menus) cleanly with the new sign-in.
-      window.location.href = "/";
+      await recover({ email: email.trim(), code: code.trim(), password, captcha });
+      router.replace("/");
     } catch (err) {
       const key = err instanceof AuthError ? err.code : (err as Error).message === "captcha_failed" ? "captcha_failed" : "network";
       setError(t(ERRORS[key] || "Une erreur est survenue. Réessayez."));
