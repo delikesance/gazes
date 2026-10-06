@@ -143,6 +143,7 @@ export function CatalogBrowser({
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
     {heroLoading && !error && <div className="hero-skeleton" role="status" aria-label={t("Chargement du catalogue")}><div /><div /></div>}
+    {discovery && !error && !heroLoading && <div className="shelves"><ContinueWatching /><WatchlistShelf /></div>}
     {discovery && !error && <section className="season-discovery" aria-label={t("Catalogue")}>
       <div className="catalog-tabs-row page-inset">
         <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
@@ -150,7 +151,6 @@ export function CatalogBrowser({
           <button type="button" aria-pressed={isSuggestions} onClick={() => update({ tab: "suggestions", page: "1" }, false)}>{t("Suggestions")}</button>
         </div>
       </div>
-      {!isSuggestions && <><ContinueWatching /><WatchlistShelf /></>}
       {isSuggestions ? (data && data.items && data.items.length > 0 && <>
         <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("Suggestions")}</span><h2 id="season-heading" className="serif">{t("Pour vous")}</h2></div></div>
         <SeasonalGrid count={data.items.length} evenRows={false}>{cards}</SeasonalGrid>
