@@ -106,17 +106,24 @@ func (r *Rollup) RollupRange(ctx context.Context, fromDay, toDay string) error {
 	}
 	dayOf := func(ts int64) string { return time.Unix(ts, 0).UTC().Format(dayLayout) }
 
-	rows, err := r.accounts.QueryContext(ctx, `SELECT user_id, anime_id, title, started_at, watched_seconds, completed
+	viewsDays := make(map[string]*viewsAcc, nDays)
+	catDays := make(map[string]*catAcc, nDays)
+	for d := range days {
+		viewsDays[d] = newViewsAcc()
+		catDays[d] = newCatAcc()
+	}
+	rows, err := r.accounts.QueryContext(ctx, `SELECT user_id, anime_id, season_id, episode, title, started_at, watched_seconds, completed, start_position, end_position, duration, genres, format, audio_lang, sub_lang
 		FROM watch_sessions WHERE started_at >= ? AND started_at < ?`, lo, hi)
 	if err != nil {
 		return err
 	}
 	for rows.Next() {
-		var uid, aid, started int64
-		var title string
-		var secs float64
+		var uid, aid, sid, started int64
+		var ep int
+		var title, genresJSON, fmtRaw, audioLang, subLang string
+		var secs, startPos, endPos, dur float64
 		var comp int64
-		if err := rows.Scan(&uid, &aid, &title, &started, &secs, &comp); err != nil {
+		if err := rows.Scan(&uid, &aid, &sid, &ep, &title, &started, &secs, &comp, &startPos, &endPos, &dur, &genresJSON, &fmtRaw, &audioLang, &subLang); err != nil {
 			rows.Close()
 			return err
 		}
@@ -124,6 +131,8 @@ func (r *Rollup) RollupRange(ctx context.Context, fromDay, toDay string) error {
 			secs = 0
 		}
 		d := dayOf(started)
+		viewsDays[d].add(aid, sid, started, ep, title, startPos, endPos, secs, dur, int(comp))
+		catDays[d].add(aid, title, genresJSON, fmtRaw, started, secs, int(comp), audioLang, subLang)
 		a := days[d]
 		a.sessions++
 		a.secF += secs
@@ -210,14 +219,14 @@ func (r *Rollup) RollupRange(ctx context.Context, fromDay, toDay string) error {
 		d := from.AddDate(0, 0, i).Format(dayLayout)
 		a := days[d]
 		total += a.newUsers
-		if err := r.writeDay(ctx, d, a, animes[d], total, computed); err != nil {
+		if err := r.writeDay(ctx, d, a, animes[d], viewsDays[d], catDays[d], total, computed); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *Rollup) writeDay(ctx context.Context, day string, a *dayAgg, an map[int64]*animeAgg, total, computed int64) error {
+func (r *Rollup) writeDay(ctx context.Context, day string, a *dayAgg, an map[int64]*animeAgg, v *viewsAcc, c *catAcc, total, computed int64) error {
 	tx, err := r.admin.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -251,6 +260,12 @@ func (r *Rollup) writeDay(ctx context.Context, day string, a *dayAgg, an map[int
 			VALUES(?,?,?,?,?,?,?)`, day, id, x.title, x.sessions, int64(x.secF+0.5), x.completed, x.newViewers); err != nil {
 			return err
 		}
+	}
+	if err := writeViewsDay(ctx, tx, day, v); err != nil {
+		return err
+	}
+	if err := writeCatalogDay(ctx, tx, day, c); err != nil {
+		return err
 	}
 	return tx.Commit()
 }
