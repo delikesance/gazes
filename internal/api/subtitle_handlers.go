@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/stream"
 	"math"
 	"net/http"
-	"os"
-	"os/exec"
 	"strconv"
 	"time"
 )
@@ -157,23 +156,4 @@ func (s *Server) HandleSubtitles(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "subtitles", time.Time{}, bytes.NewReader(job.data))
 }
 
-func findFFmpegBin() string {
-	if p := os.Getenv("FFMPEG_PATH"); p != "" {
-		if _, err := exec.LookPath(p); err == nil {
-			return p
-		}
-	}
-	if p, err := exec.LookPath("ffmpeg"); err == nil {
-		return p
-	}
-	candidates := []string{
-		"/usr/local/bin/ffmpeg",
-		"/usr/bin/ffmpeg",
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			return c
-		}
-	}
-	return "ffmpeg"
-}
+func findFFmpegBin() string { return stream.FFmpegPath() }
