@@ -3,12 +3,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { AuthError, deleteAccount, listSessions, revokeSession, type AccountSession } from "@/lib/auth";
+import { AuthError, deleteAccount, listSessions, newRecoveryCodes, revokeSession, type AccountSession } from "@/lib/auth";
 import { clearLocalWatchLog } from "@/lib/watch-log";
 import { clearHidden } from "@/lib/hidden-anime";
 import { exportMyData } from "@/lib/my-data";
 import { useAuth } from "@/components/AuthProvider";
 import { PageGrid } from "@/components/ui/PageGrid";
+import { RecoveryCodes } from "@/components/RecoveryCodes";
 
 export default function AccountPage() {
   const { t, locale } = useI18n();
@@ -19,6 +20,9 @@ export default function AccountPage() {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const [codesPassword, setCodesPassword] = useState("");
+  const [codesOpen, setCodesOpen] = useState(false);
 
   const refresh = useCallback(() => { listSessions().then(setSessions, () => setSessions([])); }, []);
   useEffect(() => { if (user) refresh(); }, [user, refresh]);
@@ -37,6 +41,20 @@ export default function AccountPage() {
   const onRevoke = async (id: string) => {
     try { await revokeSession(id); } catch { setError(t("Impossible de déconnecter cet appareil pour le moment.")); }
     refresh();
+  };
+
+  const onNewCodes = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      setCodes(await newRecoveryCodes(codesPassword));
+      setCodesOpen(false);
+      setCodesPassword("");
+    } catch (err) {
+      setError(err instanceof AuthError && err.code === "invalid_credentials" ? t("Mot de passe incorrect.") : t("Impossible de générer les codes pour le moment."));
+    }
+    setBusy(false);
   };
 
   const onDelete = async (event: React.FormEvent) => {
@@ -77,6 +95,23 @@ export default function AccountPage() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="account-section">
+          <h2>{t("Codes de secours")}</h2>
+          <p className="history-empty">{t("Ils permettent de retrouver votre compte si vous perdez votre mot de passe. En générer de nouveaux invalide les anciens.")}</p>
+          {codes ? <RecoveryCodes codes={codes} doneLabel={t("J’ai conservé mes codes")} onDone={() => setCodes(null)} /> : !codesOpen ? (
+            <div><button type="button" className="clay clay-secondary clay-sm" onClick={() => setCodesOpen(true)}>{t("Générer de nouveaux codes")}</button></div>
+          ) : (
+            <form onSubmit={onNewCodes} className="account-delete">
+              <label htmlFor="codes-password">{t("Confirmez avec votre mot de passe")}</label>
+              <div className="field-pill"><input id="codes-password" type="password" autoComplete="current-password" value={codesPassword} onChange={(e) => setCodesPassword(e.target.value)} maxLength={256} required /></div>
+              <div className="account-delete-actions">
+                <button type="submit" className="clay clay-primary clay-sm" disabled={busy || codesPassword.length === 0}>{t("Générer")}</button>
+                <button type="button" className="clay clay-secondary clay-sm" onClick={() => { setCodesOpen(false); setCodesPassword(""); }}>{t("Annuler")}</button>
+              </div>
+            </form>
+          )}
         </section>
 
         <section className="account-section">

@@ -202,6 +202,8 @@ func (s *Server) setupRoutes() {
 			api.Put("/me/history", s.auth.PutHistory)
 			api.Delete("/me/history", s.auth.DeleteHistory)
 			api.Post("/auth/delete-account", s.auth.DeleteAccount)
+			api.Post("/auth/recover", s.auth.Recover)
+			api.Post("/me/recovery-codes", s.auth.NewRecoveryCodes)
 			api.Get("/me/export", s.auth.Export)
 			api.Get("/me/sessions", s.auth.ListSessions)
 			api.Delete("/me/sessions/{id}", s.auth.RevokeSession)
