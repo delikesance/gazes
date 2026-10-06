@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getCatalogPopular, getCatalogSeasonal } from "@/lib/api";
+import { GENRES, genreSlug } from "@/lib/genres";
 import { SITE_URL } from "@/lib/site";
+import { CHANGELOG } from "@/lib/changelog";
 
 // Rendered on request, never at build time: the build has no backend, so a prerendered sitemap would
 // freeze on the home page alone. The catalog lookups are cached in memory instead.
@@ -9,7 +11,7 @@ export const dynamic = "force-dynamic";
 const TTL_MS = 3600_000;
 let cache: { ids: number[]; at: number } | null = null;
 
-const PAGES = 3;
+const PAGES = 10;
 const PER_PAGE = 50;
 
 async function collectIds(): Promise<number[]> {
@@ -39,8 +41,11 @@ async function cachedIds(): Promise<number[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const ids = await cachedIds();
+  const lastModified = new Date();
   return [
-    { url: SITE_URL, changeFrequency: "daily", priority: 1 },
-    ...ids.map((id) => ({ url: `${SITE_URL}/anime/${id}`, changeFrequency: "weekly" as const, priority: 0.7 })),
+    { url: SITE_URL, lastModified, changeFrequency: "daily", priority: 1 },
+    { url: `${SITE_URL}/changelog`, lastModified: new Date(`${CHANGELOG[0].date}T00:00:00Z`), changeFrequency: "weekly", priority: 0.3 },
+    ...GENRES.map(([value]) => ({ url: `${SITE_URL}/genre/${genreSlug(value)}`, lastModified, changeFrequency: "weekly" as const, priority: 0.6 })),
+    ...ids.map((id) => ({ url: `${SITE_URL}/anime/${id}`, lastModified, changeFrequency: "weekly" as const, priority: 0.7 })),
   ];
 }

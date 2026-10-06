@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogBrowser } from "@/components/CatalogBrowser";
-import { SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
+import { MAX_SSR_PAGE, SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
 import { getCatalogPopular, getCatalogSeasonal, searchCatalog } from "@/lib/api";
 
 type HomeSearchParams = { q?: string; genre?: string; genres?: string; exclude?: string; tab?: string; page?: string };
@@ -27,7 +27,9 @@ export default async function Home({
   let initialData = null;
   let initialPopular = null;
   try {
-    if (q || genre || exclude) {
+    if (page > MAX_SSR_PAGE) {
+      // Deep pages are loaded in the browser, under its own rate limit.
+    } else if (q || genre || exclude) {
       initialData = await searchCatalog(q, genre, page, 24, exclude);
     } else if (tab === "suggestions" || tab === "popular") {
       // Personalised from the viewer's local history: loaded in the browser.

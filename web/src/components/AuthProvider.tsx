@@ -18,20 +18,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    api.fetchMe().then((u) => { if (active) { setUser(u); if (u) void syncProgressOnLogin(); } }, () => { if (active) setUser(null); });
+    api.fetchMe().then((u) => { if (active) { setUser(u); if (u) void syncProgressOnLogin(u.id); } }, () => { if (active) setUser(null); });
     return () => { active = false; };
   }, []);
 
   const login = useCallback<typeof api.login>(async (input) => {
     const u = await api.login(input);
     setUser(u);
-    void syncProgressOnLogin();
+    void syncProgressOnLogin(u.id);
     return u;
   }, []);
   const register = useCallback<typeof api.register>(async (input) => {
     const u = await api.register(input);
     setUser(u);
-    void syncProgressOnLogin();
+    void syncProgressOnLogin(u.id);
     return u;
   }, []);
   const logout = useCallback(async () => { await api.logout().catch(() => {}); setProgressSyncEnabled(false); setUser(null); }, []);

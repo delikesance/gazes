@@ -76,8 +76,10 @@ services:
       REDIS_URL: "redis://:${REDIS_PASSWORD:-}@gazes-redis:6379/0"
       REDIS_NAMESPACE: "${REDIS_NAMESPACE:-gazes}"
       ANILIST_PER_MINUTE: "${ANILIST_PER_MINUTE:-24}"
-      # The backend is only reachable through the web service, so its X-Forwarded-* headers are trusted.
+      # X-Forwarded-* are trusted from the web service only: the backend also sits on gazes-shared,
+      # where another container could forge them.
       TRUST_PROXY: "true"
+      TRUSTED_PROXIES: web
       # Required in production: run `make secrets` to generate them into .env.
       ACCOUNTS_ENC_KEY: "${ACCOUNTS_ENC_KEY:-}"
       ACCOUNTS_INDEX_KEY: "${ACCOUNTS_INDEX_KEY:-}"
@@ -125,7 +127,8 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "${GAZES_PORT:-8080}:3000"
+      # Loopback only: Caddy is the edge and sets X-Forwarded-For, which rate limits trust.
+      - "127.0.0.1:${GAZES_PORT:-8080}:3000"
     depends_on:
       backend:
         condition: service_healthy

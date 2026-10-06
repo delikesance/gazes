@@ -28,7 +28,7 @@ var pseudoPattern = regexp.MustCompile(`^[\p{L}\p{N}_.-]{3,24}$`)
 type Options struct {
 	Dir        string
 	Production bool
-	TrustProxy bool // honour X-Forwarded-For / X-Forwarded-Proto from the edge proxy
+	Proxy      *ProxyTrust // whose X-Forwarded-For / -Proto / -Host to honour; nil = nobody's
 	Getenv     func(string) string
 	// State, when set, shares nonces, captcha replay protection and rate limits across instances.
 	State State
@@ -36,14 +36,14 @@ type Options struct {
 
 // Service wires the store, keys, envelope, captcha and rate limits to HTTP handlers.
 type Service struct {
-	store      *Store
-	keys       *Keys
-	kem        *KEM
-	captcha    *Captcha
-	limits     *limiter
-	trustProxy bool
-	now        func() time.Time
-	dummyHash  string
+	store     *Store
+	keys      *Keys
+	kem       *KEM
+	captcha   *Captcha
+	limits    *limiter
+	proxy     *ProxyTrust
+	now       func() time.Time
+	dummyHash string
 }
 
 // New opens the store and loads keys.
@@ -62,7 +62,7 @@ func New(o Options) (*Service, error) {
 		return nil, err
 	}
 	dummy, _ := keys.hashPassword("gazes-dummy-password")
-	s := &Service{store: store, keys: keys, kem: kem, captcha: NewCaptcha(keys.Altcha), limits: newLimiter(), trustProxy: o.TrustProxy, now: time.Now, dummyHash: dummy}
+	s := &Service{store: store, keys: keys, kem: kem, captcha: NewCaptcha(keys.Altcha), limits: newLimiter(), proxy: o.Proxy, now: time.Now, dummyHash: dummy}
 	if o.State != nil {
 		s.kem.shared, s.captcha.shared, s.limits.shared = o.State, o.State, o.State
 	}
@@ -95,8 +95,12 @@ func fail(w http.ResponseWriter, status int, code string) {
 	writeJSON(w, status, apiError{Error: code})
 }
 
-func (s *Service) clientIP(r *http.Request) string {
-	if s.trustProxy {
+func (s *Service) clientIP(r *http.Request) string { return ClientIP(r, s.proxy.Trusts(r)) }
+
+// ClientIP is the caller's address. With trustProxy (the request came from a trusted proxy, see
+// ProxyTrust) it is the first X-Forwarded-For entry, which the edge proxy (Caddy) sets itself.
+func ClientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			first, _, _ := strings.Cut(xff, ",")
 			if ip := strings.TrimSpace(first); net.ParseIP(ip) != nil {
@@ -112,7 +116,7 @@ func (s *Service) clientIP(r *http.Request) string {
 }
 
 func (s *Service) secure(r *http.Request) bool {
-	return r.TLS != nil || (s.trustProxy && r.Header.Get("X-Forwarded-Proto") == "https")
+	return r.TLS != nil || (s.proxy.Trusts(r) && r.Header.Get("X-Forwarded-Proto") == "https")
 }
 
 // sameOrigin blocks cross-site form posts: JSON content type plus a matching Origin.
@@ -129,7 +133,7 @@ func (s *Service) sameOrigin(r *http.Request) bool {
 		return false
 	}
 	host := r.Host
-	if s.trustProxy {
+	if s.proxy.Trusts(r) {
 		if fh := r.Header.Get("X-Forwarded-Host"); fh != "" {
 			host = fh
 		}
@@ -540,6 +544,56 @@ func (s *Service) PutHidden(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.GetHidden(w, r)
+}
+
+// GetWatchlist lists the anime the viewer saved to "ma liste".
+func (s *Service) GetWatchlist(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		fail(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	ids, err := s.store.ListWatchlist(u.ID)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ids": ids})
+}
+
+// PutWatchlist adds and removes saved anime, then returns the merged list.
+func (s *Service) PutWatchlist(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUser(r)
+	if u == nil {
+		fail(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !s.sameOrigin(r) {
+		fail(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	var body struct {
+		Add    []int64 `json:"add"`
+		Remove []int64 `json:"remove"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&body) != nil || len(body.Add) > 500 || len(body.Remove) > 500 {
+		fail(w, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	for _, id := range append(append([]int64{}, body.Add...), body.Remove...) {
+		if id <= 0 {
+			fail(w, http.StatusBadRequest, "invalid_request")
+			return
+		}
+	}
+	if err := s.store.UpdateWatchlist(u.ID, body.Add, body.Remove, s.now()); errors.Is(err, ErrWatchlistFull) {
+		fail(w, http.StatusConflict, "watchlist_full")
+		return
+	} else if err != nil {
+		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	s.GetWatchlist(w, r)
 }
 
 // HiddenFor returns the signed-in viewer's "not interested" anime ids.

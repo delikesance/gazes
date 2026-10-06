@@ -16,6 +16,9 @@ var regexpPartNumbers = regexp.MustCompile(`(?i)\b(?:part|partie|cour)\s*(\d+)(?
 
 var regexpSeasonNumber = regexp.MustCompile(`(?i)\b(?:season|saison|s)\s*(\d+)\b|\b(\d+)(?:st|nd|rd|th)\s+season`)
 
+// partSuffix strips a "Part 2" / "Cour 2" / "Partie 2" tail, leaving the season's title stem.
+var partSuffix = regexp.MustCompile(`(?i)\s*(?:part|cour|partie)\s*\d+.*$`)
+
 // ReleaseSeasonNumber keeps renamed continuations independent of their franchise position.
 // Naruto Shippuden is franchise season 2, but its releases start at S01.
 func ReleaseSeasonNumber(title, canonicalTitle string, displayedSeason int) int {
@@ -184,7 +187,7 @@ func (s *AnimeCatalogService) buildFranchise(ctx context.Context, id int) (*Fran
 	for i := range seasons {
 		entry := &seasons[i]
 		if entry.Group == "main" {
-			stem := regexp.MustCompile(`(?i)\s*(?:part|cour|partie)\s*\d+.*$`).ReplaceAllString(entry.Title, "")
+			stem := partSuffix.ReplaceAllString(entry.Title, "")
 			if stem != previousStem {
 				n++
 			}

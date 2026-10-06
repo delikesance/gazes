@@ -24,7 +24,7 @@ func TestSubtitleWindowRejectsInvalidBounds(t *testing.T) {
 	s := &Server{}
 	for _, query := range []string{"start=-1", "start=NaN", "start=Inf", "start=604801", "duration=0", "duration=121", "duration=NaN", "duration=invalid"} {
 		w := httptest.NewRecorder()
-		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&"+query, nil))
+		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=0123456789abcdef0123456789abcdef01234567&"+query, nil))
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("%s: status %d", query, w.Code)
 		}
@@ -46,7 +46,7 @@ func TestSubtitleExtractionStopsOnDisconnect(t *testing.T) {
 	w := httptest.NewRecorder()
 	done := make(chan struct{})
 	go func() {
-		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=0&duration=120", nil).WithContext(ctx))
+		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=0123456789abcdef0123456789abcdef01234567&start=0&duration=120", nil).WithContext(ctx))
 		close(done)
 	}()
 	deadline := time.Now().Add(5 * time.Second)
@@ -98,7 +98,7 @@ func TestSubtitleWindowFFmpegPreservesTimestamps(t *testing.T) {
 				track = "1"
 			}
 			w := httptest.NewRecorder()
-			s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=60&duration=40&track_idx="+track+"&format="+format, nil))
+			s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=0123456789abcdef0123456789abcdef01234567&start=60&duration=40&track_idx="+track+"&format="+format, nil))
 			if w.Code != 200 {
 				t.Fatalf("status %d: %s", w.Code, w.Body.String())
 			}
@@ -158,7 +158,7 @@ func TestSubtitleExtractionOutlivesTimedOutRequest(t *testing.T) {
 	s := &Server{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	get := func() *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
-		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=0&duration=25", nil))
+		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=0123456789abcdef0123456789abcdef01234567&start=0&duration=25", nil))
 		return w
 	}
 	first := get()
@@ -187,7 +187,7 @@ func TestSubtitleExtractionIsSharedByIdenticalRequests(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		go func() {
 			w := httptest.NewRecorder()
-			s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=0&duration=25", nil))
+			s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=0123456789abcdef0123456789abcdef01234567&start=0&duration=25", nil))
 			codes <- w.Code
 		}()
 	}
@@ -213,7 +213,7 @@ func TestSubtitleExtractionFailureIsNotCached(t *testing.T) {
 	s := &Server{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	for i := 0; i < 2; i++ {
 		w := httptest.NewRecorder()
-		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=test&start=0&duration=25", nil))
+		s.HandleSubtitles(w, httptest.NewRequest("GET", "/subtitles?ih=0123456789abcdef0123456789abcdef01234567&start=0&duration=25", nil))
 		if w.Code != http.StatusBadGateway {
 			t.Fatalf("status %d, want 502", w.Code)
 		}

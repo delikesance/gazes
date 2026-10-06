@@ -43,12 +43,15 @@ type statSnapshot struct {
 func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, error) {
 	clientConfig := anacrolixTorrent.NewDefaultClientConfig()
 	clientConfig.DataDir = cfg.DataDir
-	clientConfig.MetainfoSourcesClient = &http.Client{Timeout: 8 * time.Second}
+	clientConfig.MetainfoSourcesClient = &http.Client{Timeout: 8 * time.Second, Transport: &http.Transport{DialContext: safeDialContext}}
 	// Allow uploading when EnableTitForTat or Seed is enabled so peers reciprocate with full download bandwidth
 	clientConfig.NoUpload = !cfg.EnableTitForTat && !cfg.Seed
 	clientConfig.DisableUTP = cfg.DisableUTP
 	clientConfig.DisableTCP = cfg.DisableTCP
 	clientConfig.DisablePEX = false
+	clientConfig.TrackerDialContext = safeDialContext // tracker URLs come from untrusted magnets: SSRF
+	clientConfig.TrackerListenPacket = safeListenPacket
+	clientConfig.DisableWebseeds = true // webseed URLs come from untrusted metainfo: SSRF
 	clientConfig.NoDHT = false
 	clientConfig.PeriodicallyAnnounceTorrentsToDht = true
 
@@ -162,6 +165,10 @@ func (e *ClientEngine) fetchMetainfo(ctx context.Context, magnet metainfo.Magnet
 // AddTorrent resolves the file list without downloading video data.
 // GetFileStream schedules headers only for the file selected by the viewer.
 func (e *ClientEngine) AddTorrent(ctx context.Context, magnetURI string) (string, []FileInfo, error) {
+	magnetURI, err := sanitizeMagnet(magnetURI)
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid magnet uri: %w", err)
+	}
 	magnet, err := metainfo.ParseMagnetUri(magnetURI)
 	if err != nil {
 		return "", nil, fmt.Errorf("invalid magnet uri: %w", err)

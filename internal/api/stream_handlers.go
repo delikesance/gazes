@@ -13,17 +13,11 @@ import (
 
 // HandleStream handles HTTP streaming and remuxing requests for a specific torrent file.
 func (s *Server) HandleStream(w http.ResponseWriter, r *http.Request) {
-	ih := r.URL.Query().Get("ih")
-	if ih == "" {
-		http.Error(w, `{"error": "missing infohash parameter 'ih'"}`, http.StatusBadRequest)
+	// ih is interpolated into the loopback URL ffmpeg reads: validate it like /stream/raw does.
+	ih, fileIdx, ok := streamTarget(r)
+	if !ok {
+		http.Error(w, `{"error": "invalid infohash or file_idx"}`, http.StatusBadRequest)
 		return
-	}
-
-	fileIdx := 0
-	if idxStr := r.URL.Query().Get("file_idx"); idxStr != "" {
-		if idx, err := strconv.Atoi(idxStr); err == nil && idx >= 0 {
-			fileIdx = idx
-		}
 	}
 
 	forceRemux := false
@@ -63,6 +57,7 @@ func (s *Server) HandleStream(w http.ResponseWriter, r *http.Request) {
 		ForceRemux:      forceRemux,
 		TimeOffset:      timeOffset,
 		InputURL:        inputURL,
+		Client:          s.clientKey(r),
 	}
 
 	if err := s.streamPipeline.ServeHTTP(w, r, reader, fileInfo.Path, fileInfo.Length, opts); err != nil {
@@ -75,17 +70,10 @@ func (s *Server) HandleStream(w http.ResponseWriter, r *http.Request) {
 
 // HandleStreamRaw serves the raw torrent file stream supporting HTTP 206 Partial Content Range requests.
 func (s *Server) HandleStreamRaw(w http.ResponseWriter, r *http.Request) {
-	ih := r.URL.Query().Get("ih")
-	if ih == "" {
-		http.Error(w, `{"error": "missing infohash parameter 'ih'"}`, http.StatusBadRequest)
+	ih, fileIdx, ok := streamTarget(r)
+	if !ok {
+		http.Error(w, `{"error": "invalid infohash or file_idx"}`, http.StatusBadRequest)
 		return
-	}
-
-	fileIdx := 0
-	if idxStr := r.URL.Query().Get("file_idx"); idxStr != "" {
-		if idx, err := strconv.Atoi(idxStr); err == nil && idx >= 0 {
-			fileIdx = idx
-		}
 	}
 
 	reader, fileInfo, err := s.torrentEngine.GetFileStream(r.Context(), ih, fileIdx)
@@ -99,4 +87,26 @@ func (s *Server) HandleStreamRaw(w http.ResponseWriter, r *http.Request) {
 	if err := stream.ServeRange(w, r, reader, fileInfo.Path, fileInfo.Length); err != nil {
 		diagnostics.Logger(r.Context(), s.logger).Error("raw stream range error", "err", err, "file", fileInfo.Path)
 	}
+}
+
+const (
+	maxFileIndex  = 100000
+	maxTrackIndex = 1000
+)
+
+// boundedIndex parses an optional non-negative index (absent = 0); ok is false for junk or values above max.
+func boundedIndex(raw string, max int) (int, bool) {
+	if raw == "" {
+		return 0, true
+	}
+	n, err := strconv.Atoi(raw)
+	return n, err == nil && n >= 0 && n <= max
+}
+
+// streamTarget reads the ih and file_idx query parameters. ih must be a 40-hex id: it is
+// interpolated into the loopback URL ffmpeg reads from, so anything else could add parameters.
+func streamTarget(r *http.Request) (ih string, fileIdx int, ok bool) {
+	ih = r.URL.Query().Get("ih")
+	fileIdx, idxOK := boundedIndex(r.URL.Query().Get("file_idx"), maxFileIndex)
+	return ih, fileIdx, infoHashPattern.MatchString(ih) && idxOK
 }

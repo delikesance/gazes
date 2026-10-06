@@ -33,7 +33,7 @@ func (s *Server) HandleLoadTorrent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req LoadTorrentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.MagnetURI == "" {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil || req.MagnetURI == "" {
 		http.Error(w, `{"error": "invalid request body: 'magnet' is required"}`, http.StatusBadRequest)
 		return
 	}

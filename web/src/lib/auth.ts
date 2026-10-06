@@ -73,6 +73,14 @@ export async function updateHidden(add: number[], remove: number[]): Promise<num
   return (await request<{ ids: number[] }>("/me/hidden", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add, remove }) })).ids;
 }
 
+export async function pullWatchlist(): Promise<number[]> {
+  return (await request<{ ids: number[] }>("/me/watchlist")).ids;
+}
+
+export async function updateWatchlist(add: number[], remove: number[]): Promise<number[]> {
+  return (await request<{ ids: number[] }>("/me/watchlist", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add, remove }) })).ids;
+}
+
 export async function deleteWatchData(): Promise<void> {
   await request("/me/history", { method: "DELETE" });
 }
