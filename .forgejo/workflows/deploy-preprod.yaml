@@ -38,4 +38,4 @@ jobs:
           ssh -i ~/.ssh/id_deploy -p "${DEPLOY_PORT:-22}" \
             -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -euo pipefail; [ -d '$DEPLOY_PATH/.git' ] || git clone \"\$(git -C '$PROD_PATH' remote get-url origin)\" '$DEPLOY_PATH'; cd '$DEPLOY_PATH'; git fetch origin dev; git checkout --detach '$DEPLOY_SHA'; GAZES_PORT=8082 TORRENT_PORT=42070 make secrets dev"
+            "set -euo pipefail; [ -d '$DEPLOY_PATH/.git' ] || git clone \"\$(git -C '$PROD_PATH' remote get-url origin)\" '$DEPLOY_PATH'; cd '$DEPLOY_PATH'; git fetch origin dev; git checkout --detach '$DEPLOY_SHA'; GAZES_PORT=8082 TORRENT_PORT=42070 make secrets dev dev-reload-backend"
