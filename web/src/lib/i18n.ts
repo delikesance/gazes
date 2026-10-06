@@ -40,7 +40,7 @@ const pairs: [string, string][] = [
  ["Rechercher","Search"],["Rechercher un anime","Search anime"],["Rechercher un anime…","Search anime…"],
  ["Navigation principale","Main navigation"],["Navigation de pied de page","Footer navigation"],
  ["Gazes, accueil","Gazes, home"],["Haut de page","Back to top"],["Changer de thème clair/sombre","Toggle light/dark theme"],
- ["Langue","Language"],["Tous droits réservés.","All rights reserved."],
+ ["Langue","Language"],["Nouveautés","What’s new"],["Nouveau","New"],["Journal de développement","Dev log"],["Fermer l’annonce","Dismiss announcement"],["Tous droits réservés.","All rights reserved."],
  ["Gazes. Tous droits réservés.","Gazes. All rights reserved."],
  ["Gazes n’héberge pas de vidéos de façon permanente. Les flux proviennent de sources externes.","Gazes does not permanently host videos. Streams come from external sources."],
  ["Gazes — Découvrez votre prochain anime","Gazes — Discover your next anime"],
