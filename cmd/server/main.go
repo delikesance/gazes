@@ -140,6 +140,17 @@ func main() {
 		os.Exit(1)
 	}
 	defer redisClient.Close()
+	// The catalog survives Redis restarts on disk; without it the caches simply run on Redis alone.
+	// Production only: the dev stack shares Redis and the AniList budget with production, so it must
+	// neither run a second import nor elect itself leader of the production one.
+	if cfg.AppEnv == "production" {
+		if durable, err := kv.OpenDurable(filepath.Join(cfg.CatalogDir, "catalog.sqlite")); err != nil {
+			logger.Error("durable catalog store unavailable, caches run on Redis only", "err", err, "dir", cfg.CatalogDir)
+		} else {
+			defer durable.Close()
+			redisClient.SetDurable(durable)
+		}
+	}
 	catalogIndexers.SetRedis(redisClient)
 
 	// Every AniList answer is kept on disk for good: the catalog grows into our own database.

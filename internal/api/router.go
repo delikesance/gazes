@@ -95,6 +95,7 @@ func WithRedis(c *kv.Client) Option {
 		s.catalogService.SetRedis(c)
 		s.animeService.SetRedis(c)
 		s.startWarmer()
+		s.startMirror()
 	}
 }
 

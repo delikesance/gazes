@@ -25,7 +25,15 @@ type Client struct {
 	rdb       *redis.Client
 	namespace string
 	stats     counters
+	durable   *Durable
 }
+
+// SetDurable gives the caches that opt in (CacheOptions.Durable) a disk copy behind Redis.
+// Call it before serving traffic.
+func (c *Client) SetDurable(d *Durable) { c.durable = d }
+
+// Durable returns the disk store set with SetDurable (nil when there is none).
+func (c *Client) Durable() *Durable { return c.durable }
 
 // Open connects to url (redis://[:password@]host:port/db) and waits up to wait for Redis to answer.
 func Open(ctx context.Context, url, namespace string, wait time.Duration) (*Client, error) {
