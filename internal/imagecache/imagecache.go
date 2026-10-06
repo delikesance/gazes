@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -35,6 +36,7 @@ type Options struct {
 	Hosts    []string     // the only hosts that are fetched (exact match, https only)
 	MaxBytes int64        // largest image accepted (default 8 MiB)
 	Client   *http.Client // upstream client (default: 15 s timeout)
+	Logger   *slog.Logger // optional: why an image could not be served
 }
 
 // Cache is an http.Handler for GET ?u=<image URL>.
@@ -43,12 +45,13 @@ type Cache struct {
 	hosts    map[string]bool
 	maxBytes int64
 	client   *http.Client
+	logger   *slog.Logger
 	flight   singleflight.Group
 }
 
 // New builds a Cache. Redirects are only followed to another allowed host.
 func New(o Options) *Cache {
-	c := &Cache{dir: o.Dir, hosts: map[string]bool{}, maxBytes: o.MaxBytes}
+	c := &Cache{dir: o.Dir, hosts: map[string]bool{}, maxBytes: o.MaxBytes, logger: o.Logger}
 	for _, h := range o.Hosts {
 		c.hosts[strings.ToLower(h)] = true
 	}
@@ -105,6 +108,9 @@ func (c *Cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if errors.As(err, &upstream) && upstream.code == http.StatusNotFound {
 				http.Error(w, "image not found", http.StatusNotFound)
 				return
+			}
+			if c.logger != nil {
+				c.logger.Warn("imagecache.fetch_failed", "url", raw, "err", err)
 			}
 			http.Error(w, "image unavailable", http.StatusBadGateway)
 			return
