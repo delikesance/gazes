@@ -7,6 +7,7 @@ import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
 import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
+import { DEFAULT_SUBTITLE_STYLE, SUBTITLE_LIFTS, SUBTITLE_SCALES, type SubtitleStyle } from "@/lib/ass-style";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
@@ -78,6 +79,21 @@ interface VideoPlayerModalProps {
   debugAttempt?: DebugAttempt;
   /** Called once, when a torrent file (not a library copy) first plays. */
   onFileResolved?: (infoHash: string, fileIndex: number) => void;
+}
+
+const SUBTITLE_STYLE_KEY = "gazes-subtitle-style";
+
+function loadSubtitleStyle(): SubtitleStyle {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(SUBTITLE_STYLE_KEY) : null;
+    const value = raw ? JSON.parse(raw) : null;
+    return {
+      scale: SUBTITLE_SCALES.includes(value?.scale) ? value.scale : DEFAULT_SUBTITLE_STYLE.scale,
+      lift: SUBTITLE_LIFTS.includes(value?.lift) ? value.lift : DEFAULT_SUBTITLE_STYLE.lift,
+    };
+  } catch {
+    return DEFAULT_SUBTITLE_STYLE;
+  }
 }
 
 const AMBILIGHT_KEY = "gazes-ambilight";
@@ -185,6 +201,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [optionsTab, setOptionsTab] = useState<PlayerOptionsTab | null>(null);
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [ambilight, setAmbilight] = useState<AmbilightSettings>(loadAmbilight);
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(loadSubtitleStyle);
   const [playbackRate, setPlaybackRateState] = useState(loadRate);
   const [canPip] = useState(() => typeof document !== "undefined" && !!document.pictureInPictureEnabled);
 
@@ -907,6 +924,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const updateSubtitleStyle = (patch: Partial<SubtitleStyle>) => {
+    setSubtitleStyle((current) => {
+      const next = { ...current, ...patch };
+      try { window.localStorage.setItem(SUBTITLE_STYLE_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+      return next;
+    });
+  };
+
   const updateAmbilight = (patch: Partial<AmbilightSettings>) => {
     setAmbilight((current) => {
       const next = { ...current, ...patch };
@@ -1137,6 +1162,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   url={subtitleUrl}
                   bitmap={subtitleBitmap}
                   timeOffset={playbackOffset}
+                  style={subtitleStyle}
                   onError={handleSubtitleError}
                 />
                 {debugMode && (
@@ -1338,6 +1364,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     playbackRate={playbackRate}
                     rates={PLAYBACK_RATES}
                     onPlaybackRateChange={setPlaybackRate}
+                    subtitleStyle={subtitleStyle}
+                    onSubtitleStyleChange={updateSubtitleStyle}
                   />
                 )}
               </div>
