@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AtSign, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
 import { AuthError, solveFreshCaptcha, type AuthErrorCode } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "./AuthProvider";
 import { PageGrid } from "./ui/PageGrid";
+import { RecoveryCodes } from "./RecoveryCodes";
 import { Scribble } from "./ui/Scribble";
 
 type Mode = "login" | "register";
@@ -65,9 +66,12 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [codes, setCodes] = useState<string[] | null>(null);
+  // Sign-up signs the browser in at once; the redirect waits until the recovery codes were saved.
+  const holdRedirect = useRef(false);
   const strength = useMemo(() => passwordStrength(password), [password]);
 
-  useEffect(() => { if (user) router.replace(next); }, [user, next, router]);
+  useEffect(() => { if (user && !holdRedirect.current) router.replace(next); }, [user, next, router]);
 
   const translateCode = (code: AuthErrorCode | string) => t(ERRORS[code] || "Une erreur est survenue. Réessayez.");
 
@@ -85,10 +89,15 @@ export function AuthPage({ mode }: { mode: Mode }) {
     try {
       // The proof-of-work runs when the form is sent; each solution is single-use.
       const captcha = await solveFreshCaptcha();
-      if (isRegister) await register({ email: email.trim(), pseudo: pseudo.trim(), password, captcha });
-      else await login({ email: email.trim(), password, captcha });
+      if (isRegister) {
+        holdRedirect.current = true;
+        const created = await register({ email: email.trim(), pseudo: pseudo.trim(), password, captcha });
+        if (created.recoveryCodes?.length) { setCodes(created.recoveryCodes); return; }
+        holdRedirect.current = false;
+      } else await login({ email: email.trim(), password, captcha });
       router.replace(next);
     } catch (error) {
+      holdRedirect.current = false;
       const code = error instanceof AuthError ? error.code : (error as Error).message === "captcha_failed" ? "captcha_failed" : "server_error";
       if (code === "email_taken") setErrors({ email: translateCode(code) });
       else if (code === "invalid_email" || code === "invalid_pseudo" || code === "invalid_password") setErrors({ [code.replace("invalid_", "")]: translateCode(code) });
@@ -114,6 +123,15 @@ export function AuthPage({ mode }: { mode: Mode }) {
           </div>
         </div>
 
+        {codes ? (
+          <div className="auth-form">
+            <div className="auth-heading">
+              <span className="eyebrow">{t("Inscription")}</span>
+              <h1 id="auth-title" className="serif">{t("Vos codes de secours")}</h1>
+            </div>
+            <RecoveryCodes codes={codes} doneLabel={t("J’ai conservé mes codes")} onDone={() => router.replace(next)} />
+          </div>
+        ) : (
         <form className="auth-form" onSubmit={submit} noValidate>
           <div className="auth-heading">
             <span className="eyebrow">{t(isRegister ? "Inscription" : "Connexion")}</span>
@@ -133,6 +151,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
             label={t("Mot de passe")}
             icon={<Lock size={16} aria-hidden="true" />}
             error={errors.password}
+            aside={!isRegister ? <Link href="/recover" className="auth-aside">{t("Mot de passe oublié ?")}</Link> : undefined}
           >
             <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete={isRegister ? "new-password" : "current-password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} maxLength={256} />
             <button type="button" className="field-toggle" aria-label={t(showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe")} aria-pressed={showPassword} onClick={() => setShowPassword((v) => !v)}>
@@ -168,6 +187,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
             {t(isRegister ? "Déjà un compte ?" : "Pas encore de compte ?")} <Link href={otherHref}>{t(isRegister ? "Se connecter" : "S’inscrire")}</Link>
           </p>
         </form>
+        )}
       </section>
     </main>
   );

@@ -5,11 +5,13 @@ import { useI18n } from "@/lib/i18n";
 import type { AnimeCatalogItem, Franchise } from "@/types/api";
 import { EpisodeCard } from "./EpisodeCard";
 import { LazyImage } from "./ui/LazyImage";
+import { isWatched, toggleWatched, useWatchedMarks } from "@/lib/watched";
 
 const plain = (html?: string) => (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 export function SeasonPage({ franchise, season, seasonId, base, resume }: { franchise: Franchise; season?: AnimeCatalogItem; seasonId: number; base: string; resume: { episode: number } | null }) {
   const { t } = useI18n();
+  const marks = useWatchedMarks(seasonId);
   const selected = franchise.seasons.find((s) => s.id === seasonId);
   const seasonURL = `${base}/seasons/${seasonId}`;
   const name = t(selected?.season_name || season?.display_title || "Saison");
@@ -41,7 +43,7 @@ export function SeasonPage({ franchise, season, seasonId, base, resume }: { fran
     <div className="season-body">
       <section id="episodes" className="season-episodes">
         <div className="section-heading"><h2>{t("Épisodes")}</h2><span className="heading-line" /></div>
-        <div className="episode-list">{list.map((episode) => <EpisodeCard key={episode.episode_number} seasonId={seasonId} episode={episode} current={resume?.episode === episode.episode_number} href={`${seasonURL}/episodes/${episode.episode_number}`} />)}</div>
+        <div className="episode-list">{list.map((episode) => <EpisodeCard key={episode.episode_number} seasonId={seasonId} episode={episode} current={resume?.episode === episode.episode_number} watched={isWatched(marks, episode.episode_number, resume?.episode)} onToggleWatched={() => toggleWatched(seasonId, episode.episode_number, resume?.episode)} href={`${seasonURL}/episodes/${episode.episode_number}`} />)}</div>
         {!list.length && <p className="detail-notice">{t("La liste des épisodes n’est pas encore disponible.")}</p>}
       </section>
       <aside className="season-aside">

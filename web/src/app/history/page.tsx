@@ -11,6 +11,8 @@ import { PageGrid } from "@/components/ui/PageGrid";
 import { Scribble } from "@/components/ui/Scribble";
 import { WatchlistShelf } from "@/components/WatchlistShelf";
 import { AniListImport } from "@/components/AniListImport";
+import { NamedLists } from "@/components/NamedLists";
+import { useAuth } from "@/components/AuthProvider";
 import { setUrlParams, useUrlParam } from "@/lib/url-state";
 import { useWatchlist } from "@/lib/watchlist";
 
@@ -19,7 +21,9 @@ const infoCache = new Map<number, Info>();
 
 export default function HistoryPage() {
   const { t, locale } = useI18n();
-  const tab = useUrlParam("tab") === "liste" ? "liste" : "reprendre";
+  const tabParam = useUrlParam("tab");
+  const tab = tabParam === "liste" || tabParam === "listes" ? tabParam : "reprendre";
+  const { user } = useAuth();
   const watchlist = useWatchlist();
   const [items, setItems] = useState<SavedProgress[] | null>(null);
   const [info, setInfo] = useState<Record<number, Info>>({});
@@ -57,12 +61,14 @@ export default function HistoryPage() {
         <div className="catalog-tabs library-tabs" role="group" aria-label={t("Bibliothèque")}>
           <button type="button" aria-pressed={tab === "reprendre"} onClick={() => setUrlParams({ tab: null })}>{t("Reprendre la lecture")}</button>
           <button type="button" aria-pressed={tab === "liste"} onClick={() => setUrlParams({ tab: "liste" })}>{t("Ma liste")}</button>
+          {user && <button type="button" aria-pressed={tab === "listes"} onClick={() => setUrlParams({ tab: "listes" })}>{t("Mes listes")}</button>}
         </div>
         {tab === "liste" && <>
           {watchlist.length === 0 && <p className="history-empty">{t("Votre liste est vide. Ajoutez des animes depuis leur fiche ou le calendrier.")}</p>}
           <WatchlistShelf />
           <AniListImport />
         </>}
+        {tab === "listes" && user && <NamedLists />}
         {tab === "reprendre" && items && items.length === 0 && <p className="history-empty">{t("Rien à reprendre pour l’instant.")}</p>}
         {tab === "reprendre" && <ul className="history-grid">
           {(items || []).map((item) => {
