@@ -316,9 +316,10 @@ func CleanAnimeTitle(title string) string {
 	return cleaned
 }
 
+var htmlTags = regexp.MustCompile(`<[^>]*>`)
+
 func cleanHTML(s string) string {
-	re := regexp.MustCompile(`<[^>]*>`)
-	cleaned := re.ReplaceAllString(s, "")
+	cleaned := htmlTags.ReplaceAllString(s, "")
 	cleaned = strings.ReplaceAll(cleaned, "&quot;", `"`)
 	cleaned = strings.ReplaceAll(cleaned, "&#039;", `'`)
 	cleaned = strings.ReplaceAll(cleaned, "&amp;", `&`)
