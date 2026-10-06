@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { AuthError, createCalendarFeedUrl, deleteAccount, listSessions, newRecoveryCodes, revokeSession, type AccountSession } from "@/lib/auth";
 import { clearLocalWatchLog } from "@/lib/watch-log";
 import { clearHidden } from "@/lib/hidden-anime";
+import { clearLocalNotes } from "@/lib/notes";
 import { exportMyData } from "@/lib/my-data";
 import { useAuth } from "@/components/AuthProvider";
 import { PageGrid } from "@/components/ui/PageGrid";
@@ -73,6 +74,7 @@ export default function AccountPage() {
       await deleteAccount(password);
       clearLocalWatchLog();
       clearHidden();
+      clearLocalNotes();
       await logout();
       router.replace("/");
       router.refresh();

@@ -86,6 +86,16 @@ export async function createCalendarFeedUrl(): Promise<string> {
   return new URL(`${base()}/calendar/${token}.ics`, window.location.origin).href;
 }
 
+export interface RemoteNote { anime_id: number; rating: number; note: string; updated_at: number }
+
+export async function pullNotes(): Promise<RemoteNote[]> {
+  return (await request<{ notes: RemoteNote[] }>("/me/notes")).notes;
+}
+
+export async function pushNotes(notes: RemoteNote[]): Promise<RemoteNote[]> {
+  return (await request<{ notes: RemoteNote[] }>("/me/notes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) })).notes;
+}
+
 export async function exportAccount(): Promise<unknown> {
   return request<unknown>("/me/export");
 }

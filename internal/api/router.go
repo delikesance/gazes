@@ -212,6 +212,8 @@ func (s *Server) setupRoutes() {
 			api.Put("/me/hidden", s.auth.PutHidden)
 			api.Post("/me/calendar-feed", s.auth.NewCalendarFeed)
 			api.With(s.rateLimit("calendar", 30, time.Minute)).Get("/calendar/{token}", s.HandleCalendarFeed)
+			api.Get("/me/notes", s.auth.GetNotes)
+			api.Put("/me/notes", s.auth.PutNotes)
 			api.Get("/me/watchlist", s.auth.GetWatchlist)
 			api.Put("/me/watchlist", s.auth.PutWatchlist)
 		}
