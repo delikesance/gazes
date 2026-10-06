@@ -147,6 +147,12 @@ func (s *Store) Expire(ctx context.Context, provider, ref string) error {
 	return err
 }
 
+// UnlinkUser detaches every donation from a deleted account; the donation itself is kept.
+func (s *Store) UnlinkUser(ctx context.Context, userID int64) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE donations SET user_id = NULL WHERE user_id = ?`, userID)
+	return err
+}
+
 var ErrNotFound = errors.New("donation not found")
 
 // Link attaches a donation to an account (admin action, for Ko-fi gifts that carry no account).
