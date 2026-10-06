@@ -58,6 +58,7 @@ type Server struct {
 	mcpEnabled      bool
 	mcpOrigins      []string
 	errorSink       admin.ErrorSink
+	calendarCache   calendarFeeds
 }
 
 // Option customises a Server.
@@ -209,6 +210,8 @@ func (s *Server) setupRoutes() {
 			api.Delete("/me/sessions/{id}", s.auth.RevokeSession)
 			api.Get("/me/hidden", s.auth.GetHidden)
 			api.Put("/me/hidden", s.auth.PutHidden)
+			api.Post("/me/calendar-feed", s.auth.NewCalendarFeed)
+			api.With(s.rateLimit("calendar", 30, time.Minute)).Get("/calendar/{token}", s.HandleCalendarFeed)
 			api.Get("/me/watchlist", s.auth.GetWatchlist)
 			api.Put("/me/watchlist", s.auth.PutWatchlist)
 		}

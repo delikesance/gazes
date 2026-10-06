@@ -3,13 +3,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { AuthError, deleteAccount, listSessions, newRecoveryCodes, revokeSession, type AccountSession } from "@/lib/auth";
+import { AuthError, createCalendarFeedUrl, deleteAccount, listSessions, newRecoveryCodes, revokeSession, type AccountSession } from "@/lib/auth";
 import { clearLocalWatchLog } from "@/lib/watch-log";
 import { clearHidden } from "@/lib/hidden-anime";
 import { exportMyData } from "@/lib/my-data";
 import { useAuth } from "@/components/AuthProvider";
 import { PageGrid } from "@/components/ui/PageGrid";
 import { RecoveryCodes } from "@/components/RecoveryCodes";
+import { copyText } from "@/lib/clipboard";
 
 export default function AccountPage() {
   const { t, locale } = useI18n();
@@ -23,6 +24,8 @@ export default function AccountPage() {
   const [codes, setCodes] = useState<string[] | null>(null);
   const [codesPassword, setCodesPassword] = useState("");
   const [codesOpen, setCodesOpen] = useState(false);
+  const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const [feedCopied, setFeedCopied] = useState(false);
 
   const refresh = useCallback(() => { listSessions().then(setSessions, () => setSessions([])); }, []);
   useEffect(() => { if (user) refresh(); }, [user, refresh]);
@@ -41,6 +44,11 @@ export default function AccountPage() {
   const onRevoke = async (id: string) => {
     try { await revokeSession(id); } catch { setError(t("Impossible de déconnecter cet appareil pour le moment.")); }
     refresh();
+  };
+
+  const onFeed = async () => {
+    setError(null);
+    try { setFeedUrl(await createCalendarFeedUrl()); setFeedCopied(false); } catch { setError(t("Impossible de créer le lien pour le moment.")); }
   };
 
   const onNewCodes = async (event: React.FormEvent) => {
@@ -112,6 +120,18 @@ export default function AccountPage() {
               </div>
             </form>
           )}
+        </section>
+
+        <section className="account-section">
+          <h2>{t("Calendrier des sorties")}</h2>
+          <p className="history-empty">{t("Abonnez Google Agenda, Apple Calendrier ou Outlook aux sorties de votre liste. Le lien est secret : quiconque le possède voit les sorties de votre liste, et en créer un nouveau invalide l’ancien.")}</p>
+          {feedUrl && (
+            <div className="account-delete">
+              <div className="field-pill"><input readOnly value={feedUrl} aria-label={t("Lien d’abonnement")} onFocus={(e) => e.currentTarget.select()} /></div>
+              <div><button type="button" className="clay clay-secondary clay-sm" onClick={async () => { if (await copyText(feedUrl)) setFeedCopied(true); }}>{t(feedCopied ? "Copié" : "Copier")}</button></div>
+            </div>
+          )}
+          <div><button type="button" className="clay clay-secondary clay-sm" onClick={onFeed}>{t(feedUrl ? "Créer un nouveau lien" : "Créer mon lien d’abonnement")}</button></div>
         </section>
 
         <section className="account-section">
