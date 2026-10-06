@@ -158,9 +158,14 @@ func (s *Server) handleBTCPayWebhook(w http.ResponseWriter, r *http.Request) {
 		if inv.Status != "Settled" {
 			break
 		}
-		if _, err := s.donations.Store.Settle(r.Context(), donations.ProviderBTCPay, ev.InvoiceID, inv.AmountCents, inv.Currency, time.Now()); err != nil {
+		changed, err := s.donations.Store.Settle(r.Context(), donations.ProviderBTCPay, ev.InvoiceID, inv.AmountCents, inv.Currency, time.Now())
+		if err != nil {
 			donationError(w, http.StatusInternalServerError, "server_error")
 			return
+		}
+		if !changed {
+			// Replayed webhook, or a settled invoice with no pending row: worth a line to spot an unattached payment.
+			s.logger.Info("donations: btcpay settle changed no row", "invoice", ev.InvoiceID)
 		}
 	case "InvoiceExpired", "InvoiceInvalid":
 		if err := s.donations.Store.Expire(r.Context(), donations.ProviderBTCPay, ev.InvoiceID); err != nil {
