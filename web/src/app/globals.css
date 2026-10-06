@@ -107,7 +107,7 @@ button:disabled { cursor: default; opacity: .35; }
 .poster-cell .poster-quick-list { top: 8px; right: 8px; opacity: 0; transition: opacity .2s; }
 .poster-cell:has(.poster-hide) .poster-quick-list { right: 52px; }
 .poster-cell:hover .poster-quick-list, .poster-cell:focus-within .poster-quick-list { opacity: 1; }
-@media (hover: hover) { .poster-quickplay { position: absolute; z-index: 3; top: 8px; left: 8px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--clay-bg); color: var(--clay-fg); opacity: 0; transition: opacity .2s; } .poster-cell:hover .poster-quickplay, .poster-cell:focus-within .poster-quickplay { opacity: 1; } }
+@media (hover: hover) { .poster-cell .poster-overlay .poster-play { display: none; } .poster-quickplay { position: absolute; z-index: 3; top: 8px; left: 8px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--clay-bg); color: var(--clay-fg); opacity: 0; transition: opacity .2s; } .poster-cell:hover .poster-quickplay, .poster-cell:focus-within .poster-quickplay { opacity: 1; } }
 @media (hover: none) { .poster-cell .poster-quick-list { opacity: 1; } }
 @media (hover: none) { .poster-quickplay { position: absolute; z-index: 3; top: 8px; left: 8px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--clay-bg); color: var(--clay-fg); } }
 .poster-hide { position: absolute; top: 8px; right: 8px; z-index: 3; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(0,0,0,.72); color: #fafafa; cursor: pointer; opacity: 0; transition: opacity .15s, background .15s; }
