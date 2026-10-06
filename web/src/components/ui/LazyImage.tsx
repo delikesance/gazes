@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Film } from "lucide-react";
+import { cachedImage } from "@/lib/image";
 
 interface LazyImageProps {
   src?: string | null;
@@ -30,7 +31,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
-  const imageSrc = useFallback ? fallbackSrc : src;
+  const imageSrc = cachedImage(useFallback ? fallbackSrc : src);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

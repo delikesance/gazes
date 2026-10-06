@@ -137,6 +137,8 @@ services:
       - diagnostics:/app/diagnostics
       - torrent-data:/app/data
       - torrent-cache:/app/cache
+      # Durable copy of the AniList catalog: survives Redis restarts and backend rebuilds.
+      - catalog:/app/catalog
       - accounts:/app/accounts
       - library-index:/app/library-index
       # AV1 library pool: disks labelled GAZES* are mounted below /mnt/gazes by the host (make library-install-host).
@@ -215,6 +217,7 @@ volumes:
   diagnostics:
   torrent-data:
   torrent-cache:
+  catalog:
   accounts:
   library-index:
   caddy-data:

@@ -10,11 +10,11 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 FROM alpine:3.23
 RUN apk add --no-cache ca-certificates ffmpeg libstdc++ && addgroup -S -g 10001 gazes && adduser -S -u 10001 -G gazes gazes
 WORKDIR /app
-RUN mkdir data cache diagnostics accounts library-index library-pool && chown -R gazes:gazes /app
+RUN mkdir data cache catalog diagnostics accounts library-index library-pool && chown -R gazes:gazes /app
 COPY --from=build /gazes-server /app/gazes-server
 COPY --from=build /gazes-logs /usr/local/bin/gazes-logs
 COPY --from=build /gazes-library /usr/local/bin/gazes-library
 USER gazes
-ENV HOST=0.0.0.0 PORT=8090 DATA_DIR=/app/data CACHE_DIR=/app/cache ACCOUNTS_DIR=/app/accounts LOG_DIR=/app/diagnostics LIBRARY_INDEX_DIR=/app/library-index LIBRARY_POOL_DIR=/app/library-pool
+ENV HOST=0.0.0.0 PORT=8090 DATA_DIR=/app/data CACHE_DIR=/app/cache CATALOG_DIR=/app/catalog ACCOUNTS_DIR=/app/accounts LOG_DIR=/app/diagnostics LIBRARY_INDEX_DIR=/app/library-index LIBRARY_POOL_DIR=/app/library-pool
 EXPOSE 8090
 ENTRYPOINT ["/app/gazes-server"]

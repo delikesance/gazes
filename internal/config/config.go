@@ -18,6 +18,7 @@ type Config struct {
 	Port                 int           `json:"port"`
 	DataDir              string        `json:"data_dir"`
 	CacheDir             string        `json:"cache_dir"`
+	CatalogDir           string        `json:"catalog_dir"` // CATALOG_DIR: durable copy of the AniList catalog (SQLite), kept across deploys
 	LogLevel             string        `json:"log_level"`
 	EnableCORS           bool          `json:"enable_cors"`
 	CORSAllowedOrigins   []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
@@ -93,6 +94,7 @@ func Load() *Config {
 		Port:                     getEnvInt("PORT", 8090),
 		DataDir:                  getEnv("DATA_DIR", "./data"),
 		CacheDir:                 getEnv("CACHE_DIR", "./cache"),
+		CatalogDir:               getEnv("CATALOG_DIR", "./catalog"),
 		LogLevel:                 getEnv("LOG_LEVEL", "debug"),
 		EnableCORS:               getEnvBool("ENABLE_CORS", false), // the web app is same-origin through the Next rewrite
 		CORSAllowedOrigins:       splitList(getEnv("CORS_ALLOWED_ORIGINS", "")),
