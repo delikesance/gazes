@@ -48,3 +48,19 @@
   .featured-carousel .anime-hero-art img { -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); }
   .featured-carousel .anime-hero-shade { background: transparent; }
 }
+
+/* Touch screens have no hover: poster cards show their title and details under the poster, like the seasonal grid. */
+@media (hover: none) {
+  .poster-card:not(.seasonal-card) { aspect-ratio: auto; background: transparent; border-radius: 0; overflow: visible; }
+  .poster-card:not(.seasonal-card) .poster-art { height: auto; aspect-ratio: 460 / 650; border-radius: var(--radius-poster); overflow: hidden; }
+  .poster-card:not(.seasonal-card) .poster-overlay { position: static; opacity: 1; background: none; padding: 10px 0 0; gap: 0; }
+  .poster-card:not(.seasonal-card) .poster-play { display: none; }
+  .poster-card:not(.seasonal-card) .poster-overlay h3 { font-size: 14px; color: var(--foreground); }
+  .poster-card:not(.seasonal-card) .poster-overlay p { color: var(--design-muted); }
+  .poster-card:not(.seasonal-card):hover img { transform: none; }
+}
+
+/* On a phone the breadcrumb in the header repeats the page title and the bottom bar: drop it. */
+@media (max-width: 767px) {
+  .header-breadcrumb-slot { display: none; }
+}
