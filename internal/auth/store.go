@@ -152,6 +152,39 @@ var migrations = []dbmigrate.Migration{
 	created_at INTEGER NOT NULL,
 	PRIMARY KEY (user_id, anime_id)
 )`)},
+	{Version: 4, Name: "recovery_codes", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS recovery_codes (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	code_hash TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	used_at INTEGER,
+	PRIMARY KEY (user_id, code_hash)
+)`)},
+	{Version: 5, Name: "calendar_feeds", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS calendar_feeds (
+	user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+	token_hash TEXT NOT NULL UNIQUE,
+	created_at INTEGER NOT NULL
+)`)},
+	{Version: 6, Name: "anime_notes", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS anime_notes (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	anime_id INTEGER NOT NULL,
+	rating INTEGER NOT NULL DEFAULT 0,
+	note TEXT NOT NULL DEFAULT '',
+	updated_at INTEGER NOT NULL,
+	PRIMARY KEY (user_id, anime_id)
+)`)},
+	{Version: 7, Name: "user_lists", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS user_lists (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	name TEXT NOT NULL,
+	created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS user_lists_user ON user_lists(user_id);
+CREATE TABLE IF NOT EXISTS user_list_items (
+	list_id INTEGER NOT NULL REFERENCES user_lists(id) ON DELETE CASCADE,
+	anime_id INTEGER NOT NULL,
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (list_id, anime_id)
+)`)},
 }
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
@@ -480,4 +513,116 @@ func (s *Store) DeleteWatchData(userID int64) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// SessionInfo is one signed-in device. ID is a stable public handle, never the token itself.
+type SessionInfo struct {
+	ID       string `json:"id"`
+	LastSeen int64  `json:"last_seen"`
+	Expires  int64  `json:"expires_at"`
+	Current  bool   `json:"current"`
+}
+
+const sessionIDLen = 16
+
+func sessionID(tokenHash string) string {
+	if len(tokenHash) > sessionIDLen {
+		return tokenHash[:sessionIDLen]
+	}
+	return tokenHash
+}
+
+// ListSessions returns a user's live sessions, newest first. current is the caller's token hash.
+func (s *Store) ListSessions(userID int64, now time.Time, current string) ([]SessionInfo, error) {
+	rows, err := s.db.Query(`SELECT token_hash, last_seen, expires_at FROM sessions WHERE user_id = ? AND expires_at >= ? ORDER BY last_seen DESC`, userID, now.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []SessionInfo{}
+	for rows.Next() {
+		var hash string
+		var info SessionInfo
+		if err := rows.Scan(&hash, &info.LastSeen, &info.Expires); err != nil {
+			return nil, err
+		}
+		info.ID, info.Current = sessionID(hash), hash == current
+		out = append(out, info)
+	}
+	return out, rows.Err()
+}
+
+// DeleteUserSession revokes one of the user's sessions by its public ID; false when it is not theirs.
+func (s *Store) DeleteUserSession(userID int64, id string) (bool, error) {
+	if len(id) != sessionIDLen {
+		return false, nil
+	}
+	res, err := s.db.Exec(`DELETE FROM sessions WHERE user_id = ? AND substr(token_hash, 1, ?) = ?`, userID, sessionIDLen, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
+// DeleteUser erases the account and, through the foreign keys, everything it owns.
+func (s *Store) DeleteUser(userID int64) error {
+	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, userID)
+	return err
+}
+
+// ReplaceRecoveryCodes swaps all of a user's recovery codes for the given hashes.
+func (s *Store) ReplaceRecoveryCodes(userID int64, hashes []string, now time.Time) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM recovery_codes WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	for _, h := range hashes {
+		if _, err := tx.Exec(`INSERT INTO recovery_codes(user_id, code_hash, created_at) VALUES(?,?,?)`, userID, h, now.Unix()); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// UseRecoveryCode burns one unused code and, in the same transaction, sets the new password hash
+// and revokes every session. It reports false when the code is wrong or already used.
+func (s *Store) UseRecoveryCode(userID int64, codeHash, newPassHash string, now time.Time) (bool, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`UPDATE recovery_codes SET used_at = ? WHERE user_id = ? AND code_hash = ? AND used_at IS NULL`, now.Unix(), userID, codeHash)
+	if err != nil {
+		return false, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return false, nil
+	}
+	if _, err := tx.Exec(`UPDATE users SET pass_hash = ? WHERE id = ?`, newPassHash, userID); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(`DELETE FROM sessions WHERE user_id = ?`, userID); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
+}
+
+// SetFeedToken replaces the user's calendar feed token (one per user).
+func (s *Store) SetFeedToken(userID int64, tokenHash string, now time.Time) error {
+	_, err := s.db.Exec(`INSERT INTO calendar_feeds(user_id, token_hash, created_at) VALUES(?,?,?)
+		ON CONFLICT(user_id) DO UPDATE SET token_hash = excluded.token_hash, created_at = excluded.created_at`, userID, tokenHash, now.Unix())
+	return err
+}
+
+// UserIDByFeedToken returns the owner of a calendar feed token.
+func (s *Store) UserIDByFeedToken(tokenHash string) (int64, error) {
+	var id int64
+	err := s.db.QueryRow(`SELECT user_id FROM calendar_feeds WHERE token_hash = ?`, tokenHash).Scan(&id)
+	return id, err
 }
