@@ -13,3 +13,11 @@ export function genreLabel(value: string): string {
 export function parseList(raw: string | null | undefined): string[] {
   return (raw ?? "").split(",").map((part) => part.trim()).filter(Boolean);
 }
+
+export function genreSlug(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, "-");
+}
+
+export function genreFromSlug(slug: string): string | undefined {
+  return GENRES.find(([v]) => genreSlug(v) === slug)?.[0];
+}

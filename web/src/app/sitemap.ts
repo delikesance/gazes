@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getCatalogPopular, getCatalogSeasonal } from "@/lib/api";
+import { GENRES, genreSlug } from "@/lib/genres";
 import { SITE_URL } from "@/lib/site";
 
 // Rendered on request, never at build time: the build has no backend, so a prerendered sitemap would
@@ -42,6 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
   return [
     { url: SITE_URL, lastModified, changeFrequency: "daily", priority: 1 },
+    ...GENRES.map(([value]) => ({ url: `${SITE_URL}/genre/${genreSlug(value)}`, lastModified, changeFrequency: "weekly" as const, priority: 0.6 })),
     ...ids.map((id) => ({ url: `${SITE_URL}/anime/${id}`, lastModified, changeFrequency: "weekly" as const, priority: 0.7 })),
   ];
 }
