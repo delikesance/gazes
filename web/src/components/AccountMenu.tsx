@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Clock, Download, LogOut, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
+import { ChevronDown, Clock, Download, Megaphone, LogOut, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "./AuthProvider";
 import { eraseMyWatchLog, exportMyData } from "@/lib/my-data";
+import { useBackToClose } from "@/lib/layer-history";
 
 /** Header account area: sign-in/up buttons when signed out, avatar menu when signed in. */
 export function AccountMenu() {
@@ -18,6 +19,8 @@ export function AccountMenu() {
   const open = openPath === pathname;
   const setOpen = (value: boolean | ((current: boolean) => boolean)) => setOpenPath((current) => ((typeof value === "function" ? value(current === pathname) : value) ? pathname : null));
   const root = useRef<HTMLDivElement>(null);
+  // On a phone the menu is a bottom sheet: the system back gesture closes it.
+  useBackToClose(open, () => setOpenPath(null));
 
   useEffect(() => {
     if (!open) return;
@@ -54,13 +57,15 @@ export function AccountMenu() {
         <span className="account-name">{user.pseudo}</span>
         <ChevronDown size={14} aria-hidden="true" className="account-chevron" />
       </button>
+      {open && <div className="account-backdrop" aria-hidden="true" onClick={() => setOpenPath(null)} />}
       {open && (
         <div className="account-menu" role="menu">
           <div className="account-identity">
             <div>{user.pseudo}</div>
             {user.email && <div>{user.email}</div>}
           </div>
-          <Link href="/history" role="menuitem" className="account-row"><Clock size={16} aria-hidden="true" />{t("Historique")}</Link>
+          <Link href="/history" role="menuitem" className="account-row"><Clock size={16} aria-hidden="true" />{t("Bibliothèque")}</Link>
+          <Link href="/changelog" role="menuitem" className="account-row"><Megaphone size={16} aria-hidden="true" />{t("Nouveautés")}</Link>
           <Link href="/privacy" role="menuitem" className="account-row"><ShieldCheck size={16} aria-hidden="true" />{t("Confidentialité")}</Link>
           <button type="button" role="menuitem" className="account-row" onClick={async () => { setOpen(false); try { await exportMyData(user.pseudo); } catch { window.alert(t("Impossible d’exporter vos données pour le moment.")); } }}>
             <Download size={16} aria-hidden="true" />{t("Exporter mes données")}

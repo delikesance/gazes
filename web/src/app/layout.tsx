@@ -3,6 +3,7 @@ import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import { LocaleDocument } from "@/components/LocaleDocument";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { KeyboardNav } from "@/components/KeyboardNav";
 import { MobileNav } from "@/components/MobileNav";
 import { SiteChrome } from "@/components/SiteChrome";
 import { ChangelogBanner } from "@/components/ChangelogBanner";
@@ -60,7 +61,7 @@ export default function RootLayout({
           <SiteChrome><Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense></SiteChrome>
           <div className="site-content">{children}</div>
         </AuthProvider>
-        <SiteChrome><SiteFooter /><Suspense fallback={null}><MobileNav /></Suspense><ChangelogBanner /></SiteChrome>
+        <SiteChrome><SiteFooter /><Suspense fallback={null}><MobileNav /></Suspense><KeyboardNav /><ChangelogBanner /></SiteChrome>
       </body>
     </html>
   );

@@ -4,13 +4,24 @@ import { useI18n } from "@/lib/i18n";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Minus, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Clock, Minus, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { GENRES, parseList } from "@/lib/genres";
 import { ThemeToggle } from "./ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
 import { useBackToClose } from "@/lib/layer-history";
 
-function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, onClear }: { query?: string; initialGenre?: string; initialExclude?: string; onSubmit?: (event: FormEvent<HTMLFormElement>) => void; onClear?: () => void }) {
+const RECENT_KEY="gazes-recent-searches";
+function readRecentSearches():string[]{
+  try{const value=JSON.parse(localStorage.getItem(RECENT_KEY)||"[]");return Array.isArray(value)?value.filter((item):item is string=>typeof item==="string").slice(0,6):[];}catch{return[];}
+}
+/** Keeps the last six searches; a search that extends or shortens an earlier one replaces it. */
+function saveRecentSearch(text:string){
+  const lower=text.toLowerCase();
+  const kept=readRecentSearches().filter(item=>{const other=item.toLowerCase();return !(other.startsWith(lower)||lower.startsWith(other));});
+  try{localStorage.setItem(RECENT_KEY,JSON.stringify([text,...kept].slice(0,6)));}catch{}
+}
+
+function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, onClear, onLive }: { onLive?: (query: string, genres: string, exclude: string) => void; query?: string; initialGenre?: string; initialExclude?: string; onSubmit?: (event: FormEvent<HTMLFormElement>) => void; onClear?: () => void }) {
   const { t } = useI18n();
   const [searchOpen,setSearchOpen]=useState(false);
   const breadcrumbSlot=useRef<HTMLDivElement>(null);
@@ -36,6 +47,27 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
   const onSearchPage=Boolean(query||initialGenre||initialExclude);
   const searchVisible=searchOpen||onSearchPage;
   const formRef=useRef<HTMLFormElement>(null);
+  const inputRef=useRef<HTMLInputElement>(null);
+  const [typed,setTyped]=useState(query);
+  // Results follow the typing (after a short pause) and the last searches are offered while the field is empty.
+  const liveTimer=useRef<ReturnType<typeof setTimeout>>(undefined);
+  const typeLive=(value:string)=>{
+    setTyped(value);
+    if(liveTimer.current)clearTimeout(liveTimer.current);
+    const text=value.trim();
+    if(text.length<2||!onLive)return;
+    liveTimer.current=setTimeout(()=>{if(text.length>=3)saveRecentSearch(text);onLive(text,include.join(","),exclude.join(","));},450);
+  };
+  const pickRecent=(text:string)=>{
+    if(inputRef.current)inputRef.current.value=text;
+    setTyped(text);
+    saveRecentSearch(text);
+    onLive?.(text,include.join(","),exclude.join(","));
+    resetSearch();
+  };
+  const recents=searchOpen&&!filterOpen&&typed===""?readRecentSearches():[];
+  // The field follows the address when it changes from elsewhere (back, clear), but never while the viewer is typing.
+  useEffect(()=>{const el=inputRef.current;if(el&&document.activeElement!==el){el.value=query;}},[query,searchOpen,onSearchPage]);
   const searchButton=useRef<HTMLButtonElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);
   // Every way of closing the search (X, Escape, blur, submit) must also reset the filter panel and the picked genre.
@@ -73,14 +105,18 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
     <div ref={breadcrumbSlot} id="header-breadcrumb" className="header-breadcrumb-slot" />
     <div className="header-actions">
       <button ref={searchButton} type="button" className="header-search-toggle" aria-label={t("Rechercher")} aria-expanded={searchVisible} aria-controls="header-search-form" onClick={()=>setSearchOpen(true)}><Search size={18} aria-hidden="true" /></button>
-      {searchVisible&&<form ref={formRef} id="header-search-form" key={query} action="/" method="get" onSubmit={event=>{onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen){setFilterOpen(false);filterButton.current?.focus();}else closeSearch();}}} onBlur={event=>{if(event.relatedTarget&&!event.currentTarget.contains(event.relatedTarget as Node))resetSearch();}}>
+      {searchVisible&&<form ref={formRef} id="header-search-form" action="/" method="get" onSubmit={event=>{const text=inputRef.current?.value.trim();if(text)saveRecentSearch(text);if(liveTimer.current)clearTimeout(liveTimer.current);onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen){setFilterOpen(false);filterButton.current?.focus();}else closeSearch();}}} onBlur={event=>{if(event.relatedTarget&&!event.currentTarget.contains(event.relatedTarget as Node))resetSearch();}}>
         <Search size={18} aria-hidden="true" />
-        <input autoFocus={searchOpen} name="q" aria-label={t("Rechercher un anime")} defaultValue={query} placeholder={t("Rechercher un anime…")} />
+        <input ref={inputRef} autoFocus={searchOpen} name="q" autoComplete="off" aria-label={t("Rechercher un anime")} defaultValue={query} placeholder={t("Rechercher un anime…")} onChange={event=>typeLive(event.target.value)} />
         <input type="hidden" name="genres" value={include.join(",")} />
         <input type="hidden" name="exclude" value={exclude.join(",")} />
         <button ref={filterButton} type="button" className="search-filter-toggle" data-active={hasFilter?"true":"false"} aria-label={t("Filtrer par genre")} aria-expanded={filterOpen} aria-controls="search-filter-panel" onClick={()=>setFilterOpen(open=>!open)}><SlidersHorizontal size={17} aria-hidden="true" /></button>
         <button type="submit" aria-label={t("Rechercher")}><ArrowRight size={19} /></button>
         <button type="button" aria-label={t(onSearchPage?"Effacer la recherche":"Fermer la recherche")} onClick={()=>{if(onSearchPage&&onClear){resetSearch();onClear();}else closeSearch();}}><X size={17} /></button>
+        {recents.length>0&&<div className="search-recents" role="group" aria-label={t("Recherches récentes")}>
+          <p className="search-filter-title">{t("Recherches récentes")}</p>
+          {recents.map(text=><button key={text} type="button" onClick={()=>pickRecent(text)}><Clock size={14} aria-hidden="true" />{text}</button>)}
+        </div>}
         {filterOpen&&<div id="search-filter-panel" className="search-filter-panel" role="group" aria-label={t("Genres")}>
           <p className="search-filter-title">{t("Genres")}</p>
           <p className="search-filter-hint">{t("Clic gauche : inclure · Clic droit ou appui long : exclure")}</p>
@@ -118,7 +154,13 @@ export function SiteHeader() {
   const genre = params.get("genres") || params.get("genre") || "";
   const exclude = params.get("exclude") || "";
 
-  return <Header query={query} initialGenre={genre} initialExclude={exclude} onClear={() => router.push("/")} onSubmit={event => {
+  const onResults = Boolean(query || genre || exclude);
+  return <Header query={query} initialGenre={genre} initialExclude={exclude} onClear={() => router.push("/")} onLive={(text, genres, excluded) => {
+    const search = new URLSearchParams({ page: "1", q: text });
+    if (genres) search.set("genres", genres);
+    if (excluded) search.set("exclude", excluded);
+    (onResults ? router.replace : router.push)(`/?${search.toString()}`);
+  }} onSubmit={event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const q = String(form.get("q") || "").trim();
