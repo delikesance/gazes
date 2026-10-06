@@ -10,6 +10,7 @@ import { cachedImage } from "@/lib/image";
 import { PageGrid } from "@/components/ui/PageGrid";
 import { Scribble } from "@/components/ui/Scribble";
 import { WatchlistShelf } from "@/components/WatchlistShelf";
+import { AniListImport } from "@/components/AniListImport";
 import { setUrlParams, useUrlParam } from "@/lib/url-state";
 import { useWatchlist } from "@/lib/watchlist";
 
@@ -60,6 +61,7 @@ export default function HistoryPage() {
         {tab === "liste" && <>
           {watchlist.length === 0 && <p className="history-empty">{t("Votre liste est vide. Ajoutez des animes depuis leur fiche ou le calendrier.")}</p>}
           <WatchlistShelf />
+          <AniListImport />
         </>}
         {tab === "reprendre" && items && items.length === 0 && <p className="history-empty">{t("Rien à reprendre pour l’instant.")}</p>}
         {tab === "reprendre" && <ul className="history-grid">
