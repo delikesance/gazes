@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
 	"github.com/gazes/gazes/internal/donations"
@@ -26,6 +27,7 @@ import (
 	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/stream"
 	"github.com/gazes/gazes/internal/torrent"
+	"github.com/gazes/gazes/internal/vpn"
 )
 
 func main() {
@@ -75,6 +77,7 @@ func main() {
 	// 5. Initialize BitTorrent Engine
 	torrentCfg := torrent.DefaultEngineConfig(cfg.DataDir)
 	torrentCfg.ListenPort = cfg.TorrentPort
+	torrentCfg.Tunneled = cfg.VPNControlURL != ""
 	torrentCfg.CacheMaxBytes = cfg.TorrentCacheMaxBytes
 	torrentCfg.MetainfoDir = filepath.Join(cfg.CacheDir, "metainfo")
 	if cfg.C411APIKey != "" {
@@ -89,6 +92,37 @@ func main() {
 		os.Exit(1)
 	}
 	defer torrentEngine.Close()
+
+	// Behind the gluetun sidecar: rotate the exit IP when AniList throttles it, and on a timer.
+	if rotator := vpn.New(cfg.VPNControlURL, cfg.VPNRotateMinGap); rotator.Enabled() {
+		rotate := func(ctx context.Context) error {
+			err := rotator.Rotate(ctx)
+			switch {
+			case err == nil:
+				logger.Info("vpn exit ip rotated")
+			case !errors.Is(err, vpn.ErrCooldown):
+				logger.Warn("vpn rotation failed", "err", err)
+			}
+			return err
+		}
+		metadata.SetAnilistRotator(rotate)
+		if cfg.VPNRotateEvery > 0 {
+			// A reset cuts every peer connection: postpone the timer while someone streams or downloads,
+			// but not forever (maxDeferred ticks), so the IP still changes on a busy server.
+			go func() {
+				const maxDeferred = 4
+				deferred := 0
+				for range time.Tick(cfg.VPNRotateEvery) {
+					if torrentEngine.ActiveReaders() > 0 && deferred < maxDeferred {
+						deferred++
+						continue
+					}
+					deferred = 0
+					_ = rotate(context.Background())
+				}
+			}()
+		}
+	}
 
 	// 6. Initialize Media Streaming Pipeline
 	streamPipeline := stream.NewPipelineManager(logger)

@@ -11,7 +11,7 @@ GO_TAGS ?= nosqlite
 
 .PHONY: help deps build build-backend build-web dev-backend dev-web start-web \
 	test test-backend test-race test-web lint lint-backend lint-web typecheck check \
-	secrets redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-reload-backend dev-check dev-test dev-build library-install-host library-label-disk
+	secrets vpn-key redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-reload-backend dev-check dev-test dev-build library-install-host library-label-disk
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -23,6 +23,9 @@ secrets: ## Generate account encryption keys into .env (kept if already set)
 	done
 	@$(MAKE) --no-print-directory redis-secret
 	@echo ".env now holds the account keys. Back it up: losing them makes stored emails unreadable."
+
+vpn-key: ## Register a Mullvad WireGuard device and write its keys into .env (MULLVAD_ACCOUNT=... or prompt)
+	@scripts/vpn-key.sh
 
 redis-secret: ## Generate REDIS_PASSWORD into .env (kept if already set)
 	@touch .env

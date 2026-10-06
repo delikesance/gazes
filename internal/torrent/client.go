@@ -67,7 +67,7 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 	clientConfig.TorrentPeersHighWater = 1000
 	clientConfig.TorrentPeersLowWater = 100
 	clientConfig.DisableIPv6 = false
-	clientConfig.NoDefaultPortForwarding = false // UPnP / NAT-PMP when the host network allows it
+	clientConfig.NoDefaultPortForwarding = cfg.Tunneled // UPnP / NAT-PMP when the host network allows it; pointless behind a VPN
 	clientConfig.NominalDialTimeout = 5 * time.Second
 	clientConfig.MinDialTimeout = 2 * time.Second
 	clientConfig.HandshakesTimeout = 4 * time.Second
