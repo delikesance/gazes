@@ -54,3 +54,16 @@ func TestTrackerPacketConnRefusesInternalAddresses(t *testing.T) {
 		}
 	}
 }
+
+func TestInternalIPCoversSpecialRanges(t *testing.T) {
+	for _, ip := range []string{"192.0.0.8", "198.18.0.1", "198.19.255.1", "240.0.0.1", "255.255.255.255", "64:ff9b::a00:1", "64:ff9b::7f00:1"} {
+		if !internalIP(net.ParseIP(ip)) {
+			t.Fatalf("%s not treated as internal", ip)
+		}
+	}
+	for _, ip := range []string{"1.1.1.1", "64:ff9b::101:101", "2001:4860:4860::8888"} {
+		if internalIP(net.ParseIP(ip)) {
+			t.Fatalf("public %s treated as internal", ip)
+		}
+	}
+}
