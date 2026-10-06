@@ -8,6 +8,7 @@ import { ArrowRight, Minus, Plus, Search, SlidersHorizontal, X } from "lucide-re
 import { GENRES, parseList } from "@/lib/genres";
 import { ThemeToggle } from "./ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
+import { useBackToClose } from "@/lib/layer-history";
 
 function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, onClear }: { query?: string; initialGenre?: string; initialExclude?: string; onSubmit?: (event: FormEvent<HTMLFormElement>) => void; onClear?: () => void }) {
   const { t } = useI18n();
@@ -53,6 +54,7 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
   },[]);
+  useBackToClose(searchOpen, resetSearch);
   // The phone tab bar opens the search from the thumb zone.
   useEffect(()=>{
     const open=()=>setSearchOpen(true);

@@ -7,6 +7,7 @@ import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AnimeCatalogCard } from "./AnimeCatalogCard";
@@ -150,7 +151,7 @@ export function CatalogBrowser({
       <div className="catalog-tabs-row page-inset">
         <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
           <button type="button" aria-pressed={!isSuggestions} onClick={() => update({ tab: "", page: "1" }, false, true)}>{t("Calendrier")}</button>
-          <button type="button" aria-pressed={isSuggestions} onClick={() => update({ tab: "suggestions", page: "1" }, false, true)}>{t("Suggestions")}</button>
+          <Link href="/for-you">{t("Suggestions")}</Link>
         </div>
       </div>
       {isSuggestions ? (data && data.items && data.items.length > 0 && <>

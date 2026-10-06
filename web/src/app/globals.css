@@ -101,6 +101,9 @@ button:disabled { cursor: default; opacity: .35; }
 .poster-card img { }
 .poster-card:hover img { transform: scale(1.045); }
 .poster-cell { position: relative; }
+/* No hover on touch screens: a visible play button starts episode 1 straight from the poster. */
+.poster-quickplay { display: none; }
+@media (hover: none) { .poster-quickplay { position: absolute; z-index: 3; top: 8px; left: 8px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--clay-bg); color: var(--clay-fg); } }
 .poster-hide { position: absolute; top: 8px; right: 8px; z-index: 3; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(0,0,0,.72); color: #fafafa; cursor: pointer; opacity: 0; transition: opacity .15s, background .15s; }
 .poster-cell:hover .poster-hide, .poster-hide:focus-visible { opacity: 1; }
 .poster-hide:hover { background: #fafafa; color: #111; }
@@ -528,6 +531,9 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .changelog-banner button:hover { background: var(--surface-hover); color: var(--foreground); }
 .changelog-banner a:focus-visible, .changelog-banner button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 767px) { .changelog-banner { left: 12px; right: 12px; max-width: none; bottom: calc(76px + env(safe-area-inset-bottom)); } }
+.library-tabs { align-self: flex-start; margin-bottom: 18px; }
+.history-inner .continue-watching { padding-bottom: 0; }
+.history-inner .continue-watching .section-heading, .history-inner .continue-watching .page-inset { margin-inline: 0; padding-inline: 0; }
 .history-empty { color: var(--design-muted); }
 .history-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 28px 16px; }
 .history-card { display: flex; flex-direction: column; gap: 12px; }
@@ -607,6 +613,14 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .cal-col-body { display: flex; flex-direction: column; gap: 14px; }
 .cal-col-empty { padding: 18px 8px; text-align: center; font-size: 12px; color: var(--design-muted); }
 
+.cal-item { position: relative; min-width: 0; }
+.watchlist-quick { position: absolute; z-index: 2; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(9, 9, 11, .7); color: #fafafa; cursor: pointer; }
+.watchlist-quick[aria-pressed="true"] { background: var(--clay-bg); color: var(--clay-fg); }
+.watchlist-quick:hover { background: #fafafa; color: #111; }
+.cal-quick-card { top: 8px; right: 8px; }
+.cal-quick-row { top: 50%; right: 12px; transform: translateY(-50%); background: var(--surface); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border); }
+.cal-quick-row[aria-pressed="true"] { background: var(--clay-bg); color: var(--clay-fg); }
+.cal-item > .cal-row { padding-right: 60px; }
 .cal-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cal-card[data-state="aired"] .cal-title, .cal-card[data-state="aired"] .cal-meta { opacity: .55; }
 .cal-thumb { position: relative; display: block; height: 112px; border-radius: 14px; overflow: hidden; background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--border); }
@@ -694,6 +708,8 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .catalog-tabs-row { margin-top: 28px; }
 .catalog-tabs-row .catalog-tabs { display: flex; gap: 32px; padding: 0; border-radius: 0; background: none; box-shadow: none; border-bottom: 1px solid var(--border); }
 .catalog-tabs-row .catalog-tabs button { height: 46px; padding: 0; margin-bottom: -1px; border-radius: 0; border-bottom: 2px solid transparent; background: none; color: var(--design-muted); font-size: 15px; font-weight: 500; }
+.catalog-tabs-row .catalog-tabs a { display: inline-flex; align-items: center; height: 46px; margin-bottom: -1px; border-bottom: 2px solid transparent; color: var(--design-muted); font-size: 15px; font-weight: 500; }
+.catalog-tabs-row .catalog-tabs a:hover { color: var(--foreground); }
 .catalog-tabs-row .catalog-tabs button:hover { color: var(--foreground); }
 .catalog-tabs-row .catalog-tabs button[aria-pressed="true"] { background: none; color: var(--foreground); font-weight: 600; border-bottom-color: var(--accent); }
 

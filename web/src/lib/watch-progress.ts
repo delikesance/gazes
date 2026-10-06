@@ -107,3 +107,9 @@ export function useWatchProgress(season:number):WatchProgress|null {
  const raw=useSyncExternalStore(subscribe,()=>{try{return localStorage.getItem(PREFIX+season);}catch{return null;}},()=>null);
  try {const value=raw?JSON.parse(raw):null;return value&&Number.isInteger(value.episode)&&value.episode>0&&Number.isFinite(value.position)&&value.position>=5?value:null;}catch{return null;}
 }
+
+/** Where "resume" should go: the saved episode, or the next one once it was watched to the end (when it exists). */
+export function resumeTarget(item: SavedProgress, total?: number): { episode: number; next: boolean } {
+  const finished = !!item.duration && item.position / item.duration >= 0.95;
+  return finished && total && item.episode < total ? { episode: item.episode + 1, next: true } : { episode: item.episode, next: false };
+}

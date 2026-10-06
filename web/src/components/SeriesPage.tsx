@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Play } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { Franchise } from "@/types/api";
-import { listProgress, type SavedProgress } from "@/lib/watch-progress";
+import { listProgress, resumeTarget, type SavedProgress } from "@/lib/watch-progress";
 import { WatchlistButton } from "./WatchlistButton";
 import { LazyImage } from "./ui/LazyImage";
 
@@ -33,7 +33,8 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
   const groups = ([["main", t("Saisons")], ["movies", t("Films")], ["extras", t("Spéciaux et histoires annexes")]] as const)
     .map(([group, title]) => ({ group, title, entries: franchise.seasons.filter((s) => s.group === group) })).filter((g) => g.entries.length);
   const savedSeason = saved ? franchise.seasons.find((s) => s.id === saved.season) : undefined;
-  const resumeLabel = saved ? `${savedSeason?.season_number && savedSeason.group === "main" ? `S${savedSeason.season_number} · ` : ""}${t("Épisode")} ${saved.episode}` : "";
+  const target = saved ? resumeTarget(saved, savedSeason?.episodes) : null;
+  const resumeLabel = saved && target ? `${savedSeason?.season_number && savedSeason.group === "main" ? `S${savedSeason.season_number} · ` : ""}${t("Épisode")} ${target.episode}` : "";
   return <div className="series-page">
     {(franchise.banner_image || franchise.poster_image) && <div className="series-banner" data-fallback={!franchise.banner_image} aria-hidden="true">
       <LazyImage src={franchise.banner_image || franchise.poster_image} alt="" aspectRatio="" priority className="series-banner-art" />
@@ -53,7 +54,7 @@ export function SeriesPage({ franchise, base, warning }: { franchise: Franchise;
           <button type="button" className="series-more" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? t("Voir moins") : t("Lire la suite")}</button></>}
         {warning}
         <div className="hero-actions">
-          {saved ? <Link className="design-button" href={`${base}/seasons/${saved.season}/episodes/${saved.episode}`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Reprendre")} · {resumeLabel}</Link>
+          {saved ? <Link className="design-button" href={`${base}/seasons/${saved.season}/episodes/${target?.episode ?? saved.episode}`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t(target?.next ? "Épisode suivant" : "Reprendre")} · {resumeLabel}</Link>
             : first && first.status !== "NOT_YET_RELEASED" && <Link className="design-button" href={`${base}/seasons/${first.id}/episodes/1`}><Play size={14} aria-hidden="true" fill="currentColor" />&nbsp;&nbsp;{t("Regarder")}</Link>}        <WatchlistButton animeId={franchise.id} /></div>
       </div>
     </section>
