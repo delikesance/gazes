@@ -1,7 +1,25 @@
 import { getFranchise, getSchedule } from "./api";
 
 const stamp = (unix: number) => new Date(unix * 1000).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-const escape = (text: string) => text.replace(/[\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, "\\n");
+/** TEXT value escaping (RFC 5545 §3.3.11): backslash first, then ; , and newlines. */
+export const icsText = (text: string) => text.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, "\\n");
+
+/** Folds a content line at 75 octets (RFC 5545 §3.1), never inside a UTF-8 character. */
+export function foldLine(line: string): string {
+  const encoder = new TextEncoder();
+  const parts: string[] = [];
+  let current = "";
+  let size = 0;
+  for (const char of line) {
+    const bytes = encoder.encode(char).length;
+    // Continuation lines start with a space, which counts toward their 75 octets.
+    if (size + bytes > 75) { parts.push(current); current = " "; size = 1; }
+    current += char;
+    size += bytes;
+  }
+  parts.push(current);
+  return parts.join("\r\n");
+}
 
 /** Airings of the next six weeks for the saved anime, as an iCalendar file (null when none air). */
 export async function watchlistCalendar(ids: number[], origin: string): Promise<string | null> {
@@ -16,8 +34,8 @@ export async function watchlistCalendar(ids: number[], origin: string): Promise<
   for (const e of entries) {
     const anime = owner.get(e.media_id)!;
     lines.push("BEGIN:VEVENT", `UID:${e.media_id}-${e.episode}@gazes`, `DTSTAMP:${stamp(from)}`, `DTSTART:${stamp(e.airing_at)}`, `DTEND:${stamp(e.airing_at + 1440)}`,
-      `SUMMARY:${escape(`${anime.title} · épisode ${e.episode}`)}`, `URL:${origin}/anime/${anime.id}`, "END:VEVENT");
+      `SUMMARY:${icsText(`${anime.title} · épisode ${e.episode}`)}`, `URL:${origin}/anime/${anime.id}`, "END:VEVENT");
   }
   lines.push("END:VCALENDAR");
-  return lines.join("\r\n");
+  return lines.map(foldLine).join("\r\n");
 }
