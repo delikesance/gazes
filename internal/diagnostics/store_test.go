@@ -339,6 +339,39 @@ func TestTimeFilters(t *testing.T) {
 	}
 }
 
+// Many small events: the four indexes and the AUTOINCREMENT table cost more than payload+256, so the
+// logical size used to stay under the cap while the file hit max_page_count and every insert failed
+// with "database or disk is full" (production, 2026-10-06).
+func TestMaintenanceKeepsDatabaseUnderItsPageCap(t *testing.T) {
+	o := options(t)
+	var errs bytes.Buffer
+	o.Errors = &errs
+	o.DBMax = 16<<20 + 4<<20 // 4 MiB of database
+	n := 0
+	for round := 0; round < 40; round++ {
+		s, err := Open(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		logger := slog.New(s.Handler())
+		for range 1500 {
+			n++
+			logger.Info("e"+strings.Repeat("x", n%7), "n", n)
+		}
+		closeStore(t, s)
+	}
+	if strings.Contains(errs.String(), "full") {
+		t.Fatalf("database filled up despite maintenance: %s", errs.String())
+	}
+	if rows(t, o.Dir) == 0 {
+		t.Fatal("no events kept")
+	}
+	st, _ := os.Stat(filepath.Join(o.Dir, "events.sqlite"))
+	if st.Size() > oDBLimit(o.DBMax) {
+		t.Fatalf("file %d exceeds cap %d", st.Size(), oDBLimit(o.DBMax))
+	}
+}
+
 func TestFutureSchemaIsNotOverwritten(t *testing.T) {
 	o := options(t)
 	db, _ := sql.Open("sqlite3", filepath.Join(o.Dir, "events.sqlite"))
