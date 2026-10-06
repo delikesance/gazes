@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -118,4 +119,27 @@ func TestPartySendsHeartbeat(t *testing.T) {
 		}
 	}
 	t.Fatal("no heartbeat on an idle party stream")
+}
+
+func TestPartyCapsStreamsPerClient(t *testing.T) {
+	h := newPartyHub()
+	var held []*partyMember
+	for i := range maxPartyStreamsPerIP {
+		m := h.join("room"+strconv.Itoa(i)+"aaa", "a", "203.0.113.7")
+		if m == nil {
+			t.Fatalf("stream %d refused under the cap", i)
+		}
+		held = append(held, m)
+	}
+	// One client must not be able to fill every room and lock everyone else out.
+	if h.join("otherroom", "a", "203.0.113.7") != nil {
+		t.Fatal("client exceeded its stream cap")
+	}
+	if h.join("otherroom", "b", "203.0.113.8") == nil {
+		t.Fatal("another client was refused")
+	}
+	h.leave("room0aaa", held[0])
+	if h.join("otherroom", "a", "203.0.113.7") == nil {
+		t.Fatal("a closed stream did not free its slot")
+	}
 }
