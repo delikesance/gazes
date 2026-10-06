@@ -159,6 +159,11 @@ var migrations = []dbmigrate.Migration{
 	used_at INTEGER,
 	PRIMARY KEY (user_id, code_hash)
 )`)},
+	{Version: 5, Name: "calendar_feeds", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS calendar_feeds (
+	user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+	token_hash TEXT NOT NULL UNIQUE,
+	created_at INTEGER NOT NULL
+)`)},
 }
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
@@ -585,4 +590,18 @@ func (s *Store) UseRecoveryCode(userID int64, codeHash, newPassHash string, now 
 		return false, err
 	}
 	return true, tx.Commit()
+}
+
+// SetFeedToken replaces the user's calendar feed token (one per user).
+func (s *Store) SetFeedToken(userID int64, tokenHash string, now time.Time) error {
+	_, err := s.db.Exec(`INSERT INTO calendar_feeds(user_id, token_hash, created_at) VALUES(?,?,?)
+		ON CONFLICT(user_id) DO UPDATE SET token_hash = excluded.token_hash, created_at = excluded.created_at`, userID, tokenHash, now.Unix())
+	return err
+}
+
+// UserIDByFeedToken returns the owner of a calendar feed token.
+func (s *Store) UserIDByFeedToken(tokenHash string) (int64, error) {
+	var id int64
+	err := s.db.QueryRow(`SELECT user_id FROM calendar_feeds WHERE token_hash = ?`, tokenHash).Scan(&id)
+	return id, err
 }
