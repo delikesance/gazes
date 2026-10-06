@@ -2,6 +2,7 @@
 import { deleteWatchData, pullHidden, pullProgress, pullWatchSessions } from "./auth";
 import { clearLocalWatchLog } from "./watch-log";
 import { clearHidden } from "./hidden-anime";
+import { clearWatchedMarks } from "./watched";
 
 /** Downloads everything the account holds about the viewer's watching, as one JSON file. */
 export async function exportMyData(pseudo: string) {
@@ -20,4 +21,5 @@ export async function eraseMyWatchLog() {
   await deleteWatchData();
   clearLocalWatchLog();
   clearHidden();
+  clearWatchedMarks();
 }
