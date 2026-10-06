@@ -16,9 +16,20 @@ import (
 // ErrRemuxFailed marks an ffmpeg remux that exited with an error (not a client disconnect).
 var ErrRemuxFailed = errors.New("ffmpeg remux failed")
 
+// remuxSlots bounds concurrent ffmpeg remuxes: the route is public, each request spawns a process.
+var remuxSlots = make(chan struct{}, 8)
+
 // RemuxStream pipes a video stream through FFmpeg, re-wrapping into fragmented MP4 (fMP4) with AAC audio.
 func RemuxStream(ctx context.Context, w http.ResponseWriter, src io.Reader, logger *slog.Logger, opts PipelineOptions) error {
 	logger = diagnostics.Logger(ctx, logger)
+	select {
+	case remuxSlots <- struct{}{}:
+		defer func() { <-remuxSlots }()
+	default:
+		w.Header().Set("Retry-After", "2")
+		http.Error(w, "too many concurrent remuxes", http.StatusServiceUnavailable)
+		return nil
+	}
 	// Set HTTP response headers for fragmented streaming
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
