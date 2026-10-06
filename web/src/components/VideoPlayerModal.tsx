@@ -46,6 +46,7 @@ import {
   List,
   Sun,
   Image as ImageIcon,
+  Link2,
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -116,6 +117,8 @@ function formatTime(seconds: number): string {
   }
   return `${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
 }
+
+const NEXT_EPISODE_DELAY = 5;
 
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   item,
@@ -454,6 +457,27 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     else handleSeek(shownSkip.end);
   }, [shownSkip, shownSkipAction, onNextEpisode, handleSeek]);
 
+  // Seconds left before the next episode starts on its own; null while idle or cancelled.
+  const [nextCountdown, setNextCountdown] = useState<number | null>(null);
+  useEffect(() => {
+    if (nextCountdown === null) return;
+    if (nextCountdown <= 0) { setNextCountdown(null); onNextEpisode?.(); return; }
+    const timer = window.setTimeout(() => setNextCountdown(nextCountdown - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [nextCountdown, onNextEpisode]);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const copyTimeLink = useCallback(async () => {
+    const position = Math.floor(hlsController.current?.position ?? (playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current)));
+    const url = new URL(window.location.href);
+    url.search = position > 0 ? `?t=${position}` : "";
+    url.hash = "";
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch { /* clipboard unavailable (insecure context): nothing to copy */ }
+  }, [playbackOffset]);
+
   const toggleMute = useCallback(() => {
     if (!videoRef.current) return;
     const nextMuted = !isMuted;
@@ -619,6 +643,20 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           e.preventDefault();
           handleSeek(cur + 10);
           break;
+        case "ArrowUp":
+        case "ArrowDown": {
+          e.preventDefault();
+          const next = Math.max(0, Math.min(1, Math.round(((isMuted ? 0 : volume) + (e.code === "ArrowUp" ? 0.05 : -0.05)) * 20) / 20));
+          setVolume(next);
+          if (videoRef.current) { videoRef.current.volume = next; videoRef.current.muted = next === 0; }
+          setIsMuted(next === 0);
+          break;
+        }
+        case "KeyN":
+          if (e.ctrlKey || e.metaKey || e.altKey || !onNextEpisode) break;
+          e.preventDefault();
+          onNextEpisode();
+          break;
         case "KeyF":
           e.preventDefault();
           toggleFullscreen();
@@ -637,7 +675,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute, shownSkip, runSkip]);
+  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute, shownSkip, runSkip, isMuted, volume, onNextEpisode]);
 
 
   const matchingFiles = loadData && item && "episode_number" in item ? episodeCandidates(loadData.files,item as EpisodeSource) : [];
@@ -1009,9 +1047,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                       reportFailure("La lecture de cette source s’est interrompue avant la fin de l’épisode.","premature_end");
                       return;
                     }
-                    if (onNextEpisode) {
-                      onNextEpisode();
-                    }
+                    if (onNextEpisode) setNextCountdown(NEXT_EPISODE_DELAY);
                   }}
                   onClick={togglePlay}
                   className="absolute inset-0 h-full w-full object-contain cursor-pointer"
@@ -1177,6 +1213,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         >
                           <Settings className="h-4 w-4" /><span className="player-label">{t("Réglages")}</span>
                         </button>
+                        <button onClick={copyTimeLink} className="player-pill player-pill--icon" aria-live="polite" aria-label={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")} title={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")}>
+                          <Link2 className="h-[18px] w-[18px]" />
+                        </button>
                         <button onClick={toggleFullscreen} className="player-pill player-pill--icon" aria-label={t("Toggle Fullscreen (F)")} title={t("Toggle Fullscreen (F)")}>
                           {isFullscreen ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
                         </button>
@@ -1184,6 +1223,16 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {nextCountdown !== null && (
+                  <div className="next-episode-card" role="status" aria-live="polite">
+                    <p>{t("Épisode suivant dans {seconds} s", { seconds: nextCountdown })}</p>
+                    <div className="next-episode-actions">
+                      <button type="button" className="clay clay-primary clay-sm" onClick={() => { setNextCountdown(null); onNextEpisode?.(); }}>{t("Lancer maintenant")}</button>
+                      <button type="button" className="clay clay-secondary clay-sm" onClick={() => setNextCountdown(null)}>{t("Annuler")}</button>
+                    </div>
+                  </div>
+                )}
 
                 {failover && !started && <PlayerFailover info={failover} onChangeSource={onChangeSource} />}
 
