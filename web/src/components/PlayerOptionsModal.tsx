@@ -4,7 +4,7 @@ import { Check, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Scribble } from "./ui/Scribble";
 
-export type PlayerOptionsTab = "audio" | "subtitles" | "ambilight";
+export type PlayerOptionsTab = "audio" | "subtitles" | "speed" | "ambilight";
 
 export type AmbilightLevel = "soft" | "medium" | "vivid";
 export interface AmbilightSettings { on: boolean; level: AmbilightLevel; dim: boolean }
@@ -23,12 +23,15 @@ interface PlayerOptionsModalProps {
   onSelectSubtitle: (index: number | null) => void;
   ambilight: AmbilightSettings;
   onAmbilightChange: (patch: Partial<AmbilightSettings>) => void;
+  playbackRate: number;
+  rates: number[];
+  onPlaybackRateChange: (rate: number) => void;
 }
 
 /** One frosted dialog for the tracks a viewer picks: audio and subtitles. */
-export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, selectedAudio, onSelectAudio, subtitleOptions, selectedSubtitle, onSelectSubtitle, ambilight, onAmbilightChange }: PlayerOptionsModalProps) {
+export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, selectedAudio, onSelectAudio, subtitleOptions, selectedSubtitle, onSelectSubtitle, ambilight, onAmbilightChange, playbackRate, rates, onPlaybackRateChange }: PlayerOptionsModalProps) {
   const { t } = useI18n();
-  const tabs: [PlayerOptionsTab, string][] = [["audio", "Audio"], ["subtitles", "Sous-titres"], ["ambilight", "Ambilight"]];
+  const tabs: [PlayerOptionsTab, string][] = [["audio", "Audio"], ["subtitles", "Sous-titres"], ["speed", "Vitesse"], ["ambilight", "Ambilight"]];
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } };
@@ -75,6 +78,19 @@ export function PlayerOptionsModal({ tab, onTabChange, onClose, audioOptions, se
                   {selectedSubtitle === option.index && <Check className="h-4 w-4 shrink-0" />}
                 </button>
               ))}
+            </div>
+          )}
+
+          {tab === "speed" && (
+            <div className="flex flex-col gap-1">
+              <p className="player-panel-title">{t("Vitesse de lecture")}</p>
+              {rates.map((rate) => (
+                <button key={rate} onClick={() => onPlaybackRateChange(rate)} data-active={playbackRate === rate} className="player-row">
+                  <span>{rate === 1 ? t("Normale") : `${rate}×`}</span>
+                  {playbackRate === rate && <Check className="h-4 w-4 shrink-0" />}
+                </button>
+              ))}
+              <p className="mt-1 border-t border-white/10 px-4 pb-1.5 pt-3 text-xs text-zinc-400">{t("Raccourcis : Maj + < et Maj + >")}</p>
             </div>
           )}
 
