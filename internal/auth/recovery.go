@@ -73,14 +73,16 @@ func (s *Service) Recover(w http.ResponseWriter, r *http.Request) {
 	if s.throttled(w, "recover-ip|"+s.clientIP(r), 20, 15*time.Minute) || s.throttled(w, "recover-email|"+idx, 5, 15*time.Minute) {
 		return
 	}
-	user, err := s.store.UserByEmailIdx(idx)
-	if err != nil {
-		fail(w, http.StatusUnauthorized, "invalid_code")
-		return
-	}
+	// Hash before looking the account up, so an unknown e-mail costs the same time as a known one
+	// (login does the same with its dummy hash) and the answer cannot be used to probe accounts.
 	hash, err := s.keys.hashPassword(c.Password)
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	user, err := s.store.UserByEmailIdx(idx)
+	if err != nil {
+		fail(w, http.StatusUnauthorized, "invalid_code")
 		return
 	}
 	used, err := s.store.UseRecoveryCode(user.ID, s.recoveryHash(c.Code), hash, s.now())
