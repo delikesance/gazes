@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Clock, Download, Megaphone, LogOut, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
+import { ChevronDown, Clock, Download, Heart, Megaphone, LogOut, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "./AuthProvider";
 import { eraseMyWatchLog, exportMyData } from "@/lib/my-data";
@@ -66,6 +66,7 @@ export function AccountMenu() {
           </div>
           <Link href="/history" role="menuitem" className="account-row"><Clock size={16} aria-hidden="true" />{t("Bibliothèque")}</Link>
           <Link href="/changelog" role="menuitem" className="account-row"><Megaphone size={16} aria-hidden="true" />{t("Nouveautés")}</Link>
+          <Link href="/soutenir" role="menuitem" className="account-row"><Heart size={16} aria-hidden="true" />{t("Soutenir")}</Link>
           <Link href="/privacy" role="menuitem" className="account-row"><ShieldCheck size={16} aria-hidden="true" />{t("Confidentialité")}</Link>
           <button type="button" role="menuitem" className="account-row" onClick={async () => { setOpen(false); try { await exportMyData(user.pseudo); } catch { window.alert(t("Impossible d’exporter vos données pour le moment.")); } }}>
             <Download size={16} aria-hidden="true" />{t("Exporter mes données")}
