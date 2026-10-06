@@ -1246,7 +1246,7 @@ func (s *AnimeCatalogService) GetAnimeDetailsWithEpisodes(ctx context.Context, i
 	}
 	return s.detailC.Get(ctx, strconv.Itoa(id), kv.Policy[AnimeCatalogItem]{TTL: 2 * time.Hour}, func(ctx context.Context) (*AnimeCatalogItem, error) {
 		var parsed aniListDetailResponse
-		if err := s.anilist.post(ctx, animeDetailWithEpisodesQuery, map[string]interface{}{"id": id}, &parsed); err != nil {
+		if err := s.anilist.postFresh(ctx, animeDetailWithEpisodesQuery, map[string]interface{}{"id": id}, &parsed, detailStoreMaxAge); err != nil {
 			return nil, err
 		}
 		if len(parsed.Errors) > 0 {
@@ -1280,7 +1280,7 @@ func (s *AnimeCatalogService) prefetchDetails(ctx context.Context, ids []int) {
 	for start := 0; start < len(missing); start += maxDetailBatch {
 		batch := missing[start:min(start+maxDetailBatch, len(missing))]
 		var parsed aniListPageResponse
-		err := s.anilist.post(ctx, animeDetailBatchQuery, map[string]interface{}{"ids": batch, "perPage": len(batch)}, &parsed)
+		err := s.anilist.postFresh(ctx, animeDetailBatchQuery, map[string]interface{}{"ids": batch, "perPage": len(batch)}, &parsed, detailStoreMaxAge)
 		if err != nil || len(parsed.Errors) > 0 {
 			return
 		}
@@ -1297,7 +1297,7 @@ func (s *AnimeCatalogService) prefetchDetails(ctx context.Context, ids []int) {
 
 func (s *AnimeCatalogService) doGraphQLPageQuery(ctx context.Context, query string, variables map[string]interface{}) (*CatalogResponse, error) {
 	var parsed aniListPageResponse
-	if err := s.anilist.post(ctx, query, variables, &parsed); err != nil {
+	if err := s.anilist.postFresh(ctx, query, variables, &parsed, listingStoreMaxAge); err != nil {
 		return nil, err
 	}
 	if len(parsed.Errors) > 0 {
