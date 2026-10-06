@@ -37,3 +37,26 @@ func writeImportError(w http.ResponseWriter, status int, code string) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
 }
+
+// HandleMALImport answers POST /api/v1/import/mal {"ids":[...]}: MyAnimeList ids (from the export
+// file the browser parsed) mapped to AniList titles, 50 ids per upstream request, at most 150 ids.
+func (s *Server) HandleMALImport(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		IDs []int `json:"ids"`
+	}
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body) != nil || len(body.IDs) > 5000 {
+		writeImportError(w, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	list, err := s.catalogService.AniListByMalIDs(r.Context(), body.IDs, malImportCap)
+	if err != nil {
+		s.catalogFailure(w, r, "failed to map MyAnimeList ids", "failed to read the MyAnimeList list", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(list)
+}
+
+// malImportCap is three AniList requests; like the AniList import, each title then costs a franchise lookup.
+const malImportCap = 150
