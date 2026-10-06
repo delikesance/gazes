@@ -4,8 +4,10 @@ package vpn
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -38,11 +40,12 @@ type Rotator struct {
 // between two rotations.
 func New(controlURL string, minGap time.Duration) *Rotator {
 	return &Rotator{
-		base:      strings.TrimRight(controlURL, "/"),
-		minGap:    minGap,
-		http:      &http.Client{Timeout: 30 * time.Second},
-		now:       time.Now,
-		upWait:    45 * time.Second,
+		base:   strings.TrimRight(controlURL, "/"),
+		minGap: minGap,
+		http:   &http.Client{Timeout: 30 * time.Second},
+		now:    time.Now,
+		// gluetun's own healthcheck cycles through servers until one answers: that took ~50 s in a test.
+		upWait:    90 * time.Second,
 		poll:      time.Second,
 		settle:    time.Minute,
 		failGap:   30 * time.Second,
@@ -117,7 +120,11 @@ func (r *Rotator) waitUp(ctx context.Context) error {
 			return err
 		}
 		if resp, err := r.http.Do(req); err == nil {
-			ok := resp.StatusCode/100 == 2
+			// gluetun answers 200 with an empty public_ip until the new tunnel has fetched it.
+			var out struct {
+				PublicIP string `json:"public_ip"`
+			}
+			ok := resp.StatusCode/100 == 2 && json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&out) == nil && out.PublicIP != ""
 			resp.Body.Close()
 			if ok {
 				return nil
