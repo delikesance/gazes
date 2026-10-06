@@ -11,10 +11,14 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     fr: { title: "Nouveautés et journal de développement", items: [
       "Cette page : retrouvez ici ce qui change sur Gazes, mise à jour par mise à jour.",
       "Le compte à rebours du prochain épisode est plus fiable.",
+      "Mise en page téléphone repensée : barre d’onglets flottante, rails d’affiches, synopsis repliable et lecteur adapté.",
+      "Accueil : « Reprendre la lecture » et « Ma liste » passent au-dessus du calendrier, en rail défilant.",
     ] },
     en: { title: "What’s new and dev log", items: [
       "This page: follow what changes on Gazes, update by update.",
       "The next-episode countdown is more reliable.",
+      "Phone layout reworked: floating tab bar, poster rails, collapsible synopsis and a player built for small screens.",
+      "Home: “Continue watching” and “My list” now sit above the calendar, as a scrolling rail.",
     ] },
   },
   {
