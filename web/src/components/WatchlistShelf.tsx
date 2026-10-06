@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { CalendarPlus, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getFranchise } from "@/lib/api";
 import { removeFromWatchlist, useWatchlist } from "@/lib/watchlist";
+import { watchlistCalendar } from "@/lib/watchlist-ics";
 import { LazyImage } from "./ui/LazyImage";
 
 type Info = { title: string; poster?: string };
@@ -29,9 +30,26 @@ export function WatchlistShelf() {
     return () => controller.abort();
   }, [key]);
 
+  const [exportState, setExportState] = useState<"idle" | "busy" | "empty" | "error">("idle");
+  async function exportCalendar() {
+    setExportState("busy");
+    try {
+      const ics = await watchlistCalendar(ids, window.location.origin);
+      if (!ics) { setExportState("empty"); return; }
+      const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+      const link = Object.assign(document.createElement("a"), { href: url, download: "gazes-ma-liste.ics" });
+      link.click();
+      URL.revokeObjectURL(url);
+      setExportState("idle");
+    } catch { setExportState("error"); }
+  }
+
   if (!ids.length) return null;
   return <section className="continue-watching" aria-labelledby="watchlist-heading">
-    <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("À voir plus tard")}</span><h2 id="watchlist-heading" className="serif">{t("Ma liste")}</h2></div></div>
+    <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("À voir plus tard")}</span><h2 id="watchlist-heading" className="serif">{t("Ma liste")}</h2></div>
+      <button type="button" className="clay clay-secondary clay-sm" onClick={exportCalendar} disabled={exportState === "busy"}><CalendarPlus size={16} aria-hidden="true" />{t("Ajouter les sorties à mon calendrier")}</button>
+    </div>
+    {(exportState === "empty" || exportState === "error") && <p role="status" className="catalog-message">{t(exportState === "empty" ? "Aucune sortie prévue dans les 6 prochaines semaines." : "Impossible de générer le calendrier pour l’instant.")}</p>}
     <ul className="poster-grid page-inset watchlist-grid">
       {ids.map((id) => {
         const info = infoCache.get(id);

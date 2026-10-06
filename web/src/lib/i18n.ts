@@ -130,7 +130,7 @@ const pairs: [string, string][] = [
  ["Genre","Genre"],["Genres","Genres"],["Animes {genre} en streaming","{genre} anime streaming"],
  ["Copier le lien à cet instant","Copy link at this time"],["Lien copié","Link copied"],
  ["Épisode suivant dans {seconds} s","Next episode in {seconds}s"],["Lancer maintenant","Play now"],["Annuler","Cancel"],
- ["Tout voir","See all"],["Ma liste","My list"],["Dans ma liste","In my list"],["À voir plus tard","Watch later"],["Retirer {title} de ma liste","Remove {title} from my list"],["Retirer de ma liste","Remove from my list"],["Navigation principale","Main navigation"],
+ ["Tout voir","See all"],["Ma liste","My list"],["Ajouter les sorties à mon calendrier","Add releases to my calendar"],["Aucune sortie prévue dans les 6 prochaines semaines.","No releases scheduled in the next 6 weeks."],["Impossible de générer le calendrier pour l’instant.","Could not build the calendar right now."],["Dans ma liste","In my list"],["À voir plus tard","Watch later"],["Retirer {title} de ma liste","Remove {title} from my list"],["Retirer de ma liste","Remove from my list"],["Navigation principale","Main navigation"],
 ];
 const dictionary = new Map<string, { fr: string; en: string }>();
 for (const [fr, en] of pairs) {const value = {fr,en};dictionary.set(fr,value);dictionary.set(en,value);}
