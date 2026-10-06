@@ -95,3 +95,27 @@ func TestPartyRejectsBadInput(t *testing.T) {
 		}
 	}
 }
+
+func TestPartySendsHeartbeat(t *testing.T) {
+	old := partyHeartbeat
+	partyHeartbeat = 20 * time.Millisecond
+	defer func() { partyHeartbeat = old }()
+	srv := httptest.NewServer(partyRouter(newPartyHub()))
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/party/abc123/events?from=alice", nil)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	sc := bufio.NewScanner(res.Body)
+	for sc.Scan() {
+		// An SSE comment keeps idle proxies (Next's 30 s proxy timeout) from closing a quiet room.
+		if strings.HasPrefix(sc.Text(), ":") {
+			return
+		}
+	}
+	t.Fatal("no heartbeat on an idle party stream")
+}
