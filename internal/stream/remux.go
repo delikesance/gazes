@@ -19,10 +19,11 @@ var ErrRemuxFailed = errors.New("ffmpeg remux failed")
 
 // Concurrent ffmpeg remuxes are bounded: the route is public and each request spawns a process that
 // lives as long as the playback. The per-client cap keeps one caller from holding every slot; it
-// leaves room for a seek, whose new request arrives before the old one closes.
+// leaves room for a household watch party on one address (up to 6 viewers, see the party relay)
+// plus a seek, whose new request arrives before the old one closes.
 const (
 	maxRemuxes          = 32
-	maxRemuxesPerClient = 3
+	maxRemuxesPerClient = 8
 )
 
 var remuxGate = struct {

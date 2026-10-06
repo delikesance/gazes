@@ -173,3 +173,26 @@ func TestPartyStreamCapCoversIPv6Prefix(t *testing.T) {
 		t.Fatalf("a new address in the same /64 got past the cap: %d", c)
 	}
 }
+
+func TestPartyCatchesUpLateJoiner(t *testing.T) {
+	h := newPartyHub()
+	first := h.join("abc123", "alice", "1.1.1.1")
+	if _, ok := h.snapshot("abc123"); ok {
+		t.Fatal("a room nobody acted in has no state to replay")
+	}
+	h.publish("abc123", partyEvent{From: "alice", Type: "play", T: 10}, []byte(`{}`))
+	h.publish("abc123", partyEvent{From: "alice", Type: "seek", T: 42}, []byte(`{}`))
+	ev, ok := h.snapshot("abc123")
+	if !ok || ev.Type != "play" || ev.T < 42 || ev.T > 43 {
+		t.Fatalf("late joiner state %+v %v, want playing from 42 s", ev, ok)
+	}
+	h.publish("abc123", partyEvent{From: "alice", Type: "pause", T: 50}, []byte(`{}`))
+	if ev, _ := h.snapshot("abc123"); ev.Type != "pause" || ev.T != 50 {
+		t.Fatalf("late joiner state %+v, want paused at 50 s", ev)
+	}
+	h.leave("abc123", first)
+	h.publish("gone12", partyEvent{From: "x", Type: "play", T: 1}, []byte(`{}`))
+	if len(h.state) != 0 {
+		t.Fatalf("state kept for empty rooms: %v", h.state)
+	}
+}

@@ -131,3 +131,55 @@ func TestClientBucketGroupsIPv6Prefix(t *testing.T) {
 		t.Fatalf("IPv4 changed: %q", got)
 	}
 }
+
+func TestRateLimitRenderBudgetLeavesRouteLimitAlone(t *testing.T) {
+	s := &Server{proxy: auth.NewProxyTrust(true, nil)}
+	// One middleware instance serves every request, as on the router.
+	h := s.rateLimit("t", 2, time.Minute)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	do := func(xff string) int {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = "172.18.0.3:1"
+		if xff != "" {
+			r.Header.Set("X-Forwarded-For", xff)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w.Code
+	}
+	for range 2 * ssrBudgetFactor {
+		do("")
+	}
+	for i := range 3 {
+		want := http.StatusOK
+		if i == 2 {
+			want = http.StatusTooManyRequests
+		}
+		if c := do("203.0.113.7"); c != want {
+			t.Fatalf("browser request %d after renders: %d, want %d", i, c, want)
+		}
+	}
+}
+
+func TestRateLimiterEvictsSingleHitKeysFirst(t *testing.T) {
+	var l rateLimiter
+	for range 3 {
+		l.hit("brute", 2, time.Minute)
+	}
+	for i := range rateLimiterMaxKeys + 10 {
+		l.hit("flood-"+time.Duration(i).String(), 2, time.Minute)
+	}
+	if l.hit("brute", 2, time.Minute) {
+		t.Fatal("a flood of fresh keys reset a client that is being throttled")
+	}
+}
+
+func TestRateLimitLimitsLoopbackProxy(t *testing.T) {
+	s := &Server{}
+	// A proxy on this host relaying browsers (dev) is not ffmpeg.
+	for range 2 {
+		limited(s, "127.0.0.1:1", "203.0.113.7")
+	}
+	if c := limited(s, "127.0.0.1:1", "203.0.113.7"); c != http.StatusTooManyRequests {
+		t.Fatalf("loopback proxy escaped the limit: %d", c)
+	}
+}
