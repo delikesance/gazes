@@ -47,13 +47,34 @@ func publicTracker(raw string) bool {
 	return true
 }
 
-var cgnat = &net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}
+// reservedNets are non-public IPv4 ranges the net.IP predicates miss: carrier NAT, IETF protocol
+// assignments, benchmarking, and the reserved class E block (with broadcast).
+var reservedNets = []*net.IPNet{
+	{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)},
+	{IP: net.IPv4(192, 0, 0, 0), Mask: net.CIDRMask(24, 32)},
+	{IP: net.IPv4(198, 18, 0, 0), Mask: net.CIDRMask(15, 32)},
+	{IP: net.IPv4(240, 0, 0, 0), Mask: net.CIDRMask(4, 32)},
+}
+
+// nat64 is the well-known NAT64 prefix: its addresses embed an IPv4 one in the last 4 bytes.
+var nat64 = &net.IPNet{IP: net.ParseIP("64:ff9b::"), Mask: net.CIDRMask(96, 128)}
 
 // internalIP reports addresses a tracker announce must never reach: this host, the docker
-// networks, the LAN, carrier NAT and link-local (cloud metadata).
+// networks, the LAN, carrier NAT, link-local (cloud metadata) and reserved ranges.
 func internalIP(ip net.IP) bool {
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() || cgnat.Contains(ip)
+	if nat64.Contains(ip) {
+		ip = net.IPv4(ip[12], ip[13], ip[14], ip[15])
+	}
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
+		return true
+	}
+	for _, n := range reservedNets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // trackerDialer checks the address actually dialed, after DNS resolution: publicTracker only sees

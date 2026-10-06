@@ -139,13 +139,18 @@ func (l *rateLimiter) hit(key string, limit int, span time.Duration) bool {
 				delete(l.windows, k)
 			}
 		}
-		// Still full of live windows: drop arbitrary ones so new clients are never locked out
-		// and the next calls do not rescan the whole table.
-		for k := range l.windows {
-			if len(l.windows) < rateLimiterMaxKeys-rateLimiterMaxKeys/10 {
-				break
+		// Still full of live windows: shed some so new clients are never locked out and the next
+		// calls do not rescan the whole table. Single-hit windows go first: a flood of fresh keys
+		// (one per IPv6 /64) must not reset the counters that are actually throttling someone.
+		for _, maxCount := range []int{1, int(^uint(0) >> 1)} {
+			for k, w := range l.windows {
+				if len(l.windows) < rateLimiterMaxKeys-rateLimiterMaxKeys/10 {
+					break
+				}
+				if w.count <= maxCount {
+					delete(l.windows, k)
+				}
 			}
-			delete(l.windows, k)
 		}
 	}
 	window := l.windows[key]
