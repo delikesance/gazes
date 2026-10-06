@@ -2,7 +2,6 @@ package admin
 
 import (
 	"context"
-	"encoding/json"
 	"math"
 	"net/http"
 	"sort"
@@ -350,87 +349,22 @@ func (s *Service) handleViews(w http.ResponseWriter, r *http.Request) {
 		byHour[h.hour]["sessions"] += h.sessions
 	}
 
-	// Direct, period-bounded scan of watch_sessions.
-	// TODO(rollup): session length buckets, the retention curve and the per-episode drop stats
-	// would be cheaper from a dedicated rollup table.
+	// Session length, retention curve and drop episodes come from the per-day rollup when every day
+	// of the period is there, otherwise from a period-bounded scan of watch_sessions.
 	lo, hi := viewsPeriodBounds(p.From, p.To)
-	rows, err := s.accountsDB().QueryContext(ctx, `SELECT anime_id, season_id, episode, title, started_at, start_position, end_position, watched_seconds, duration, completed
-		FROM watch_sessions WHERE started_at >= ? AND started_at < ?`, lo, hi)
+	acc, haveRollup, err := s.loadViewsRollup(ctx, p.From, p.To)
 	if err != nil {
 		viewsServerError(w)
 		return
 	}
-	bucketNames := []string{"<5", "5-15", "15-30", "30-60", ">60"}
-	var buckets [5]int64
-	var nSess int64
-	var totalMin float64
-	var present, eligible [10]int64
-	drops := map[[3]int64]*viewsDropAgg{}
-	for rows.Next() {
-		var anime, season, started int64
-		var ep int
-		var title string
-		var startPos, endPos, watched, dur float64
-		var comp int
-		if err := rows.Scan(&anime, &season, &ep, &title, &started, &startPos, &endPos, &watched, &dur, &comp); err != nil {
-			rows.Close()
+	if !haveRollup {
+		if acc, err = s.scanViews(ctx, lo, hi); err != nil {
 			viewsServerError(w)
 			return
 		}
-		if watched < 0 {
-			watched = 0
-		}
-		m := watched / 60
-		nSess++
-		totalMin += m
-		switch {
-		case m < 5:
-			buckets[0]++
-		case m < 15:
-			buckets[1]++
-		case m < 30:
-			buckets[2]++
-		case m <= 60:
-			buckets[3]++
-		default:
-			buckets[4]++
-		}
-		if dur <= 0 {
-			continue
-		}
-		sf := math.Min(math.Max(startPos/dur, 0), 1)
-		ef := math.Min(math.Max(endPos/dur, 0), 1)
-		for k := 0; k < 10; k++ {
-			lowEdge := float64(k) / 10
-			if sf <= lowEdge {
-				eligible[k]++
-				if ef > lowEdge {
-					present[k]++
-				}
-			}
-		}
-		if anime > 0 && sf < 0.25 {
-			key := [3]int64{anime, season, int64(ep)}
-			d := drops[key]
-			if d == nil {
-				d = &viewsDropAgg{anime: anime, season: season, ep: int64(ep)}
-				drops[key] = d
-			}
-			d.sessions++
-			if title != "" && started >= d.titleAt {
-				d.title, d.titleAt = title, started
-			}
-			if comp == 0 && ef < 0.25 {
-				d.abandoned++
-				d.minutes = append(d.minutes, endPos/60)
-			}
-		}
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		viewsServerError(w)
-		return
-	}
+	bucketNames := []string{"<5", "5-15", "15-30", "30-60", ">60"}
+	buckets, nSess, totalMin, present, eligible, drops := acc.buckets, acc.nSess, acc.totalMin, acc.present, acc.eligible, acc.drops
 	type bucket struct {
 		Range    string  `json:"range_minutes"`
 		Sessions int64   `json:"sessions"`
@@ -702,94 +636,21 @@ func (s *Service) handleCatalog(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	lo, hi := viewsPeriodBounds(p.From, p.To)
 
-	// Direct, period-bounded scan: the rollups carry no format, genre or language.
-	// TODO(rollup): a per-anime/format/lang daily table would avoid this scan.
-	rows, err := s.accountsDB().QueryContext(ctx, `SELECT anime_id, title, genres, format, started_at, watched_seconds, completed, audio_lang, sub_lang
-		FROM watch_sessions WHERE started_at >= ? AND started_at < ?`, lo, hi)
+	// Per-anime, genre, format and language figures come from the per-day rollup when every day of
+	// the period is there, otherwise from a period-bounded scan of watch_sessions.
+	acc, haveRollup, err := s.loadCatalogRollup(ctx, p.From, p.To)
 	if err != nil {
 		viewsServerError(w)
 		return
 	}
-	animes := map[int64]*viewsAnimeAgg{}
-	formats := map[string]int64{}
-	audio, sub := map[string]int64{}, map[string]int64{}
-	type genreAgg struct{ sessions, completed int64 }
-	genres := map[string]*genreAgg{}
-	var total int64
-	for rows.Next() {
-		var aid, started int64
-		var title, genresJSON, fmtRaw, al, sl string
-		var secs float64
-		var comp int
-		if err := rows.Scan(&aid, &title, &genresJSON, &fmtRaw, &started, &secs, &comp, &al, &sl); err != nil {
-			rows.Close()
+	if !haveRollup {
+		if acc, err = s.scanCatalog(ctx, lo, hi); err != nil {
 			viewsServerError(w)
 			return
 		}
-		key := viewsFormatKey(fmtRaw)
-		formats[key]++ // formats shares ignore the filter
-		if !viewsFormatMatches(format, key) {
-			continue
-		}
-		total++
-		if secs < 0 {
-			secs = 0
-		}
-		for _, m := range []struct {
-			m map[string]int64
-			v string
-		}{{audio, al}, {sub, sl}} {
-			v := strings.ToLower(strings.TrimSpace(m.v))
-			if v == "" {
-				v = "unknown"
-			}
-			m.m[v]++
-		}
-		var gl []string
-		if json.Unmarshal([]byte(genresJSON), &gl) == nil {
-			seen := map[string]bool{}
-			for _, g := range gl {
-				g = strings.TrimSpace(g)
-				if g == "" || seen[g] {
-					continue
-				}
-				seen[g] = true
-				ga := genres[g]
-				if ga == nil {
-					ga = &genreAgg{}
-					genres[g] = ga
-				}
-				ga.sessions++
-				if comp != 0 {
-					ga.completed++
-				}
-			}
-		}
-		if aid <= 0 {
-			continue
-		}
-		a := animes[aid]
-		if a == nil {
-			a = &viewsAnimeAgg{}
-			animes[aid] = a
-		}
-		a.sessions++
-		a.secs += secs
-		if comp != 0 {
-			a.completed++
-		}
-		if title != "" && started >= a.titleAt {
-			a.title, a.titleAt = title, started
-		}
-		if started >= a.fmtAt {
-			a.format, a.fmtAt = key, started
-		}
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		viewsServerError(w)
-		return
-	}
+	cv := acc.view(format)
+	animes, formats, audio, sub, genres, total := cv.animes, cv.formats, cv.audio, cv.sub, cv.genres, cv.total
 
 	// Rollup-backed per-anime numbers: new viewers and previous-period sessions.
 	newViewers := map[int64]int64{}
