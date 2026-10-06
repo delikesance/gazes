@@ -7,6 +7,21 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    date: "2026-10-07",
+    fr: { title: "Bibliothèque plus claire", items: [
+      "Bibliothèque : trois onglets aux noms distincts, « Reprendre », « À voir plus tard » et « Collections », chacun avec son compteur et une phrase qui dit ce qu’il contient.",
+      "« Mes listes » devient « Collections » : l’onglet est visible pour tous, avec une invitation à se connecter. Créer, renommer et supprimer une collection passent par de vraies fenêtres.",
+      "Fiche d’un anime : un seul bouton « Ajouter à… » pour À voir plus tard et vos collections.",
+      "À voir plus tard : l’import AniList et MyAnimeList gagne une barre de progression et un bouton Réessayer.",
+    ] },
+    en: { title: "A clearer library", items: [
+      "Library: three tabs with distinct names, “Resume”, “Watch later” and “Collections”, each with a counter and a line saying what it holds.",
+      "“My lists” is now “Collections”: the tab is visible to everyone, with a prompt to sign in. Creating, renaming and deleting a collection use proper dialogs.",
+      "Anime page: a single “Add to…” button for Watch later and your collections.",
+      "Watch later: the AniList and MyAnimeList import gets a progress bar and a Retry button.",
+    ] },
+  },
+  {
     date: "2026-10-06",
     fr: { title: "Nouveautés et journal de développement", items: [
       "Cette page : retrouvez ici ce qui change sur Gazes, mise à jour par mise à jour.",
