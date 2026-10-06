@@ -30,7 +30,7 @@ interface CatalogBrowserProps {
 }
 
 /** Anime ids the viewer watched, most recent first: the seeds of the suggestions feed. */
-function watchedSeeds(): number[] {
+export function watchedSeeds(): number[] {
   const ids = watchedAnimeIds(5);
   for (const item of listProgress()) {
     const id = item.animeId || item.season;
@@ -40,7 +40,7 @@ function watchedSeeds(): number[] {
 }
 
 /** The 300 most recent local sessions, trimmed to what the taste profile uses. */
-function recentSessions() {
+export function recentSessions() {
   return listWatchSessions().slice(-300).map(({ anime_id, season_id, genres, watched_seconds, duration, completed, updated_at }) =>
     ({ anime_id, season_id, genres, watched_seconds, duration, completed, updated_at }));
 }

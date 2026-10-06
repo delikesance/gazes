@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Clock, Compass, Sparkles } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -8,11 +8,10 @@ import { useI18n } from "@/lib/i18n";
 export function MobileNav() {
   const { t } = useI18n();
   const pathname = usePathname();
-  const forYou = useSearchParams().get("tab") === "suggestions";
   if (pathname.includes("/episodes/")) return null;
   const items = [
-    { href: "/", label: t("Catalogue"), icon: Compass, active: pathname === "/" && !forYou },
-    { href: "/?tab=suggestions", label: t("Pour vous"), icon: Sparkles, active: pathname === "/" && forYou },
+    { href: "/", label: t("Catalogue"), icon: Compass, active: pathname === "/" },
+    { href: "/for-you", label: t("Pour vous"), icon: Sparkles, active: pathname === "/for-you" },
     { href: "/history", label: t("Historique"), icon: Clock, active: pathname === "/history" },
   ];
   return <nav className="mobile-nav" aria-label={t("Navigation principale")}>
