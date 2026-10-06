@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/gazes/gazes/internal/kv"
@@ -102,8 +103,52 @@ func (a *anilistClient) postFresh(ctx context.Context, query string, variables a
 	return nil
 }
 
-// fetch performs one upstream request and returns the raw body.
+// anilistRotator moves the process to another exit IP (VPN). Nil without a VPN.
+var anilistRotator atomic.Pointer[func(context.Context) error]
+
+// SetAnilistRotator installs the function that changes the exit IP; nil removes it. It must return
+// an error when it did not rotate (cooldown, failure).
+func SetAnilistRotator(fn func(context.Context) error) {
+	if fn == nil {
+		anilistRotator.Store(nil)
+		return
+	}
+	anilistRotator.Store(&fn)
+}
+
+// anilistStatusError is a non-200, non-429 answer from AniList.
+type anilistStatusError struct{ Code int }
+
+func (e *anilistStatusError) Error() string { return fmt.Sprintf("anilist returned status %d", e.Code) }
+
+// throttled reports whether err is AniList refusing this exit IP (429 or a gateway error), as
+// opposed to a problem a new IP would not fix.
+func throttled(err error) bool {
+	var limited *RateLimitError
+	if errors.As(err, &limited) {
+		return true
+	}
+	var st *anilistStatusError
+	return errors.As(err, &st) && (st.Code == http.StatusBadGateway || st.Code == http.StatusServiceUnavailable || st.Code == http.StatusGatewayTimeout)
+}
+
+// fetch performs one upstream request and returns the raw body. When AniList throttles this exit
+// IP and a VPN rotator is installed, it moves to a fresh IP, lifts the shared cooldown (it was
+// earned by the old IP) and retries once.
 func (a *anilistClient) fetch(ctx context.Context, query string, variables any) ([]byte, error) {
+	body, err := a.fetchOnce(ctx, query, variables)
+	if err == nil || !throttled(err) {
+		return body, err
+	}
+	rotate := anilistRotator.Load()
+	if rotate == nil || (*rotate)(ctx) != nil {
+		return body, err
+	}
+	a.gov.ClearCooldown(ctx)
+	return a.fetchOnce(ctx, query, variables)
+}
+
+func (a *anilistClient) fetchOnce(ctx context.Context, query string, variables any) ([]byte, error) {
 	if err := a.gov.Acquire(ctx); err != nil {
 		return nil, asRateLimit(err)
 	}
@@ -133,7 +178,7 @@ func (a *anilistClient) fetch(ctx context.Context, query string, variables any) 
 		return nil, &RateLimitError{RetryAfter: wait}
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anilist returned status %d", resp.StatusCode)
+		return nil, &anilistStatusError{Code: resp.StatusCode}
 	}
 	return io.ReadAll(resp.Body)
 }
