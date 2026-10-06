@@ -105,7 +105,7 @@ const pairs: [string, string][] = [
  ["Pause (Espace)","Pause (Space)"],["Lecture (Espace)","Play (Space)"],["Volume","Volume"],
  ["Choisir la piste audio","Select Audio Track"],["Pistes audio","Audio Tracks"],["Audio par défaut","Default Audio"],
  ["Audio","Audio"],["Choisir les sous-titres","Select Subtitles"],["Sous-titres","Subtitles"],["Désactivés","Off"],
- ["Plein écran (F)","Toggle Fullscreen (F)"],["Picture-in-Picture (P)","Picture-in-Picture (P)"],["Vitesse","Speed"],["Vitesse de lecture","Playback speed"],["Normale","Normal"],["Raccourcis : Maj + < et Maj + >","Shortcuts: Shift + < and Shift + >"],["Seeders","Seeders"],[" pairs)"," peers)"],
+ ["Plein écran (F)","Toggle Fullscreen (F)"],["Vu","Watched"],["Picture-in-Picture (P)","Picture-in-Picture (P)"],["Vitesse","Speed"],["Vitesse de lecture","Playback speed"],["Normale","Normal"],["Raccourcis : Maj + < et Maj + >","Shortcuts: Shift + < and Shift + >"],["Seeders","Seeders"],[" pairs)"," peers)"],
  ["Vitesse de téléchargement","Download Speed"],["Durée","Duration"],["Taille du fichier","File Size"],
  ["Épisode / Fichier (","Episode / File ("],["éléments) :","items):"],
  ["Forcer le remux FFmpeg (conversion audio AAC stéréo)","Force FFmpeg Remux (Stereo AAC Transcoding)"],

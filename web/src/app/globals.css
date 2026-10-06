@@ -1075,3 +1075,5 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
 .support-cta > div { flex: 1 1 380px; display: flex; flex-direction: column; gap: 14px; }
 .support-cta .design-button { gap: 10px; height: 56px; padding: 0 32px; }
 @media (max-width: 600px) { .support-card { padding: 18px; } .support-card--main, .support-goal { padding: 24px; } .support-page > * + * { margin-top: 40px; } .support-hero { gap: 32px; } .support-lead { font-size: 16px; } .support-cta .design-button { width: 100%; } }
+.episode-list .episode-card.watched { opacity: .72; }
+.episode-list .episode-seen { color: var(--design-muted); font-size: 12px; }

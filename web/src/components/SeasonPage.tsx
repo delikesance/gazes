@@ -41,7 +41,7 @@ export function SeasonPage({ franchise, season, seasonId, base, resume }: { fran
     <div className="season-body">
       <section id="episodes" className="season-episodes">
         <div className="section-heading"><h2>{t("Épisodes")}</h2><span className="heading-line" /></div>
-        <div className="episode-list">{list.map((episode) => <EpisodeCard key={episode.episode_number} seasonId={seasonId} episode={episode} current={resume?.episode === episode.episode_number} href={`${seasonURL}/episodes/${episode.episode_number}`} />)}</div>
+        <div className="episode-list">{list.map((episode) => <EpisodeCard key={episode.episode_number} seasonId={seasonId} episode={episode} current={resume?.episode === episode.episode_number} watched={!!resume && episode.episode_number < resume.episode} href={`${seasonURL}/episodes/${episode.episode_number}`} />)}</div>
         {!list.length && <p className="detail-notice">{t("La liste des épisodes n’est pas encore disponible.")}</p>}
       </section>
       <aside className="season-aside">
