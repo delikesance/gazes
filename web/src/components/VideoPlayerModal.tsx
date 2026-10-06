@@ -7,6 +7,7 @@ import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
 import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
+import { MAX_SUBTITLE_FILE_BYTES, subtitleFileToAss } from "@/lib/subtitle-file";
 import { DEFAULT_SUBTITLE_STYLE, SUBTITLE_LIFTS, SUBTITLE_SCALES, type SubtitleStyle } from "@/lib/ass-style";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
@@ -202,6 +203,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [optionsTab, setOptionsTab] = useState<PlayerOptionsTab | null>(null);
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [ambilight, setAmbilight] = useState<AmbilightSettings>(loadAmbilight);
+  // A subtitle file the viewer picked: ASS text rendered in place of the embedded tracks.
+  const [localSubtitle, setLocalSubtitle] = useState<{ name: string; ass: string } | null>(null);
+  const [subtitleFileError, setSubtitleFileError] = useState<string | null>(null);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(loadSubtitleStyle);
   const [playbackRate, setPlaybackRateState] = useState(loadRate);
   const [canPip] = useState(() => typeof document !== "undefined" && !!document.pictureInPictureEnabled);
@@ -894,8 +898,21 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     });
   }, [videoMeta, diagnostic?.season_id, episodeNumber, loadData, selectedFileIdx, episodes]);
 
+  const pickSubtitleFile = async (file: File) => {
+    setSubtitleFileError(null);
+    if (file.size > MAX_SUBTITLE_FILE_BYTES) { setSubtitleFileError(t("Fichier trop volumineux.")); return; }
+    const ass = subtitleFileToAss(file.name, await file.text().catch(() => ""));
+    if (!ass) { setSubtitleFileError(t("Fichier de sous-titres illisible (formats : .srt, .vtt, .ass).")); return; }
+    subtitleSelectionRef.current = true;
+    setLocalSubtitle({ name: file.name, ass });
+    setSelectedSubTrack(null);
+    setOptionsTab(null);
+    triggerShowControls();
+  };
+
   const handleSubtitleTrackSelect = (trackIdx: number | null) => {
     subtitleSelectionRef.current = true;
+    setLocalSubtitle(null);
     setSelectedSubTrack(trackIdx);
     setOptionsTab(null);
     triggerShowControls();
@@ -1185,7 +1202,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 <SubtitleRenderer
                   videoRef={videoRef}
                   streamKey={streamUrl}
-                  url={subtitleUrl}
+                  url={localSubtitle ? "" : subtitleUrl}
+                  localContent={localSubtitle?.ass}
                   bitmap={subtitleBitmap}
                   timeOffset={playbackOffset}
                   style={subtitleStyle}
@@ -1404,6 +1422,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     onPlaybackRateChange={setPlaybackRate}
                     subtitleStyle={subtitleStyle}
                     onSubtitleStyleChange={updateSubtitleStyle}
+                    localSubtitleName={localSubtitle?.name ?? null}
+                    onPickSubtitleFile={(file) => void pickSubtitleFile(file)}
+                    subtitleFileError={subtitleFileError}
                   />
                 )}
               </div>
