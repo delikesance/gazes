@@ -27,7 +27,7 @@ jobs:
       - name: Pull and restart the dev stack
         env:
           # Same host as production, but a separate checkout (so a pre-prod deploy never
-          # moves the production tree), the gazes-dev compose project and port 8082.
+          # moves the production tree), the gazes-dev compose project, web port 8082 and torrent port 42070 (42069 is production's).
           DEPLOY_HOST: 172.19.0.1
           DEPLOY_USER: workstation
           DEPLOY_PORT: "22"
@@ -38,4 +38,4 @@ jobs:
           ssh -i ~/.ssh/id_deploy -p "${DEPLOY_PORT:-22}" \
             -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -euo pipefail; [ -d '$DEPLOY_PATH/.git' ] || git clone \"\$(git -C '$PROD_PATH' remote get-url origin)\" '$DEPLOY_PATH'; cd '$DEPLOY_PATH'; git fetch origin dev; git checkout --detach '$DEPLOY_SHA'; GAZES_PORT=8082 make secrets dev"
+            "set -euo pipefail; [ -d '$DEPLOY_PATH/.git' ] || git clone \"\$(git -C '$PROD_PATH' remote get-url origin)\" '$DEPLOY_PATH'; cd '$DEPLOY_PATH'; git fetch origin dev; git checkout --detach '$DEPLOY_SHA'; GAZES_PORT=8082 TORRENT_PORT=42070 make secrets dev"
