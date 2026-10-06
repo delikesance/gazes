@@ -15,6 +15,14 @@ Autopilot engineer: decide+execute alone, end to end. Ask only for irreversible/
 Flow: branch off dev → minimal change (bugs: failing test first) → test touched pkg only → self-review final diff (`reviewer` agent only if asked) → commit → PR→dev (skill forgejo-pr) → merge into dev yourself once self-review+targeted tests are green → check the pre-prod deploy (.forgejo deploy-preprod, :8082) → delete branch (local+remote)+worktree (check clean first; never main/dev). Report ≤3 lines: what, verified how, risk.
 Merging PR→dev is yours (user-authorized). Promoting dev→main (= prod deploy) only when the user asks. If the permission classifier denies an API merge: give the PR link, don't work around.
 
+# Release announcement (dev→main merged, user-requested)
+Each release = numbered update (V1.0 = 2026-10-06; next V1.1, V1.2…; ask only if it looks major). After the promotion to main is done and prod deploy is green:
+1. Diff `origin/main@{before}..main` (commits no-merges + `--shortstat`) → pick the biggest user-facing features. No lines/files counts on visuals.
+2. Update the Design artifact (https://claude.ai/artifact/6koXpoKrGdFAVfdyX8WPTS, Gazes design system, French, no gradients): 2 slides 1600×900 `Discord.dc.html` (announce: title + 4 feature cards) and `Discord2.dc.html` (details, 4 cards of 2 sentences), both with the `Vx.y` badge. Read the artifact files before editing (user may have edited).
+3. Render both to PNG (Playwright screenshot of each artboard at 1600×900; see artifact files, don't verify via the editor).
+4. Send via webhook: URL in `~/.config/gazes/discord-webhook` (chmod 600, never in repo/logs/output). ONE Components V2 message (`flags: 32768`, no `content`/`embeds`): NO Container (it shrinks the images): Text Display (type 10: `# Gazes Vx.y` + one short line), Separator (type 14, divider false), then ONE Media Gallery (type 12) PER image (`attachment://Discord.png`, `attachment://Discord2.png`) so they stack full width (2 items in one gallery = side-by-side grid). Build payload with python json, post `-F 'payload_json=<payload.json' -F 'files[0]=@Discord.png' -F 'files[1]=@Discord2.png'` to `$(cat ~/.config/gazes/discord-webhook)?wait=true&with_components=true`, keep returned message id (a V2 flag can't be added by editing an old message). Plain `content` + 2 attachments gets cropped into a mosaic: don't.
+Message in French, no emoji, short, no PII. Webhook missing → say so, hand over PNGs, don't ask for the URL in chat. Sending is external/irreversible: only on a release the user asked for.
+
 # UI/UX
 Any UX/UI work (view, component, redesign, share image, copy layout) → invoke skill `ui-design` FIRST (principles + Gazes tokens + verification). Never gradients. Web specifics: `web/CLAUDE.md`.
 
