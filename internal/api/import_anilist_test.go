@@ -59,3 +59,23 @@ func TestAniListImportSeparatesMissingPrivateAndInvalidUsers(t *testing.T) {
 		}
 	}
 }
+
+func TestMALImportMapsIDsAndRejectsGarbage(t *testing.T) {
+	body := `{"data":{"Page":{"media":[{"id":7,"idMal":70,"isAdult":false,"title":{"romaji":"Seven"}}]}}}`
+	s := &Server{catalogService: metadata.NewAnimeCatalogService(&http.Client{Transport: importTransport{status: 200, body: body}})}
+	rec := httptest.NewRecorder()
+	s.HandleMALImport(rec, httptest.NewRequest("POST", "/api/v1/import/mal", strings.NewReader(`{"ids":[70,70,0]}`)))
+	var out struct {
+		Entries []struct{ ID int } `json:"entries"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil || rec.Code != 200 || len(out.Entries) != 1 || out.Entries[0].ID != 7 {
+		t.Fatalf("mal import: %d %s", rec.Code, rec.Body)
+	}
+	for _, bad := range []string{`nope`, `{"ids":"x"}`} {
+		rec := httptest.NewRecorder()
+		s.HandleMALImport(rec, httptest.NewRequest("POST", "/api/v1/import/mal", strings.NewReader(bad)))
+		if rec.Code != 400 {
+			t.Fatalf("%s: %d", bad, rec.Code)
+		}
+	}
+}

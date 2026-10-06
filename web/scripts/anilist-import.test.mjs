@@ -48,3 +48,20 @@ test("progress reports each processed title and an aborted signal stops early", 
   assert.equal(out.stopped, true);
   assert.deepEqual(out.franchiseIds, [1, 2]);
 });
+
+const { parseMalExport } = createRequire(import.meta.url)(outfile);
+
+test("a MAL export keeps watching, plan to watch and on hold titles only, each once", () => {
+  const xml = `<?xml version="1.0"?><myanimelist>
+    <anime><series_animedb_id>1</series_animedb_id><my_status>Watching</my_status></anime>
+    <anime><series_animedb_id>2</series_animedb_id><my_status>Completed</my_status></anime>
+    <anime><series_animedb_id><![CDATA[3]]></series_animedb_id><my_status><![CDATA[Plan to Watch]]></my_status></anime>
+    <anime><series_animedb_id>4</series_animedb_id><my_status>Dropped</my_status></anime>
+    <anime><series_animedb_id>5</series_animedb_id><my_status>On-Hold</my_status></anime>
+    <anime><series_animedb_id>1</series_animedb_id><my_status>Watching</my_status></anime>
+    <anime><series_animedb_id>6</series_animedb_id><my_status>6</my_status></anime>
+    <anime><series_animedb_id>x</series_animedb_id><my_status>Watching</my_status></anime>
+  </myanimelist>`;
+  assert.deepEqual(parseMalExport(xml), [1, 3, 5, 6]);
+  assert.deepEqual(parseMalExport("not xml"), []);
+});

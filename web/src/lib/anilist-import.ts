@@ -19,6 +19,32 @@ export async function fetchAniListList(user: string, signal?: AbortSignal): Prom
   throw new ImportError(res.status === 429 || res.status === 503 ? "busy" : "network");
 }
 
+/** MyAnimeList statuses worth importing into "ma liste": watching, plan to watch, on hold (text or numeric export). */
+const MAL_WANTED = new Set(["watching", "plan to watch", "on-hold", "on hold", "1", "3", "6"]);
+
+/** MyAnimeList ids of the titles to import from a MAL XML export (animelist). Plain scan: no DOM needed. */
+export function parseMalExport(xml: string): number[] {
+  const ids = new Set<number>();
+  for (const block of xml.match(/<anime>[\s\S]*?<\/anime>/g) ?? []) {
+    const id = Number(/<series_animedb_id>\s*(?:<!\[CDATA\[)?\s*(\d+)/.exec(block)?.[1]);
+    const status = /<my_status>\s*(?:<!\[CDATA\[)?\s*([^<\]]*)/.exec(block)?.[1]?.trim().toLowerCase();
+    if (Number.isInteger(id) && id > 0 && status && MAL_WANTED.has(status)) ids.add(id);
+  }
+  return [...ids];
+}
+
+/** Maps MAL ids to AniList titles through the backend (50 ids per upstream request). */
+export async function fetchMalTitles(malIds: number[], signal?: AbortSignal): Promise<AniListList> {
+  let res: Response;
+  try {
+    res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "/api/v1"}/import/mal`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: malIds }), cache: "no-store", signal });
+  } catch {
+    throw new ImportError("network");
+  }
+  if (res.ok) return res.json();
+  throw new ImportError(res.status === 429 || res.status === 503 ? "busy" : "network");
+}
+
 /** Consecutive failed lookups after which the rest is left for later: AniList is most likely throttling. */
 export const MAX_CONSECUTIVE_FAILURES = 3;
 
