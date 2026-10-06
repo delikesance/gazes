@@ -103,6 +103,12 @@ button:disabled { cursor: default; opacity: .35; }
 .poster-cell { position: relative; }
 /* No hover on touch screens: a visible play button starts episode 1 straight from the poster. */
 .poster-quickplay { display: none; }
+/* Pointer devices: play and "ma liste" appear on the poster when it is hovered or focused. */
+.poster-cell .poster-quick-list { top: 8px; right: 8px; opacity: 0; transition: opacity .2s; }
+.poster-cell:has(.poster-hide) .poster-quick-list { right: 52px; }
+.poster-cell:hover .poster-quick-list, .poster-cell:focus-within .poster-quick-list { opacity: 1; }
+@media (hover: hover) { .poster-quickplay { position: absolute; z-index: 3; top: 8px; left: 8px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--clay-bg); color: var(--clay-fg); opacity: 0; transition: opacity .2s; } .poster-cell:hover .poster-quickplay, .poster-cell:focus-within .poster-quickplay { opacity: 1; } }
+@media (hover: none) { .poster-cell .poster-quick-list { opacity: 1; } }
 @media (hover: none) { .poster-quickplay { position: absolute; z-index: 3; top: 8px; left: 8px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--clay-bg); color: var(--clay-fg); } }
 .poster-hide { position: absolute; top: 8px; right: 8px; z-index: 3; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(0,0,0,.72); color: #fafafa; cursor: pointer; opacity: 0; transition: opacity .15s, background .15s; }
 .poster-cell:hover .poster-hide, .poster-hide:focus-visible { opacity: 1; }
@@ -959,3 +965,33 @@ body:has(.watch-page) > .catalog-header, body:has(.watch-page) > .site-footer { 
   .featured-dots button { width: 28px; height: 40px; }
   .field-pill input[type="checkbox"] { width: 20px; height: 20px; }
 }
+
+/* Header navigation (tablet and up) and one-click resume (wide screens). */
+.header-nav { display: none; }
+.header-resume { display: none; }
+@media (min-width: 768px) {
+  .header-nav { display: flex; align-items: center; gap: 2px; flex-shrink: 0; height: 36px; padding: 2px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
+  .header-nav a { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 999px; color: var(--design-muted); font-size: 13px; font-weight: 500; transition: background .15s, color .15s; }
+  .header-nav a:hover { color: var(--foreground); background: var(--surface-hover); }
+  .header-nav a[aria-current="page"] { background: var(--clay-bg); color: var(--clay-fg); font-weight: 600; }
+  .header-nav a:focus-visible { outline: 2px solid #fafafa; outline-offset: 2px; }
+  .catalog-header.search-open .header-nav { display: none; }
+}
+@media (min-width: 768px) and (max-width: 1099px) { .header-nav a { padding: 0 10px; } }
+@media (min-width: 1100px) {
+  .header-resume { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 280px; min-width: 0; height: 36px; padding: 0 14px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); color: var(--foreground); font-size: 13px; font-weight: 600; }
+  .header-resume:hover { background: var(--surface-hover); }
+  .header-resume-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-resume-ep { flex-shrink: 0; font-family: var(--font-mono, "Geist Mono", monospace); font-size: 11px; font-weight: 400; color: var(--design-muted); }
+  .catalog-header.search-open .header-resume { display: none; }
+}
+
+/* Keyboard shortcuts help (press ?) */
+.shortcuts-backdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, .64); }
+.shortcuts-card { width: min(420px, 100%); padding: 28px; border-radius: var(--radius-modal, 28px); background: var(--surface-card); box-shadow: inset 0 0 0 1px var(--border), 0 30px 80px rgba(0, 0, 0, .6); }
+.shortcuts-card h2 { margin: 0 0 18px; font-size: 28px; font-weight: 400; letter-spacing: -.02em; }
+.shortcuts-card dl { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.shortcuts-card dl > div { display: flex; align-items: center; justify-content: space-between; min-height: 40px; font-size: 14px; }
+.shortcuts-card dt { display: flex; gap: 6px; }
+.shortcuts-card dd { margin: 0; color: var(--design-muted); }
+.shortcuts-card kbd { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 8px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); font-family: var(--font-mono, "Geist Mono", monospace); font-size: 12px; }

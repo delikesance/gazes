@@ -4,44 +4,24 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Compass, Library, Play, Search, Sparkles, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { listProgress, resumeTarget, type SavedProgress } from "@/lib/watch-progress";
-import { cachedSeasonInfo, loadSeasonInfo } from "@/lib/season-info";
+import { useResume } from "@/lib/use-resume";
 
 /** Phone shortcut to the latest unfinished episode, shown above the bar on every page but the player. */
 function ResumeChip({ hidden }: { hidden: boolean }) {
   const { t } = useI18n();
-  const [item, setItem] = useState<SavedProgress | null>(null);
+  const resume = useResume();
   const [dismissed, setDismissed] = useState<string | null>(null);
-  const [, bump] = useState(0);
-
-  useEffect(() => {
-    const refresh = () => setItem(listProgress()[0] ?? null);
-    refresh();
-    window.addEventListener("gazes-progress-change", refresh);
-    window.addEventListener("storage", refresh);
-    return () => { window.removeEventListener("gazes-progress-change", refresh); window.removeEventListener("storage", refresh); };
-  }, []);
-  useEffect(() => {
-    if (!item || cachedSeasonInfo(item.season)) return;
-    const controller = new AbortController();
-    loadSeasonInfo(item.animeId, item.season, controller.signal).then(() => bump((n) => n + 1)).catch(() => {});
-    return () => controller.abort();
-  }, [item]);
-
-  if (!item) return null;
-  const target = resumeTarget(item, cachedSeasonInfo(item.season)?.total);
-  const key = `${item.season}:${target.episode}`;
-  let gone = dismissed === key;
-  try { gone = gone || sessionStorage.getItem("gazes-resume-dismissed") === key; } catch {}
+  if (!resume) return null;
+  let gone = dismissed === resume.key;
+  try { gone = gone || sessionStorage.getItem("gazes-resume-dismissed") === resume.key; } catch {}
   if (gone) return null;
-  const title = item.title || cachedSeasonInfo(item.season)?.title || t("Anime");
   return <div className="resume-chip" data-hidden={hidden}>
-    <Link href={`/anime/${item.animeId || item.season}/seasons/${item.season}/episodes/${target.episode}`}>
+    <Link href={resume.href}>
       <Play size={14} fill="currentColor" aria-hidden="true" />
-      <span className="resume-chip-title">{t(target.next ? "Épisode suivant" : "Reprendre")} · {title}</span>
-      <span className="resume-chip-ep">{t("Épisode")} {target.episode}</span>
+      <span className="resume-chip-title">{t(resume.next ? "Épisode suivant" : "Reprendre")} · {resume.title}</span>
+      <span className="resume-chip-ep">{t("Épisode")} {resume.episode}</span>
     </Link>
-    <button type="button" aria-label={t("Masquer")} onClick={() => { setDismissed(key); try { sessionStorage.setItem("gazes-resume-dismissed", key); } catch {} }}><X size={16} aria-hidden="true" /></button>
+    <button type="button" aria-label={t("Masquer")} onClick={() => { setDismissed(resume.key); try { sessionStorage.setItem("gazes-resume-dismissed", resume.key); } catch {} }}><X size={16} aria-hidden="true" /></button>
   </div>;
 }
 

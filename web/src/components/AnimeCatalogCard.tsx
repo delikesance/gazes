@@ -5,6 +5,7 @@ import { LazyImage } from "./ui/LazyImage";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Play, X } from "lucide-react";
+import { WatchlistQuick } from "./WatchlistQuick";
 
 interface Props {
   anime: AnimeCatalogItem;
@@ -36,11 +37,11 @@ export function AnimeCatalogCard({ anime, onSelect, onHide, seasonal = false }: 
       <div>{upcoming ? <p className="premiere-date">{premiere ? <>{t("Épisode 1 ·")}{" "}<time dateTime={anime.start_date}>{premiere}</time></> : releaseMonth ? t("Prévu en {date}", {date:releaseMonth}) : year > 0 ? t("Prévu en {date}", {date:year}) : t("Épisode 1 · Date à confirmer")}</p> : <p className="availability-meta">{anime.available_episodes !== undefined ? t(anime.available_episodes === 1 ? "{count} épisode disponible" : "{count} épisodes disponibles", {count:anime.available_episodes}) : t("Disponibilité à confirmer")}</p>}<h3>{title}</h3></div>
     </div>
   </Link>;
-  if (!onHide && upcoming) return card;
   const play = `/anime/${anime.id}/seasons/${anime.media_id || anime.id}/episodes/1`;
   return <div className="poster-cell">
     {card}
     {!upcoming && <Link href={play} className="poster-quickplay" aria-label={t("Lire l’épisode 1 de {title}", { title })} onPointerDown={() => router.prefetch(play)}><Play size={16} fill="currentColor" aria-hidden="true" /></Link>}
+    <WatchlistQuick animeId={anime.id} title={title} className="poster-quick-list" />
     {onHide && <button type="button" className="poster-hide" onClick={() => onHide(anime)} aria-label={t("Pas intéressé par {title}", { title })} title={t("Pas intéressé")}><X size={16} aria-hidden="true" /></button>}
   </div>;
 }

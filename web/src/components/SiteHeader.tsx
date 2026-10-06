@@ -8,6 +8,7 @@ import { ArrowRight, Clock, Minus, Plus, Search, SlidersHorizontal, X } from "lu
 import { GENRES, parseList } from "@/lib/genres";
 import { ThemeToggle } from "./ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
+import { HeaderNav, HeaderResume } from "./HeaderNav";
 import { useBackToClose } from "@/lib/layer-history";
 
 const RECENT_KEY="gazes-recent-searches";
@@ -102,8 +103,10 @@ function Header({ query = "", initialGenre = "", initialExclude = "", onSubmit, 
   });
   return <header className={`catalog-toolbar catalog-header page-inset${searchVisible?" search-open":""}`} aria-label={t("Navigation principale")}>
     <Link href="/" className="site-wordmark" aria-label={t("Gazes, accueil")}>gazes<span>.</span></Link>
+    <HeaderNav />
     <div ref={breadcrumbSlot} id="header-breadcrumb" className="header-breadcrumb-slot" />
     <div className="header-actions">
+      <HeaderResume />
       <button ref={searchButton} type="button" className="header-search-toggle" aria-label={t("Rechercher")} aria-expanded={searchVisible} aria-controls="header-search-form" onClick={()=>setSearchOpen(true)}><Search size={18} aria-hidden="true" /></button>
       {searchVisible&&<form ref={formRef} id="header-search-form" action="/" method="get" onSubmit={event=>{const text=inputRef.current?.value.trim();if(text)saveRecentSearch(text);if(liveTimer.current)clearTimeout(liveTimer.current);onSubmit?.(event);if(onSubmit)resetSearch();}} className="catalog-search" role="search" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();if(filterOpen){setFilterOpen(false);filterButton.current?.focus();}else closeSearch();}}} onBlur={event=>{if(event.relatedTarget&&!event.currentTarget.contains(event.relatedTarget as Node))resetSearch();}}>
         <Search size={18} aria-hidden="true" />

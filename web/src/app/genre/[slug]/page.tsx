@@ -48,7 +48,7 @@ export default async function GenrePage({ params, searchParams }: Props) {
   return (
     <main className="catalog-page genre-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
-      <MobileBack fallback="/" label="Catalogue" />
+      <MobileBack fallback="/" label="Catalogue" results={`Genre ${genreLabel(genre)}`} />
       <GenreHeader genre={genre} />
       <SeasonalGrid count={items.length} evenRows={false}>
         {items.map((anime) => <AnimeCatalogCard key={anime.id} anime={anime} />)}
