@@ -43,6 +43,7 @@ type Franchise struct {
 	ID          int           `json:"id"`
 	Title       string        `json:"title"`
 	PosterImage string        `json:"poster_image,omitempty"`
+	BannerImage string        `json:"banner_image,omitempty"`
 	Description string        `json:"description,omitempty"`
 	Seasons     []AnimeSeason `json:"seasons"`
 	Complete    bool          `json:"complete"`
@@ -232,7 +233,7 @@ func (s *AnimeCatalogService) buildFranchise(ctx context.Context, id int) (*Fran
 			offset = -1
 		}
 	}
-	f := &Franchise{ID: canonical.ID, Title: canonical.DisplayTitle, PosterImage: canonical.PosterImage, Description: canonical.Description, Seasons: seasons, Complete: complete}
+	f := &Franchise{ID: canonical.ID, Title: canonical.DisplayTitle, PosterImage: canonical.PosterImage, BannerImage: canonical.BannerImage, Description: canonical.Description, Seasons: seasons, Complete: complete}
 	if !complete {
 		f.Warning = "Certaines saisons n’ont pas pu être chargées. Réessayez."
 	}

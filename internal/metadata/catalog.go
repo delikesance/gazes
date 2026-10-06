@@ -141,7 +141,7 @@ func (s *AnimeCatalogService) SetRedis(c *kv.Client) {
 func (s *AnimeCatalogService) initCaches(c *kv.Client) {
 	s.catalogC = kv.NewCache[CatalogResponse](c, "catalog", kv.CacheOptions{L1Max: 256})
 	s.detailC = kv.NewCache[AnimeCatalogItem](c, "detail:v2", kv.CacheOptions{L1Max: 512})
-	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v2", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
+	s.franchiseC = kv.NewCache[Franchise](c, "franchise:v3", kv.CacheOptions{L1Max: 512, FetchTimeout: 45 * time.Second})
 	s.scheduleC = kv.NewCache[ScheduleResponse](c, "schedule", kv.CacheOptions{L1Max: 64})
 	s.aniskipC = kv.NewCache[[]SkipSegment](c, "aniskip", kv.CacheOptions{L1Max: 512})
 }
