@@ -22,7 +22,7 @@ PlayResX: 1280
 PlayResY: 720
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Liberation Sans,52,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,20,20,30,1
+Style: Default,Trebuchet MS,52,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,-1,0,0,100,100,0,0,1,2,0,2,20,20,30,1
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:00.00,0:01:00.00,Default,,0,0,0,,Sous-titres toujours visibles
@@ -48,6 +48,7 @@ let browser;
 try {
  browser = process.env.PLAYWRIGHT_BROWSER === 'chromium' ? await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||'/nix/store/smy016lwammg4q19qxcadh5svm7c8f9k-chromium-148.0.7778.215/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']}) : await firefox.launch({ headless: true, ...(process.env.FIREFOX_PATH ? { executablePath: process.env.FIREFOX_PATH } : {}) });
  const page = await browser.newPage({ locale:'fr-FR', viewport: { width: 1280, height: 900 } });
+ let defaultFontRequested=false; page.on('request',request=>{ if(request.url().endsWith('/subtitles/default.woff2')) defaultFontRequested=true; });
  const errors=[]; page.on('pageerror', error=>errors.push(String(error)));
  const capabilities = await page.evaluate(()=>['hvc1.1.6.L93.B0','hvc1.2.4.L123.B0'].map(codec=>document.createElement('video').canPlayType(`video/mp4; codecs="${codec}"`)));
  console.log('Native HEVC 8/10-bit:', capabilities);
@@ -81,6 +82,7 @@ try {
   if(attempt===29) throw new Error('JASSUB did not render caption pixels');
   await page.waitForTimeout(250);
  }
+ assert.ok(defaultFontRequested,'fallback font must be loaded up front: JASSUB only fetches it lazily and skips italic lookups, so a track of italic cues stayed blank');
  await page.locator('[data-player-stage]').hover();
  await page.mouse.move(0,0);
  await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-player-controls]')).visibility==='hidden');
