@@ -1,0 +1,41 @@
+name: Deploy to pre-production
+
+on:
+  push:
+    branches: [dev]
+
+# One deploy at a time; a newer push waits instead of cancelling a running deploy.
+concurrency:
+  group: deploy-preprod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Pull and restart the dev stack
+        env:
+          # Same host as production, but a separate checkout (so a pre-prod deploy never
+          # moves the production tree), the gazes-dev compose project and port 8082.
+          DEPLOY_HOST: 172.19.0.1
+          DEPLOY_USER: workstation
+          DEPLOY_PORT: "22"
+          DEPLOY_PATH: /home/workstation/Projects/gazes-preprod
+          PROD_PATH: /home/workstation/Projects/gazes
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "${DEPLOY_PORT:-22}" \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -euo pipefail; [ -d '$DEPLOY_PATH/.git' ] || git clone \"\$(git -C '$PROD_PATH' remote get-url origin)\" '$DEPLOY_PATH'; cd '$DEPLOY_PATH'; git fetch origin dev; git checkout --detach '$DEPLOY_SHA'; GAZES_PORT=8082 make secrets dev"
