@@ -127,7 +127,7 @@ func NewServer(
 		streamPipeline:  pipeline,
 		analyzer:        metadata.NewFFprobeAnalyzer(logger),
 		animeService:    metadata.NewAnimeService(nil),
-		images:          imagecache.New(imagecache.Options{Dir: filepath.Join(cfg.CatalogDir, "images"), Hosts: []string{"s4.anilist.co"}}),
+		images:          imagecache.New(imagecache.Options{Dir: filepath.Join(cfg.CatalogDir, "images"), Hosts: []string{"s4.anilist.co"}, Logger: logger}),
 		catalogService:  metadata.NewAnimeCatalogService(nil),
 		party:           newPartyHub(),
 		episodeResolver: episodeResolver,
