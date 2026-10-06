@@ -32,6 +32,7 @@ type Server struct {
 	analyzer        metadata.Analyzer
 	animeService    *metadata.AnimeService
 	catalogService  *metadata.AnimeCatalogService
+	party           *partyHub
 	episodeResolver indexer.EpisodeSourceResolver
 	router          chi.Router
 	diagnosticRate  rateLimiter
@@ -120,6 +121,7 @@ func NewServer(
 		analyzer:        metadata.NewFFprobeAnalyzer(logger),
 		animeService:    metadata.NewAnimeService(nil),
 		catalogService:  metadata.NewAnimeCatalogService(nil),
+		party:           newPartyHub(),
 		episodeResolver: episodeResolver,
 	}
 
@@ -172,6 +174,8 @@ func (s *Server) setupRoutes() {
 		api.Get("/diagnostics/cache", s.HandleCacheDiagnostics)
 		api.With(s.rateLimit("search", 60, time.Minute)).Get("/search", s.HandleSearch)
 		api.Get("/latest", s.HandleLatest)
+		api.Get("/party/{room}/events", s.party.handleEvents)
+		api.With(s.rateLimit("party", 240, time.Minute)).Post("/party/{room}/events", s.party.handlePost)
 
 		if s.auth != nil {
 			api.Get("/auth/kem", s.auth.Kem)
