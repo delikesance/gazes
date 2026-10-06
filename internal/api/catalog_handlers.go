@@ -20,6 +20,10 @@ import (
 )
 
 // HandleCatalogTrending handles fetching trending anime from AniList.
+// catalogCacheControl lets browsers and the Next.js server reuse a catalog answer for five minutes
+// and show it instantly for a day while a fresh copy loads: the data behind it is kept for good.
+const catalogCacheControl = "public, max-age=300, stale-while-revalidate=86400"
+
 func (s *Server) HandleCatalogTrending(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	perPageStr := r.URL.Query().Get("per_page")
@@ -45,6 +49,7 @@ func (s *Server) HandleCatalogTrending(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(res)
 }
@@ -75,6 +80,7 @@ func (s *Server) HandleCatalogPopular(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(res)
 }
@@ -207,6 +213,7 @@ func (s *Server) HandleCatalogSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(res)
 }
@@ -228,6 +235,7 @@ func (s *Server) HandleCatalogAnimeDetail(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(item.InSeason(0))
 }
@@ -254,6 +262,7 @@ func (s *Server) HandleFranchise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	_ = json.NewEncoder(w).Encode(f)
 }
 
@@ -294,6 +303,7 @@ func (s *Server) HandleSeason(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	_ = json.NewEncoder(w).Encode(item)
 }
 
@@ -416,6 +426,7 @@ func (s *Server) HandleCatalogSeasonal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	_ = json.NewEncoder(w).Encode(result)
 }
 
@@ -441,7 +452,7 @@ func (s *Server) HandleCatalogSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.Header().Set("Cache-Control", catalogCacheControl)
 	_ = json.NewEncoder(w).Encode(res)
 }
 
