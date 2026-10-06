@@ -23,11 +23,8 @@
   .season-grid .season-card { flex: 0 0 132px; scroll-snap-align: start; }
 
   /* Series page: small poster beside the title, synopsis folded until asked for. */
-  .series-page { position: relative; isolation: isolate; }
-  /* The banner sits behind the intro, faded out toward the bottom like the home hero. */
-  .series-banner { display: block; position: absolute; z-index: -1; top: -110px; left: calc(var(--page-gutter) * -1); right: calc(var(--page-gutter) * -1); height: 520px; opacity: .6; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); }
-  .series-banner .series-banner-art { width: 100%; height: 100%; }
-  .series-banner .series-banner-art img { object-fit: cover; object-position: center top; }
+  /* The banner is shown a bit stronger on a phone and may fall back to the poster. */
+  .series-banner, .series-banner[data-fallback="true"] { display: block; top: -110px; left: calc(var(--page-gutter) * -1); right: calc(var(--page-gutter) * -1); width: auto; height: 520px; transform: none; opacity: .6; -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent); }
   .series-intro { gap: 20px; }
   .series-poster { flex-basis: 120px; width: 120px; }
   .series-copy { gap: 14px; padding-top: 0; }
