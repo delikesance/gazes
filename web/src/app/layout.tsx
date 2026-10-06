@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import { LocaleDocument } from "@/components/LocaleDocument";
 import { SiteFooter } from "@/components/SiteFooter";
+import { MobileNav } from "@/components/MobileNav";
 import { SiteChrome } from "@/components/SiteChrome";
 import { AuthProvider } from "@/components/AuthProvider";
 import type { Metadata } from "next";
@@ -55,7 +56,7 @@ export default function RootLayout({
           <SiteChrome><Suspense fallback={<SiteHeaderFallback />}><SiteHeader /></Suspense></SiteChrome>
           <div className="site-content">{children}</div>
         </AuthProvider>
-        <SiteChrome><SiteFooter /></SiteChrome>
+        <SiteChrome><SiteFooter /><Suspense fallback={null}><MobileNav /></Suspense></SiteChrome>
       </body>
     </html>
   );
