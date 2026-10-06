@@ -80,6 +80,12 @@ export async function revokeSession(id: string): Promise<void> {
   await request(`/me/sessions/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
 }
 
+/** Creates (or replaces) the secret calendar subscription URL; the old one stops working. */
+export async function createCalendarFeedUrl(): Promise<string> {
+  const { token } = await request<{ token: string }>("/me/calendar-feed", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  return new URL(`${base()}/calendar/${token}.ics`, window.location.origin).href;
+}
+
 export async function exportAccount(): Promise<unknown> {
   return request<unknown>("/me/export");
 }
