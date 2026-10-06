@@ -8,7 +8,7 @@ export interface AccountUser { id: number; pseudo: string; email?: string; role?
 export type AuthErrorCode =
   | "invalid_request" | "invalid_email" | "invalid_pseudo" | "invalid_password"
   | "invalid_credentials" | "email_taken" | "not_found" | "captcha_failed" | "rate_limited"
-  | "forbidden" | "unauthorized" | "server_error" | "network";
+  | "invalid_code" | "forbidden" | "unauthorized" | "server_error" | "network";
 
 export class AuthError extends Error {
   constructor(public code: AuthErrorCode) { super(code); }
@@ -38,13 +38,27 @@ export async function solveFreshCaptcha(signal?: AbortSignal): Promise<string> {
   return solveCaptcha(await fetchChallenge(), signal);
 }
 
-async function sealed<T>(route: "login" | "register" | "delete-account", payload: Record<string, string>): Promise<T> {
+async function sealed<T>(route: "login" | "register" | "delete-account" | "recover" | "recovery-codes", payload: Record<string, string>): Promise<T> {
   const info = await request<KemInfo>("/auth/kem");
   return request<T>(`/auth/${route}`, json(sealEnvelope(info, route, payload)));
 }
 
-export async function register(input: { email: string; password: string; pseudo: string; captcha: string }): Promise<AccountUser> {
-  return (await sealed<{ user: AccountUser }>("register", input)).user;
+/** Shown once, right after sign-up: the codes are never readable again. */
+export type RegisteredUser = AccountUser & { recoveryCodes?: string[] };
+
+export async function register(input: { email: string; password: string; pseudo: string; captcha: string }): Promise<RegisteredUser> {
+  const res = await sealed<{ user: AccountUser; recovery_codes?: string[] }>("register", input);
+  return { ...res.user, recoveryCodes: res.recovery_codes };
+}
+
+/** Sets a new password from an unused recovery code; signs the browser in on success. */
+export async function recoverAccount(input: { email: string; code: string; password: string; captcha: string }): Promise<AccountUser> {
+  return (await sealed<{ user: AccountUser }>("recover", input)).user;
+}
+
+/** Replaces every recovery code (the old ones stop working) and returns the new ones. */
+export async function newRecoveryCodes(password: string): Promise<string[]> {
+  return (await sealed<{ recovery_codes: string[] }>("recovery-codes", { password })).recovery_codes;
 }
 
 export async function login(input: { email: string; password: string; captcha: string }): Promise<AccountUser> {
