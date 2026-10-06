@@ -60,3 +60,27 @@ func TestAdminTokenHashUnique(t *testing.T) {
 		t.Fatal("duplicate token_hash accepted")
 	}
 }
+
+func TestOpenAddsPlaybackStartupsToADatabaseThatMissedIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "admin.sqlite")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// What an install from before the table joined the baseline looks like: versioned, table absent.
+	if _, err := s.db.Exec(`DROP TABLE playback_startups`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`PRAGMA user_version = 6`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.db.Exec(`INSERT INTO playback_startups(ts, ms) VALUES(1, 2)`); err != nil {
+		t.Fatalf("the table must exist after the upgrade: %v", err)
+	}
+}
