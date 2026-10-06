@@ -242,7 +242,7 @@ export interface SwarmStats {
   active_seeders: number;
 }
 
-export interface Franchise { id: number; title: string; description?: string; poster_image?: string; seasons: AnimeSeason[]; complete: boolean; warning?: string; }
+export interface Franchise { id: number; title: string; description?: string; poster_image?: string; banner_image?: string; seasons: AnimeSeason[]; complete: boolean; warning?: string; }
 
 export interface ScheduleEntry {
   airing_at: number;

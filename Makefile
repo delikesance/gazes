@@ -11,7 +11,7 @@ GO_TAGS ?= nosqlite
 
 .PHONY: help deps build build-backend build-web dev-backend dev-web start-web \
 	test test-backend test-race test-web lint lint-backend lint-web typecheck check \
-	secrets redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-check dev-test dev-build library-install-host library-label-disk
+	secrets redis-secret redis-up redis-down up up-admin down logs ps dev dev-down dev-logs dev-ps dev-restart dev-reload-backend dev-check dev-test dev-build library-install-host library-label-disk
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -100,6 +100,10 @@ ps: ## Show Docker service status
 
 dev: redis-up ## Build and start the Docker development environment on port 8080
 	$(DEV_COMPOSE) up -d --build --wait --wait-timeout $(DEV_WAIT_TIMEOUT)
+
+dev-reload-backend: ## Recompile and restart the dev backend (it builds from the mounted source at start, so `dev` alone leaves the old binary running)
+	$(DEV_COMPOSE) restart backend
+	$(DEV_COMPOSE) up -d --wait --wait-timeout $(DEV_WAIT_TIMEOUT) backend
 
 dev-down: ## Stop development containers and preserve dependency/data volumes
 	$(DEV_COMPOSE) down

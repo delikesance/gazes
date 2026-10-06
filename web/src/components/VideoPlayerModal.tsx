@@ -1099,7 +1099,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   </div>
                 )}
                 </div>
-                {needsPlaybackGesture&&<div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"><button className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900/90 px-6 py-4 text-white border border-zinc-700" onClick={togglePlay}><Play size={22} />{t("Lecture")}</button></div>}
+                {needsPlaybackGesture&&<div className="absolute inset-0 z-20 flex items-end justify-center pb-44 pointer-events-none sm:items-center sm:pb-0"><button className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900/90 px-6 py-4 text-white border border-zinc-700" onClick={togglePlay}><Play size={22} />{t("Lecture")}</button></div>}
                 {playbackError && (
                   <div role="alert" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/90 p-6 text-center">
                     <p className="text-sm text-zinc-200">{t(playbackError)}</p>
@@ -1109,7 +1109,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 )}
 
                 {/* First-byte wait: the stream can take several seconds to start, never leave a bare black frame */}
-                {!started && !error && (
+                {!started && !error && !needsPlaybackGesture && (
                   <PlayerStartup stage="stream" overlay image={fallbackThumbnail} title={animeTitle} episode={episodeNumber} />
                 )}
 
@@ -1176,7 +1176,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     </div>
 
                     {/* Controls Row */}
-                    <div className="flex items-center justify-between gap-3 text-xs">
+                    <div className="player-controls-row flex items-center justify-between gap-3 text-xs">
                       <div className="flex items-center gap-2">
                         <button onClick={togglePlay} className="player-pill player-pill--icon player-pill--solid" aria-label={isPlaying ? t("Pause (Space)") : t("Play (Space)")} title={isPlaying ? t("Pause (Space)") : t("Play (Space)")}>
                           {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}

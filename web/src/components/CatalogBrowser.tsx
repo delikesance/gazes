@@ -7,6 +7,7 @@ import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AnimeCatalogCard } from "./AnimeCatalogCard";
@@ -30,7 +31,7 @@ interface CatalogBrowserProps {
 }
 
 /** Anime ids the viewer watched, most recent first: the seeds of the suggestions feed. */
-function watchedSeeds(): number[] {
+export function watchedSeeds(): number[] {
   const ids = watchedAnimeIds(5);
   for (const item of listProgress()) {
     const id = item.animeId || item.season;
@@ -40,7 +41,7 @@ function watchedSeeds(): number[] {
 }
 
 /** The 300 most recent local sessions, trimmed to what the taste profile uses. */
-function recentSessions() {
+export function recentSessions() {
   return listWatchSessions().slice(-300).map(({ anime_id, season_id, genres, watched_seconds, duration, completed, updated_at }) =>
     ({ anime_id, season_id, genres, watched_seconds, duration, completed, updated_at }));
 }
@@ -84,10 +85,10 @@ export function CatalogBrowser({
     }
   }, [initialQuery, initialGenre, initialTab, initialPage]);
 
-  function update(values: Record<string, string>, scroll = true) {
+  function update(values: Record<string, string>, scroll = true, replace = false) {
     const current = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
     Object.entries(values).forEach(([k, v]) => v ? current.set(k, v) : current.delete(k));
-    router.push(`/?${current.toString()}`, { scroll });
+    (replace ? router.replace : router.push)(`/?${current.toString()}`, { scroll });
   }
 
   useEffect(() => {
@@ -143,14 +144,14 @@ export function CatalogBrowser({
   return <main className={`catalog-page ${discovery && !error && (featured.length || heroLoading) ? "has-feature" : ""}`}>
     {featured.length > 0 && <FeaturedAnimeCarousel items={featured} />}
     {heroLoading && !error && <div className="hero-skeleton" role="status" aria-label={t("Chargement du catalogue")}><div /><div /></div>}
+    {discovery && !error && !heroLoading && <div className="shelves"><ContinueWatching /><WatchlistShelf /></div>}
     {discovery && !error && <section className="season-discovery" aria-label={t("Catalogue")}>
       <div className="catalog-tabs-row page-inset">
         <div className="catalog-tabs" role="group" aria-label={t("Catalogue")}>
-          <button type="button" aria-pressed={!isSuggestions} onClick={() => update({ tab: "", page: "1" }, false)}>{t("Calendrier")}</button>
-          <button type="button" aria-pressed={isSuggestions} onClick={() => update({ tab: "suggestions", page: "1" }, false)}>{t("Suggestions")}</button>
+          <button type="button" aria-pressed={!isSuggestions} onClick={() => update({ tab: "", page: "1" }, false, true)}>{t("Calendrier")}</button>
+          <Link href="/for-you">{t("Suggestions")}</Link>
         </div>
       </div>
-      {!isSuggestions && <><ContinueWatching /><WatchlistShelf /></>}
       {isSuggestions ? (data && data.items && data.items.length > 0 && <>
         <div className="section-heading"><div className="section-title"><span className="eyebrow">{t("Suggestions")}</span><h2 id="season-heading" className="serif">{t("Pour vous")}</h2></div></div>
         <SeasonalGrid count={data.items.length} evenRows={false}>{cards}</SeasonalGrid>

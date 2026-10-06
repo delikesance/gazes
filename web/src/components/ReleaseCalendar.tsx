@@ -2,17 +2,35 @@
 import { ErrorAlert } from "./ErrorAlert";
 import { errorCode } from "@/lib/error-code";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Check, ChevronLeft, ChevronRight, CalendarX } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getSchedule } from "@/lib/api";
 import { addDays, airingStates, apiBounds, dayKey, daysIn, groupByDay, isSameDay, monthGridRange, startOfDay, weekRange, type AiringState } from "@/lib/calendar";
 import type { ScheduleEntry } from "@/types/api";
 import { LazyImage } from "./ui/LazyImage";
+import { WatchlistQuick } from "./WatchlistQuick";
 
 type View = "week" | "month" | "list";
 
 interface Loaded { key: string; entries: ScheduleEntry[]; partial: boolean; error: string | null }
+
+function subscribeUrl(notify: () => void) {
+  window.addEventListener("popstate", notify);
+  window.addEventListener("gazes-url", notify);
+  return () => { window.removeEventListener("popstate", notify); window.removeEventListener("gazes-url", notify); };
+}
+function setUrl(patch: Record<string, string | null>) {
+  const next = new URLSearchParams(window.location.search);
+  for (const [key, value] of Object.entries(patch)) { if (value) next.set(key, value); else next.delete(key); }
+  const query = next.toString();
+  window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+  window.dispatchEvent(new Event("gazes-url"));
+}
+function parseDay(value: string | null): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getTime() : null;
+}
 
 const VIEWS: [View, string][] = [["week", "Semaine"], ["month", "Mois"], ["list", "Liste"]];
 
@@ -23,9 +41,18 @@ function entryHref(entry: ScheduleEntry, state: AiringState): string {
 /** Release calendar: week columns, month grid with a day panel, or a plain list. */
 export function ReleaseCalendar() {
   const { t, locale } = useI18n();
-  const [view, setView] = useState<View>("week");
-  const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
-  const [selected, setSelected] = useState(() => startOfDay(new Date()));
+  // View, week and selected day live in the URL (replaced, not pushed), so a back step or a reload keeps them.
+  const search = useSyncExternalStore(subscribeUrl, () => window.location.search, () => "");
+  const params = new URLSearchParams(search);
+  const view: View = VIEWS.find(([id]) => id === params.get("cal"))?.[0] ?? "week";
+  const todayTime = startOfDay(new Date()).getTime();
+  const anchorTime = parseDay(params.get("d")) ?? todayTime;
+  const selectedTime = parseDay(params.get("s")) ?? anchorTime;
+  const anchor = useMemo(() => new Date(anchorTime), [anchorTime]);
+  const selected = useMemo(() => new Date(selectedTime), [selectedTime]);
+  const setView = (next: View) => setUrl({ cal: next === "week" ? null : next });
+  const setSelected = (day: Date) => setUrl({ s: dayKey(day) === dayKey(anchor) ? null : dayKey(day) });
+  const setPeriod = (nextAnchor: Date, nextSelected: Date) => setUrl({ d: nextAnchor.getTime() === todayTime ? null : dayKey(nextAnchor), s: nextSelected.getTime() === nextAnchor.getTime() ? null : dayKey(nextSelected) });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [retry, setRetry] = useState(0);
 
@@ -42,7 +69,7 @@ export function ReleaseCalendar() {
       (error) => { if (error?.name !== "AbortError") setLoaded({ key, entries: [], partial: false, error: errorCode(error, "CAL") }); },
     );
     return () => controller.abort();
-  }, [key, range]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, range]);
 
   const loading = loaded?.key !== key;
   const entries = useMemo(() => (loaded?.key === key ? loaded.entries : []), [loaded, key]);
@@ -62,10 +89,9 @@ export function ReleaseCalendar() {
 
   const step = (direction: number) => {
     const next = view === "month" ? new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1) : addDays(anchor, 7 * direction);
-    setAnchor(next);
-    setSelected(view === "month" ? next : weekRange(next).start);
+    setPeriod(next, view === "month" ? next : weekRange(next).start);
   };
-  const goToday = () => { setAnchor(today); setSelected(today); };
+  const goToday = () => setPeriod(today, today);
 
   const entriesOf = (day: Date) => byDay.get(dayKey(day)) || [];
 
@@ -73,6 +99,7 @@ export function ReleaseCalendar() {
     const state = states.get(entry) || "upcoming";
     const hour = new Date(entry.airing_at * 1000).getHours();
     return (
+      <div key={`${entry.media_id}-${entry.episode}`} className="cal-item">
       <Link key={`${entry.media_id}-${entry.episode}`} href={entryHref(entry, state)} className="cal-card" data-state={state}>
         <span className="cal-thumb">
           <LazyImage src={entry.poster_image} alt="" aspectRatio="" className="cal-thumb-art" />
@@ -84,6 +111,8 @@ export function ReleaseCalendar() {
         <span className="cal-title">{entry.title}</span>
         {(entry.studio || entry.genres?.[0]) && <span className="cal-meta">{[entry.studio, entry.genres?.[0]].filter(Boolean).join(" · ")}</span>}
       </Link>
+      <WatchlistQuick animeId={entry.media_id} title={entry.title} className="cal-quick-card" />
+      </div>
     );
   }
 
@@ -91,6 +120,7 @@ export function ReleaseCalendar() {
     const state = states.get(entry) || "upcoming";
     const hour = new Date(entry.airing_at * 1000).getHours();
     return (
+      <div key={`${entry.media_id}-${entry.episode}`} className="cal-item">
       <Link key={`${entry.media_id}-${entry.episode}`} href={entryHref(entry, state)} className="cal-row" data-state={state}>
         <span className="cal-row-poster"><LazyImage src={entry.poster_image} alt="" aspectRatio="" className="cal-thumb-art" /></span>
         <span className="cal-row-copy">
@@ -103,6 +133,8 @@ export function ReleaseCalendar() {
           </span>
         </span>
       </Link>
+      <WatchlistQuick animeId={entry.media_id} title={entry.title} className="cal-quick-row" />
+      </div>
     );
   };
 

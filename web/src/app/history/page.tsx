@@ -8,12 +8,17 @@ import { listProgress, type SavedProgress } from "@/lib/watch-progress";
 import { getSeason } from "@/lib/api";
 import { PageGrid } from "@/components/ui/PageGrid";
 import { Scribble } from "@/components/ui/Scribble";
+import { WatchlistShelf } from "@/components/WatchlistShelf";
+import { setUrlParams, useUrlParam } from "@/lib/url-state";
+import { useWatchlist } from "@/lib/watchlist";
 
 type Info = { title: string; poster?: string };
 const infoCache = new Map<number, Info>();
 
 export default function HistoryPage() {
   const { t, locale } = useI18n();
+  const tab = useUrlParam("tab") === "liste" ? "liste" : "reprendre";
+  const watchlist = useWatchlist();
   const [items, setItems] = useState<SavedProgress[] | null>(null);
   const [info, setInfo] = useState<Record<number, Info>>({});
 
@@ -45,10 +50,18 @@ export default function HistoryPage() {
       <PageGrid />
       <Scribble shape="b" width={380} rotate={-6} style={{ right: 40, top: 120 }} />
       <div className="history-inner page-inset">
-        <span className="eyebrow">{t("Historique")}</span>
-        <h1 className="serif">{t("Reprendre la lecture")}</h1>
-        {items && items.length === 0 && <p className="history-empty">{t("Rien à reprendre pour l’instant.")}</p>}
-        <ul className="history-grid">
+        <span className="eyebrow">{t("Vos animes")}</span>
+        <h1 className="serif">{t("Bibliothèque")}</h1>
+        <div className="catalog-tabs library-tabs" role="group" aria-label={t("Bibliothèque")}>
+          <button type="button" aria-pressed={tab === "reprendre"} onClick={() => setUrlParams({ tab: null })}>{t("Reprendre la lecture")}</button>
+          <button type="button" aria-pressed={tab === "liste"} onClick={() => setUrlParams({ tab: "liste" })}>{t("Ma liste")}</button>
+        </div>
+        {tab === "liste" && <>
+          {watchlist.length === 0 && <p className="history-empty">{t("Votre liste est vide. Ajoutez des animes depuis leur fiche ou le calendrier.")}</p>}
+          <WatchlistShelf />
+        </>}
+        {tab === "reprendre" && items && items.length === 0 && <p className="history-empty">{t("Rien à reprendre pour l’instant.")}</p>}
+        {tab === "reprendre" && <ul className="history-grid">
           {(items || []).map((item) => {
             const meta = info[item.season] ?? infoCache.get(item.season);
             const title = item.title || meta?.title || t("Anime");
@@ -71,7 +84,7 @@ export default function HistoryPage() {
               </li>
             );
           })}
-        </ul>
+        </ul>}
       </div>
     </main>
   );

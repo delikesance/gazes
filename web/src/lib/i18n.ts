@@ -98,7 +98,7 @@ const pairs: [string, string][] = [
  ["L’essaim peut ne pas avoir de seeders actifs ou la connexion au tracker a expiré.","The torrent swarm may have no active seeders or tracker connection timed out."],
  ["Votre navigateur ne prend pas en charge la lecture vidéo HTML5.","Your browser does not support HTML5 video playback."],
  ["Mise en mémoire tampon…","Buffering stream..."],["Chargement du flux…","Buffering..."],
- ["Épisode précédent","Previous Episode"],["Épisode suivant","Next Episode"],
+ ["Épisode précédent","Previous Episode"],["Épisode suivant","Next Episode"],["Suivant","Next"],["Bibliothèque","Library"],["Masquer","Hide"],["Votre liste est vide. Ajoutez des animes depuis leur fiche ou le calendrier.","Your list is empty. Add anime from their page or the calendar."],["Lecture","Play"],["Affiner la recherche","Refine search"],["Recherche","Search"],["Tous les animes","All anime"],["Aucun anime ne correspond à cette recherche.","No anime matches this search."],["Effacer les filtres","Clear filters"],["Remonter d’un niveau","Go up one level"],["Afficher cette aide","Show this help"],["Raccourcis clavier","Keyboard shortcuts"],["Résultats","Results"],["Vos animes","Your anime"],["Recherches récentes","Recent searches"],["Ajouter {title} à ma liste","Add {title} to my list"],["Lire l’épisode 1 de {title}","Play episode 1 of {title}"],
  ["Passer l'opening","Skip opening"],["Passer l'ending","Skip ending"],
  ["Reculer de 10 s (←)","Rewind 10s (←)"],["Avancer de 10 s (→)","Forward 10s (→)"],
  ["Couper le son (M)","Mute (M)"],["Rétablir le son (M)","Unmute (M)"],

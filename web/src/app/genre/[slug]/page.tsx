@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AnimeCatalogCard } from "@/components/AnimeCatalogCard";
+import { MobileBack } from "@/components/MobileBack";
 import { GenreHeader } from "@/components/GenreHeader";
 import { SeasonalGrid } from "@/components/SeasonalGrid";
 import { genreFromSlug, genreLabel } from "@/lib/genres";
@@ -47,6 +48,7 @@ export default async function GenrePage({ params, searchParams }: Props) {
   return (
     <main className="catalog-page genre-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
+      <MobileBack fallback="/" label="Catalogue" results={`Genre ${genreLabel(genre)}`} />
       <GenreHeader genre={genre} />
       <SeasonalGrid count={items.length} evenRows={false}>
         {items.map((anime) => <AnimeCatalogCard key={anime.id} anime={anime} />)}
