@@ -1109,7 +1109,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 )}
 
                 {/* First-byte wait: the stream can take several seconds to start, never leave a bare black frame */}
-                {!started && !error && (
+                {!started && !error && !needsPlaybackGesture && (
                   <PlayerStartup stage="stream" overlay image={fallbackThumbnail} title={animeTitle} episode={episodeNumber} />
                 )}
 
