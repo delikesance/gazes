@@ -33,7 +33,10 @@ redis-secret: ## Generate REDIS_PASSWORD into .env (kept if already set)
 
 redis-up: redis-secret ## Start the Redis shared by every stack (creates the gazes-shared network)
 	@docker network inspect gazes-shared >/dev/null 2>&1 || docker network create gazes-shared >/dev/null
-	$(DOCKER_COMPOSE) -f compose.redis.yaml up -d --wait
+	@# --no-recreate: this Redis is shared by every checkout on the host (prod, dev, pre-prod), and each one has
+	@# its own .env. Recreating it from another checkout swaps the password under the running stacks and locks
+	@# them out of Redis (the 2026-10-06 outage). To change its configuration: make redis-down, then redis-up.
+	$(DOCKER_COMPOSE) -f compose.redis.yaml up -d --wait --no-recreate
 
 redis-down: ## Stop the shared Redis (its data volume is kept)
 	$(DOCKER_COMPOSE) -f compose.redis.yaml down
