@@ -18,7 +18,7 @@ import (
 )
 
 func TestRemuxVideoCodecs(t *testing.T) {
-	ffmpeg := findFFmpegPath()
+	ffmpeg := FFmpegPath()
 	if _, err := exec.LookPath(ffmpeg); err != nil {
 		t.Skip("ffmpeg unavailable")
 	}
@@ -93,7 +93,7 @@ func TestRemuxVideoCodecs(t *testing.T) {
 // Two distinguishable tones ensure that a successful HTTP response also contains
 // the requested, decodable audio after a non-keyframe HEVC seek.
 func TestHEVCAudioSwitch(t *testing.T) {
-	ffmpeg := findFFmpegPath()
+	ffmpeg := FFmpegPath()
 	if _, err := exec.LookPath(ffmpeg); err != nil {
 		t.Skip("ffmpeg unavailable")
 	}
