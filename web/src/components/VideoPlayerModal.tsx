@@ -7,6 +7,8 @@ import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
 import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
+import { MAX_SUBTITLE_FILE_BYTES, subtitleFileToAss } from "@/lib/subtitle-file";
+import { DEFAULT_SUBTITLE_STYLE, SUBTITLE_LIFTS, SUBTITLE_SCALES, type SubtitleStyle } from "@/lib/ass-style";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
@@ -49,6 +51,8 @@ import {
   Image as ImageIcon,
   Link2,
   Users,
+  PictureInPicture2,
+  Cast,
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -79,6 +83,21 @@ interface VideoPlayerModalProps {
   onFileResolved?: (infoHash: string, fileIndex: number) => void;
 }
 
+const SUBTITLE_STYLE_KEY = "gazes-subtitle-style";
+
+function loadSubtitleStyle(): SubtitleStyle {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(SUBTITLE_STYLE_KEY) : null;
+    const value = raw ? JSON.parse(raw) : null;
+    return {
+      scale: SUBTITLE_SCALES.includes(value?.scale) ? value.scale : DEFAULT_SUBTITLE_STYLE.scale,
+      lift: SUBTITLE_LIFTS.includes(value?.lift) ? value.lift : DEFAULT_SUBTITLE_STYLE.lift,
+    };
+  } catch {
+    return DEFAULT_SUBTITLE_STYLE;
+  }
+}
+
 const AMBILIGHT_KEY = "gazes-ambilight";
 const AMBILIGHT_DEFAULT: AmbilightSettings = { on: true, level: "medium", dim: true };
 
@@ -88,6 +107,18 @@ function loadAmbilight(): AmbilightSettings {
     return raw ? { ...AMBILIGHT_DEFAULT, ...JSON.parse(raw) } : AMBILIGHT_DEFAULT;
   } catch {
     return AMBILIGHT_DEFAULT;
+  }
+}
+
+const RATE_KEY = "gazes-playback-rate";
+export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+function loadRate(): number {
+  try {
+    const rate = Number(typeof window !== "undefined" ? window.localStorage.getItem(RATE_KEY) : null);
+    return PLAYBACK_RATES.includes(rate) ? rate : 1;
+  } catch {
+    return 1;
   }
 }
 
@@ -172,6 +203,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [optionsTab, setOptionsTab] = useState<PlayerOptionsTab | null>(null);
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [ambilight, setAmbilight] = useState<AmbilightSettings>(loadAmbilight);
+  // A subtitle file the viewer picked: ASS text rendered in place of the embedded tracks.
+  const [localSubtitle, setLocalSubtitle] = useState<{ name: string; ass: string } | null>(null);
+  const [subtitleFileError, setSubtitleFileError] = useState<string | null>(null);
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(loadSubtitleStyle);
+  const [playbackRate, setPlaybackRateState] = useState(loadRate);
+  const [canPip] = useState(() => typeof document !== "undefined" && !!document.pictureInPictureEnabled);
 
   // Player controls state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -296,6 +333,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       if (timeDisplayRef.current) {
         timeDisplayRef.current.textContent = formatTime(cur);
       }
+      // Kept on the slider by hand: the timeline is repainted outside React for smoothness.
+      progressBarRef.current?.setAttribute("aria-valuenow", String(Math.floor(cur)));
+      progressBarRef.current?.setAttribute("aria-valuetext", formatTime(cur));
       if (totalDuration > 0) {
         const pct = Math.min(100, Math.max(0, (cur / totalDuration) * 100));
         if (playedBarRef.current) {
@@ -511,6 +551,31 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [isMuted, triggerShowControls]);
 
+  const setPlaybackRate = useCallback((rate: number) => {
+    setPlaybackRateState(rate);
+    try { window.localStorage.setItem(RATE_KEY, String(rate)); } catch { /* storage unavailable */ }
+  }, []);
+
+  const stepPlaybackRate = useCallback((direction: 1 | -1) => {
+    const index = PLAYBACK_RATES.indexOf(playbackRate);
+    const next = PLAYBACK_RATES[Math.max(0, Math.min(PLAYBACK_RATES.length - 1, index + direction))];
+    setPlaybackRate(next);
+  }, [playbackRate, setPlaybackRate]);
+
+  // Safari/iOS only: opens the system AirPlay picker for the video element.
+  const [canAirPlay] = useState(() => typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window);
+  const showAirPlay = useCallback(() => {
+    (videoRef.current as (HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }) | null)?.webkitShowPlaybackTargetPicker?.();
+  }, []);
+
+  const togglePip = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !document.pictureInPictureEnabled) return;
+    if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+    else video.requestPictureInPicture().catch(() => {});
+    triggerShowControls();
+  }, [triggerShowControls]);
+
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -690,6 +755,17 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           e.preventDefault();
           toggleMute();
           break;
+        case "KeyP":
+          if (e.ctrlKey || e.metaKey || e.altKey || !canPip) break;
+          e.preventDefault();
+          togglePip();
+          break;
+        case "Comma":
+        case "Period":
+          if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) break;
+          e.preventDefault();
+          stepPlaybackRate(e.code === "Period" ? 1 : -1);
+          break;
         case "KeyS":
           if (e.ctrlKey || e.metaKey || e.altKey || !shownSkip) break;
           e.preventDefault();
@@ -700,7 +776,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute, shownSkip, runSkip, isMuted, volume, onNextEpisode]);
+  }, [playbackOffset, togglePlay, handleSeek, toggleFullscreen, toggleMute, shownSkip, runSkip, isMuted, volume, onNextEpisode, canPip, togglePip, stepPlaybackRate]);
 
 
   const matchingFiles = loadData && item && "episode_number" in item ? episodeCandidates(loadData.files,item as EpisodeSource) : [];
@@ -709,6 +785,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const streamUrl = loadData && selectedFileIdx >= 0
     ? hlsMode ? `hls:${loadData.info_hash}:${selectedFileIdx}:${selectedAudioTrack}` : getStreamUrl(loadData.info_hash, selectedFileIdx, forceRemux, timeOffset, selectedAudioTrack,diagnostic)
     : "";
+
+  // A new source resets playbackRate to defaultPlaybackRate, so set both.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.defaultPlaybackRate = playbackRate;
+    video.playbackRate = playbackRate;
+  }, [playbackRate, streamUrl, started]);
 
   useEffect(() => {
     setPlaybackError(null);
@@ -814,8 +898,21 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     });
   }, [videoMeta, diagnostic?.season_id, episodeNumber, loadData, selectedFileIdx, episodes]);
 
+  const pickSubtitleFile = async (file: File) => {
+    setSubtitleFileError(null);
+    if (file.size > MAX_SUBTITLE_FILE_BYTES) { setSubtitleFileError(t("Fichier trop volumineux.")); return; }
+    const ass = subtitleFileToAss(file.name, await file.text().catch(() => ""));
+    if (!ass) { setSubtitleFileError(t("Fichier de sous-titres illisible (formats : .srt, .vtt, .ass).")); return; }
+    subtitleSelectionRef.current = true;
+    setLocalSubtitle({ name: file.name, ass });
+    setSelectedSubTrack(null);
+    setOptionsTab(null);
+    triggerShowControls();
+  };
+
   const handleSubtitleTrackSelect = (trackIdx: number | null) => {
     subtitleSelectionRef.current = true;
+    setLocalSubtitle(null);
     setSelectedSubTrack(trackIdx);
     setOptionsTab(null);
     triggerShowControls();
@@ -826,6 +923,22 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     const rect = progressBarRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     handleSeek(ratio * totalDuration);
+  };
+
+  // The scrubber is a slider for keyboards and screen readers: arrows seek 5 s, Page keys 30 s.
+  const handleProgressBarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (totalDuration <= 0 || e.ctrlKey || e.metaKey || e.altKey) return;
+    const cur = playbackOffset + currentTimeRef.current;
+    const step = { ArrowLeft: -5, ArrowDown: -5, ArrowRight: 5, ArrowUp: 5, PageDown: -30, PageUp: 30 }[e.key];
+    let target: number;
+    if (step !== undefined) target = cur + step;
+    else if (e.key === "Home") target = 0;
+    else if (e.key === "End") target = totalDuration;
+    else return;
+    // The window-level shortcuts would seek a second time.
+    e.preventDefault();
+    e.stopPropagation();
+    handleSeek(Math.max(0, Math.min(totalDuration, target)));
   };
 
   const handleProgressBarMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -852,6 +965,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     void copyText(item.magnet_uri);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const updateSubtitleStyle = (patch: Partial<SubtitleStyle>) => {
+    setSubtitleStyle((current) => {
+      const next = { ...current, ...patch };
+      try { window.localStorage.setItem(SUBTITLE_STYLE_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+      return next;
+    });
   };
 
   const updateAmbilight = (patch: Partial<AmbilightSettings>) => {
@@ -1081,9 +1202,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 <SubtitleRenderer
                   videoRef={videoRef}
                   streamKey={streamUrl}
-                  url={subtitleUrl}
+                  url={localSubtitle ? "" : subtitleUrl}
+                  localContent={localSubtitle?.ass}
                   bitmap={subtitleBitmap}
                   timeOffset={playbackOffset}
+                  style={subtitleStyle}
                   onError={handleSubtitleError}
                 />
                 {debugMode && (
@@ -1148,6 +1271,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                       <div
                         ref={progressBarRef}
                         onClick={handleProgressBarClick}
+                        role="slider"
+                        tabIndex={0}
+                        aria-label={t("Position de lecture")}
+                        aria-valuemin={0}
+                        aria-valuenow={0} /* moved by updateProgressDisplay; React never rewrites an unchanged prop */
+                        aria-valuemax={Math.floor(totalDuration)}
+                        onKeyDown={handleProgressBarKeyDown}
                         onMouseMove={handleProgressBarMouseMove}
                         onMouseLeave={() => setHoverTime(null)}
                         className="group/bar relative flex h-5 flex-1 cursor-pointer items-center"
@@ -1244,6 +1374,16 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         <button onClick={copyTimeLink} className="player-pill player-pill--icon" aria-live="polite" aria-label={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")} title={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")}>
                           <Link2 className="h-[18px] w-[18px]" />
                         </button>
+                        {canAirPlay && (
+                          <button onClick={showAirPlay} className="player-pill player-pill--icon" aria-label={t("AirPlay")} title={t("AirPlay")}>
+                            <Cast className="h-[18px] w-[18px]" />
+                          </button>
+                        )}
+                        {canPip && (
+                          <button onClick={togglePip} className="player-pill player-pill--icon" aria-label={t("Picture-in-Picture (P)")} title={t("Picture-in-Picture (P)")}>
+                            <PictureInPicture2 className="h-[18px] w-[18px]" />
+                          </button>
+                        )}
                         <button onClick={toggleFullscreen} className="player-pill player-pill--icon" aria-label={t("Toggle Fullscreen (F)")} title={t("Toggle Fullscreen (F)")}>
                           {isFullscreen ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
                         </button>
@@ -1277,6 +1417,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     onSelectSubtitle={handleSubtitleTrackSelect}
                     ambilight={ambilight}
                     onAmbilightChange={updateAmbilight}
+                    playbackRate={playbackRate}
+                    rates={PLAYBACK_RATES}
+                    onPlaybackRateChange={setPlaybackRate}
+                    subtitleStyle={subtitleStyle}
+                    onSubtitleStyleChange={updateSubtitleStyle}
+                    localSubtitleName={localSubtitle?.name ?? null}
+                    onPickSubtitleFile={(file) => void pickSubtitleFile(file)}
+                    subtitleFileError={subtitleFileError}
                   />
                 )}
               </div>

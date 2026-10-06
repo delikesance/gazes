@@ -46,6 +46,17 @@ export function addToWatchlist(id: number) {
   if (syncEnabled) void push([id], []).catch(() => {});
 }
 
+/** Adds several anime at once (an import): one local write and batched uploads, new ones first. */
+export function addManyToWatchlist(ids: number[]): number {
+  const current = read();
+  const known = new Set(current);
+  const fresh = [...new Set(ids)].filter((id) => !known.has(id));
+  if (!fresh.length) return 0;
+  write([...fresh, ...current]);
+  if (syncEnabled) for (const batch of chunks(fresh, PUT_BATCH)) void push(batch, []).catch(() => {});
+  return fresh.length;
+}
+
 export function removeFromWatchlist(id: number) {
   write(read().filter((other) => other !== id));
   if (syncEnabled) void push([], [id]).catch(() => {});
