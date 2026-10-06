@@ -42,11 +42,17 @@ func (l *limiter) hitChecked(key string, limit int, span time.Duration) (bool, e
 			}
 		}
 		// Still full of live windows: shed some so the next calls do not rescan the whole map.
-		for k := range l.entries {
-			if len(l.entries) <= 45000 {
-				break
+		// Single-hit windows go first: a flood of fresh keys must not reset the counters that are
+		// actually throttling someone (a login brute force).
+		for _, maxCount := range []int{1, int(^uint(0) >> 1)} {
+			for k, w := range l.entries {
+				if len(l.entries) <= 45000 {
+					break
+				}
+				if w.count <= maxCount {
+					delete(l.entries, k)
+				}
 			}
-			delete(l.entries, k)
 		}
 	}
 	w := l.entries[key]

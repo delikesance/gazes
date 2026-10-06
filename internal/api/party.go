@@ -44,7 +44,7 @@ type partyMember struct {
 type partyHub struct {
 	mu       sync.Mutex
 	rooms    map[string]map[*partyMember]struct{}
-	streams  map[string]int               // open event streams per client IP
+	streams  map[string]int               // open event streams per client (IP, or /64 for IPv6)
 	clientIP func(r *http.Request) string // set by the server; nil means the socket peer
 }
 
@@ -112,6 +112,7 @@ func (h *partyHub) handleEvents(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		ip = r.RemoteAddr
 	}
+	ip = clientBucket(ip)
 	if h.clientIP != nil {
 		ip = h.clientIP(r)
 	}
@@ -121,6 +122,9 @@ func (h *partyHub) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer h.leave(room, m)
+	// The server's WriteTimeout is sized for video; a party stream lives as long as the room.
+	// The heartbeat and the client disconnect bound it instead.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache, no-transform")
 	w.Header().Set("X-Accel-Buffering", "no")

@@ -143,3 +143,33 @@ func TestPartyCapsStreamsPerClient(t *testing.T) {
 		t.Fatal("a closed stream did not free its slot")
 	}
 }
+
+func TestPartyStreamCapCoversIPv6Prefix(t *testing.T) {
+	h := newPartyHub()
+	srv := httptest.NewServer(partyRouter(h))
+	defer srv.Close()
+	// Rotating addresses inside one /64 is still one client.
+	h.clientIP = func(r *http.Request) string { return clientBucket(r.Header.Get("X-Test-IP")) }
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	open := func(i int) int {
+		req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/party/room"+strconv.Itoa(i)+"aa/events?from=a", nil)
+		req.Header.Set("X-Test-IP", "2001:db8::"+strconv.Itoa(i+1))
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusOK {
+			res.Body.Close()
+		}
+		return res.StatusCode
+	}
+	for i := range maxPartyStreamsPerIP {
+		if c := open(i); c != http.StatusOK {
+			t.Fatalf("stream %d refused under the cap: %d", i, c)
+		}
+	}
+	if c := open(maxPartyStreamsPerIP); c != http.StatusServiceUnavailable {
+		t.Fatalf("a new address in the same /64 got past the cap: %d", c)
+	}
+}

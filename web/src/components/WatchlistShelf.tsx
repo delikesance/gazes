@@ -14,7 +14,8 @@ const infoCache = new Map<number, Info>();
 /** Home shelf of the anime saved to "ma liste". */
 export function WatchlistShelf() {
   const { t } = useI18n();
-  const ids = useWatchlist().slice(0, 12);
+  const saved = useWatchlist();
+  const ids = saved.slice(0, 12);
   const key = ids.join(",");
   const [, bump] = useState(0);
 
@@ -34,12 +35,14 @@ export function WatchlistShelf() {
   async function exportCalendar() {
     setExportState("busy");
     try {
-      const ics = await watchlistCalendar(ids, window.location.origin);
+      // The whole list, not just the shelf's first posters.
+      const ics = await watchlistCalendar(saved, window.location.origin);
       if (!ics) { setExportState("empty"); return; }
       const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
       const link = Object.assign(document.createElement("a"), { href: url, download: "gazes-ma-liste.ics" });
       link.click();
-      URL.revokeObjectURL(url);
+      // Revoking in the same task can cancel the download in some browsers.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       setExportState("idle");
     } catch { setExportState("error"); }
   }
