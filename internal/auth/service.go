@@ -264,6 +264,7 @@ type credentials struct {
 	Password string `json:"password"`
 	Pseudo   string `json:"pseudo"`
 	Captcha  string `json:"captcha"`
+	Code     string `json:"code"`
 }
 
 func (s *Service) parseCredentials(w http.ResponseWriter, plain []byte) (credentials, bool) {
@@ -316,7 +317,9 @@ func (s *Service) Register(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "server_error")
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"user": userView{ID: id, Pseudo: c.Pseudo, Email: c.Email}})
+	// A failure here is not fatal: the account can mint codes later from its settings.
+	codes, _ := s.issueRecoveryCodes(id)
+	writeJSON(w, http.StatusCreated, map[string]any{"user": userView{ID: id, Pseudo: c.Pseudo, Email: c.Email}, "recovery_codes": codes})
 }
 
 func (s *Service) Login(w http.ResponseWriter, r *http.Request) {

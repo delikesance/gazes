@@ -152,6 +152,13 @@ var migrations = []dbmigrate.Migration{
 	created_at INTEGER NOT NULL,
 	PRIMARY KEY (user_id, anime_id)
 )`)},
+	{Version: 4, Name: "recovery_codes", Up: dbmigrate.SQL(`CREATE TABLE IF NOT EXISTS recovery_codes (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	code_hash TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	used_at INTEGER,
+	PRIMARY KEY (user_id, code_hash)
+)`)},
 }
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
@@ -536,4 +543,46 @@ func (s *Store) DeleteUserSession(userID int64, id string) (bool, error) {
 func (s *Store) DeleteUser(userID int64) error {
 	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, userID)
 	return err
+}
+
+// ReplaceRecoveryCodes swaps all of a user's recovery codes for the given hashes.
+func (s *Store) ReplaceRecoveryCodes(userID int64, hashes []string, now time.Time) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM recovery_codes WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	for _, h := range hashes {
+		if _, err := tx.Exec(`INSERT INTO recovery_codes(user_id, code_hash, created_at) VALUES(?,?,?)`, userID, h, now.Unix()); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// UseRecoveryCode burns one unused code and, in the same transaction, sets the new password hash
+// and revokes every session. It reports false when the code is wrong or already used.
+func (s *Store) UseRecoveryCode(userID int64, codeHash, newPassHash string, now time.Time) (bool, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`UPDATE recovery_codes SET used_at = ? WHERE user_id = ? AND code_hash = ? AND used_at IS NULL`, now.Unix(), userID, codeHash)
+	if err != nil {
+		return false, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return false, nil
+	}
+	if _, err := tx.Exec(`UPDATE users SET pass_hash = ? WHERE id = ?`, newPassHash, userID); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(`DELETE FROM sessions WHERE user_id = ?`, userID); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
 }
