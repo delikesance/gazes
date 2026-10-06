@@ -180,6 +180,7 @@ func (s *Server) setupRoutes() {
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Get("/health", s.HandleHealth)
 		api.With(s.rateLimit("import", 6, time.Minute)).Get("/import/anilist", s.HandleAniListImport)
+		api.With(s.rateLimit("import", 6, time.Minute)).Post("/import/mal", s.HandleMALImport)
 		api.Post("/diagnostics/events", s.HandleDiagnosticEvents)
 		api.Get("/diagnostics/cache", s.HandleCacheDiagnostics)
 		api.With(s.rateLimit("search", 60, time.Minute)).Get("/search", s.HandleSearch)
