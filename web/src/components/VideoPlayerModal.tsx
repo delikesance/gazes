@@ -20,7 +20,7 @@ import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
 import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type PlayerOptionsTab } from "./PlayerOptionsModal";
 import { episodeCandidates } from "@/lib/episode-file";
-import { HlsPlaybackController } from "@/lib/hls-playback";
+import type { HlsPlaybackController } from "@/lib/hls-playback";
 import { useSkipSegments } from "@/lib/use-skip-segments";
 import { usePlaybackWatchdog } from "@/lib/use-playback-watchdog";
 import { useNextEpisodeCountdown } from "@/lib/use-next-episode-countdown";
@@ -34,6 +34,7 @@ import { PlayerNextEpisodeCard } from "./PlayerNextEpisodeCard";
 import { PlayerDetails } from "./PlayerDetails";
 import { PlayerFileSelection } from "./PlayerFileSelection";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
+import { useHlsPlayback } from "@/lib/use-hls-playback";
 import { useTorrentLoad, useTorrentState } from "@/lib/use-torrent-load";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
@@ -487,11 +488,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     }
   }, [hlsMode, streamUrl, videoMeta?.video_codec, loading, needsFileSelection]);
 
-  const hlsResumePosition = useRef(initialTime);
-  useEffect(() => {
-    if (!hlsMode || loading || needsFileSelection || !loadData || selectedFileIdx < 0 || !videoRef.current) return;
-    const video = videoRef.current;
-    const controller = new HlsPlaybackController(video, {
+  const hlsResumePositionRef = useHlsPlayback({
+    hlsMode, loading, needsFileSelection, loadData, fileIndex: selectedFileIdx, audioTrack: selectedAudioTrack,
+    videoRef, controllerRef: hlsController, resumePlaybackRef, diagnostic, initialTime, itemHash,
+    callbacks: video => ({
       state: state => {
         currentTimeRef.current = state.position;
         resumePlaybackRef.current = state.playing;
@@ -505,14 +505,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       metadata: (metadata, origin) => { receiveVideoMeta(metadata); setSubtitleOrigin(origin); },
       gesture: () => setNeedsPlaybackGesture(true),
       error: message => { setPlaybackError(message); },
-    }, diagnostic, !resumePlaybackRef.current);
-    hlsController.current = controller;
-    const position = hlsResumePosition.current;
-    void controller.open(loadData.info_hash, selectedFileIdx, selectedAudioTrack, position);
-    return () => { hlsResumePosition.current = video.currentTime || position; controller.dispose(); if (hlsController.current === controller) hlsController.current = null; };
-  }, [hlsMode, loadData, selectedFileIdx, selectedAudioTrack, loading, needsFileSelection]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { hlsResumePosition.current = initialTime; }, [itemHash, initialTime]);
+    }),
+  });
 
   const subtitleBitmap = isBitmapSubtitle(videoMeta?.subtitle_tracks?.find((track) => track.index === selectedSubTrack));
   const subtitleUrl =
@@ -530,7 +524,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     if (manual) audioSelectionRef.current = true;
     setOptionsTab(null);
     if (trackIdx === selectedAudioTrack) return;
-    if (hlsMode) { hlsResumePosition.current = videoRef.current?.currentTime ?? currentTimeRef.current; setSelectedAudioTrack(trackIdx); return; }
+    if (hlsMode) { hlsResumePositionRef.current = videoRef.current?.currentTime ?? currentTimeRef.current; setSelectedAudioTrack(trackIdx); return; }
     const currentAbsoluteTime = playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
     hasStartedRef.current = false;
     lastProgressRef.current = { time: 0, at: 0 };
