@@ -24,6 +24,8 @@ import { HlsPlaybackController } from "@/lib/hls-playback";
 import { useSkipSegments } from "@/lib/use-skip-segments";
 import { usePlaybackWatchdog } from "@/lib/use-playback-watchdog";
 import { useNextEpisodeCountdown } from "@/lib/use-next-episode-countdown";
+import { useAmbilight } from "@/lib/use-ambilight";
+import { useDockReserve } from "@/lib/use-dock-reserve";
 import { SkipSegmentButton } from "./SkipSegmentButton";
 import { PlayerTopBar } from "./PlayerTopBar";
 import { PlayerTimeline } from "./PlayerTimeline";
@@ -677,60 +679,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     updateProgressDisplay(0);
   };
 
-  // Ambilight: paint a tiny copy of the current frame (cover-fit to the stage); CSS blurs and fades it.
-  useEffect(() => {
-    const canvas = ambientRef.current;
-    const video = videoRef.current;
-    const box = containerRef.current;
-    if (!ambilight.on || isFullscreen || !canvas || !video || !box) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let frame = 0;
-    let last = 0;
-    let stopped = false;
-    const draw = () => {
-      if (video.readyState < 2 || !video.videoWidth) return;
-      const width = 64;
-      const height = Math.max(8, Math.round((width * (box.clientHeight || 1)) / (box.clientWidth || 1)));
-      if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-      const scale = Math.max(width / video.videoWidth, height / video.videoHeight);
-      const w = video.videoWidth * scale;
-      const h = video.videoHeight * scale;
-      try { ctx.drawImage(video, (width - w) / 2, (height - h) / 2, w, h); } catch { /* frame unavailable */ }
-    };
-    const loop = (now: number) => {
-      if (stopped) return;
-      if (now - last >= 100 && !document.hidden && !video.paused) { last = now; draw(); }
-      frame = requestAnimationFrame(loop);
-    };
-    const events = ["loadeddata", "seeked", "pause", "playing"] as const;
-    events.forEach((name) => video.addEventListener(name, draw));
-    draw();
-    frame = requestAnimationFrame(loop);
-    return () => {
-      stopped = true;
-      cancelAnimationFrame(frame);
-      events.forEach((name) => video.removeEventListener(name, draw));
-    };
-  }, [ambilight.on, isFullscreen, streamUrl, loading, error, needsFileSelection, item]);
-
-  // While the dock is visible, shrink the subtitle layer (not the video) so captions stay above it.
-  useEffect(() => {
-    const stage = containerRef.current;
-    const dock = dockRef.current;
-    if (!stage || !dock) return;
-    const update = () => {
-      const height = stage.clientHeight;
-      const reserve = dock.offsetHeight + (parseFloat(getComputedStyle(dock).bottom) || 0) + 12;
-      stage.style.setProperty("--sub-scale", String(height > 0 ? Math.max(0.5, (height - reserve) / height) : 1));
-      stage.style.setProperty("--dock-reserve", `${reserve}px`);
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(stage);
-    observer.observe(dock);
-    return () => observer.disconnect();
-  }, [loading, error, needsFileSelection, item]);
+  useAmbilight(ambilight.on && !isFullscreen, ambientRef, videoRef, containerRef, `${streamUrl}|${loading}|${error}|${needsFileSelection}|${itemHash}`);
+  useDockReserve(containerRef, dockRef, `${loading}|${error}|${needsFileSelection}|${itemHash}`);
 
   if (!item) return null;
 
