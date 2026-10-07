@@ -40,14 +40,12 @@ import {
   Copy,
   Check,
   AlertCircle,
-  MessageSquare,
   SkipForward,
   SkipBack,
   Layers,
   Loader2,
   Settings,
   List,
-  Sun,
   Image as ImageIcon,
   Link2,
   Users,
@@ -56,7 +54,8 @@ import {
 } from "lucide-react";
 
 interface VideoPlayerModalProps {
-  initialPaused?: boolean;
+  /** Whether the viewer last paused; read when a source starts loading. */
+  pausedIntent?: () => boolean;
   onPlaybackIntent?: (playing: boolean) => void;
   item: TorrentItem | null;
   diagnostic?: PlaybackDiagnostic;
@@ -153,6 +152,19 @@ function formatTime(seconds: number): string {
 
 const NEXT_EPISODE_DELAY = 5;
 
+type PlayerItem = VideoPlayerModalProps["item"];
+
+/** A library copy is a plain file on the server: no swarm, no file matching. */
+function libraryLoad(item: PlayerItem): LoadTorrentResponse | null {
+  const library = item && "library" in item ? (item as EpisodeSource).library : undefined;
+  return library ? { info_hash: library.stream_id, files: [{ index: 0, path: "episode.mkv", length: 0, is_video: true, mime_type: "video/x-matroska" }], main_video_index: 0 } : null;
+}
+
+/** Torrent files are matched once metadata arrives (-1 until then); a library copy is file 0. */
+function initialFileIndex(item: PlayerItem): number {
+  return item && !libraryLoad(item) ? -1 : 0;
+}
+
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   item,
   onFileResolved,
@@ -174,7 +186,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   onVideoMetadata,
   onProgress,
   diagnostic,
-  initialPaused = false,
+  pausedIntent,
   onPlaybackIntent,
 }) => {
   const { t, locale } = useI18n();
@@ -183,12 +195,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const hlsMode = engine === "hls";
   const hlsController = useRef<HlsPlaybackController | null>(null);
   const [subtitleOrigin, setSubtitleOrigin] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !libraryLoad(item));
   const [error, setError] = useState<string | null>(null);
-  const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(null);
+  const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(() => libraryLoad(item));
   const [fileSearch, setFileSearch] = useState("");
   const [needsFileSelection, setNeedsFileSelection] = useState(false);
-  const [selectedFileIdx, setSelectedFileIdx] = useState<number>(0);
+  const [selectedFileIdx, setSelectedFileIdx] = useState<number>(() => initialFileIndex(item));
   const [stats, setStats] = useState<SwarmStats | null>(null);
   const [videoMeta, setVideoMeta] = useState<VideoMetadata | null>(null);
   const [copied, setCopied] = useState(false);
@@ -223,6 +235,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [hoverPosition, setHoverPosition] = useState<number>(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  // Also kept in state: the fullscreen top bar is portaled into it during render.
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
+  const setContainer = useCallback((el: HTMLDivElement | null) => { containerRef.current = el; setContainerEl(el); }, []);
   const dockRef = useRef<HTMLDivElement>(null);
   const ambientRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -232,7 +247,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setSubtitleError(message ? { message, code } : null);
     if (message) diagnosticEvent(diagnostic, "playback.subtitle_failed", { error_code: code || "unknown" });
   }, [diagnostic]);
-  const resumePlaybackRef = useRef(!initialPaused);
+  const resumePlaybackRef = useRef(true);
   const failureReportedRef = useRef(false);
   const hasStartedRef = useRef(false);
   const loadStartedAtRef = useRef<number | null>(null);
@@ -242,6 +257,15 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const lastProgressRef = useRef({ time: 0, at: 0 });
   const subtitleSelectionRef = useRef(false);
   const audioSelectionRef = useRef(false);
+  // New metadata picks the default subtitle once, unless the viewer already chose one.
+  const receiveVideoMeta = useCallback((meta: VideoMetadata) => {
+    setVideoMeta(meta);
+    const tracks = textSubtitleTracks(meta.subtitle_tracks);
+    if (!subtitleSelectionRef.current && tracks.length) {
+      subtitleSelectionRef.current = true;
+      setSelectedSubTrack(pickDefaultSubtitle(tracks).index);
+    }
+  }, []);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const playedBarRef = useRef<HTMLDivElement>(null);
   const bufferedBarRef = useRef<HTMLDivElement>(null);
@@ -267,6 +291,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setForceRemux(false);
     setSelectedAudioTrack(0);
     setSelectedSubTrack(null);
+    if (item) {
+      setPlaybackError(null);
+      setLoadData(libraryLoad(item));
+      setSelectedFileIdx(initialFileIndex(item));
+      setNeedsFileSelection(false);
+      setFileSearch("");
+      setLoading(!libraryLoad(item));
+    }
   }
 
   // The subtitle error is informational: it fades out on its own.
@@ -590,29 +622,19 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   useEffect(() => {
     if (!item) return;
 
-    resumePlaybackRef.current = !initialPaused;
+    resumePlaybackRef.current = !pausedIntent?.();
     failureReportedRef.current = false;
     hasStartedRef.current = false;
     loadStartedAtRef.current = performance.now();
     fileResolvedRef.current = false;
-    setPlaybackError(null);
     subtitleSelectionRef.current = false;
     audioSelectionRef.current = false;
     let isMounted = true;
     const controller = new AbortController();
-    setLoadData(null);
-    setSelectedFileIdx(-1);
-    setNeedsFileSelection(false);
-    setFileSearch("");
     currentTimeRef.current = 0;
 
-    const library = "library" in item ? (item as EpisodeSource).library : undefined;
-    if (library) {
-      // Library copies are plain files on the server: no swarm, no file matching.
-      setLoadData({ info_hash: library.stream_id, files: [{ index: 0, path: "episode.mkv", length: 0, is_video: true, mime_type: "video/x-matroska" }], main_video_index: 0 });
-      setSelectedFileIdx(0);
-      setNeedsFileSelection(false);
-      setLoading(false);
+    // Library copies are plain files on the server: their load data is set on render, nothing to fetch.
+    if (libraryLoad(item)) {
       return () => {
         isMounted = false;
         diagnosticEvent(diagnostic,"playback.abandoned",{position:playbackOffset+currentTimeRef.current});
@@ -632,11 +654,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         diagnosticEvent(diagnostic,selected?'playback.file_selected':'playback.file_rejected',{file_index:initialIdx,file_path:selected?.path||'',file_count:data.files.length,reason:selected?'episode_match':'episode_missing_or_ambiguous'});
         setSelectedFileIdx(initialIdx);
         if (data.main_video_metadata && initialIdx === data.main_video_index) {
-          setVideoMeta(data.main_video_metadata);
-          if (textSubtitleTracks(data.main_video_metadata.subtitle_tracks).length > 0) {
-            subtitleSelectionRef.current = true;
-            setSelectedSubTrack(pickDefaultSubtitle(textSubtitleTracks(data.main_video_metadata.subtitle_tracks)).index);
-          }
+          receiveVideoMeta(data.main_video_metadata);
 
         }
         setLoading(false);
@@ -684,12 +702,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         const m = await fetchVideoMetadata(loadData.info_hash, selectedFileIdx, controller.signal,diagnostic);
         if (controller.signal.aborted) return;
         if (m && (m.duration_sec > 0 || m.video_codec)) {
-          setVideoMeta(m);
-          if (!subtitleSelectionRef.current && textSubtitleTracks(m.subtitle_tracks).length) {
-            const preferred = pickDefaultSubtitle(textSubtitleTracks(m.subtitle_tracks));
-            setSelectedSubTrack(preferred.index);
-            subtitleSelectionRef.current = true;
-          }
+          receiveVideoMeta(m);
           if (m.duration_sec > 0) return;
         }
       } catch { if (controller.signal.aborted) return; }
@@ -794,8 +807,15 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     video.playbackRate = playbackRate;
   }, [playbackRate, streamUrl, started]);
 
-  useEffect(() => {
+  // A new stream, codec or load state starts without the previous playback error.
+  const playbackErrorKey = `${hlsMode}|${streamUrl}|${videoMeta?.video_codec}|${loading}|${needsFileSelection}`;
+  const [prevPlaybackErrorKey, setPrevPlaybackErrorKey] = useState(playbackErrorKey);
+  if (playbackErrorKey !== prevPlaybackErrorKey) {
+    setPrevPlaybackErrorKey(playbackErrorKey);
     setPlaybackError(null);
+  }
+
+  useEffect(() => {
     // An unsupported HEVC track may still play its AAC audio without a media error.
     // Check both common HEVC profiles rather than waiting for onError alone.
     const codec = hlsMode ? undefined : videoMeta?.video_codec?.toLowerCase();
@@ -822,7 +842,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         video.dataset.seekGeneration = String(state.generation);
         if (state.phase === "ready") setStarted(true);
       },
-      metadata: (metadata, origin) => { setVideoMeta(metadata); setSubtitleOrigin(origin); },
+      metadata: (metadata, origin) => { receiveVideoMeta(metadata); setSubtitleOrigin(origin); },
       gesture: () => setNeedsPlaybackGesture(true),
       error: message => { setPlaybackError(message); },
     }, diagnostic, !resumePlaybackRef.current);
@@ -868,12 +888,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     const preferred = preferredAudioTrack(videoMeta.audio_tracks || [], selectedAudioTrack, audioSelectionRef.current);
     if (preferred !== selectedAudioTrack) handleAudioTrackSelect(preferred, false);
   }, [videoMeta, selectedFileIdx, selectedAudioTrack]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!videoMeta || subtitleSelectionRef.current) return;
-    const tracks = textSubtitleTracks(videoMeta.subtitle_tracks);
-    if (tracks.length) { subtitleSelectionRef.current = true; setSelectedSubTrack(pickDefaultSubtitle(tracks).index); }
-  }, [videoMeta]);
 
   useEffect(() => {
     if (selectedFileIdx >= 0 && videoMeta?.probe_status === 'complete') onVideoMetadata?.(videoMeta);
@@ -1085,7 +1099,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         className={pageMode?"watch-player-shell":"relative flex flex-col w-full max-w-5xl max-h-[95vh] rounded-[28px] border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl"}
         onClick={(e) => e.stopPropagation()}
       >
-        {isFullscreen && containerRef.current ? createPortal(topBar, containerRef.current) : topBar}
+        {isFullscreen && containerEl ? createPortal(topBar, containerEl) : topBar}
 
         {/* Player & Content Area */}
         <div className="player-content flex-1 overflow-y-auto">
@@ -1112,7 +1126,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
             <div>
               {/* Video Player Box */}
               <div
-                ref={containerRef}
+                ref={setContainer}
                 onMouseMove={triggerShowControls}
                 onMouseEnter={triggerShowControls}
                 data-controls={showControls}
