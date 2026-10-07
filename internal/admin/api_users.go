@@ -644,8 +644,7 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- signups per week and cumulative users.
-	// TODO(rollup): users.created_at is not indexed; metrics_daily.new_users/total_users
-	// hold the same figures once the rollup is complete.
+	// Both queries use the users_created index (accounts migration 8).
 	weekStart := func(d int64) int64 { // Monday of the week containing day d (1970-01-01 was a Thursday)
 		return d - ((d+3)%7+7)%7
 	}
