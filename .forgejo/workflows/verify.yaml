@@ -1,0 +1,34 @@
+name: Verify
+
+# Same checks as the deploy gates, on pull requests, so a red commit is caught
+# before it is merged into dev or main.
+on:
+  pull_request:
+    branches: [dev, main]
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build, vet, typecheck and test the exact commit before it reaches the host.
+  # Steps live in deploy/ci-verify.sh so this job stays identical in every workflow.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install pnpm
+        run: npm install -g pnpm@11.25.0
+      - name: Verify
+        env:
+          # The Go suite still has known failures: report them without blocking.
+          # Switch to "0" once it is green (see deploy/ci-verify.sh).
+          GO_TEST_ADVISORY: "1"
+        run: bash deploy/ci-verify.sh
