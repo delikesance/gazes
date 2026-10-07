@@ -147,4 +147,4 @@ M1, dans cet ordre : (a) agent Schéma et migrations (Sonnet), (b) agent Auth ad
 | M6 durcissement (couverture d'authentification, charge, cache, doc d'exploitation) | fait, voir [admin-operations.md](admin-operations.md) |
 | Actions d'exploitation (sources, caches, file AV1, limite de flux, maintenance) | fait, voir [admin-operations.md](admin-operations.md) |
 
-Ce qui reste ouvert, à décider : instrumenter le démarrage p50/p95 et la limite de flux (règles aujourd'hui « non mesurées »), déplacer `/views` et `/catalog` sur des tables de cumul si l'historique grossit, planifier les routines de Claude (guide : [admin-claude-routines.md](admin-claude-routines.md)), vérifier visuellement les pages (aucun navigateur disponible pendant le développement) et faire revalider les décisions D1 à D4 par Jev.
+Ce qui reste ouvert, à décider : déplacer `/views` et `/catalog` sur des tables de cumul si l'historique grossit, planifier les routines de Claude (guide : [admin-claude-routines.md](admin-claude-routines.md)), vérifier visuellement les pages (aucun navigateur disponible pendant le développement) et faire revalider les décisions D1 à D4 par Jev.
