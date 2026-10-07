@@ -12,25 +12,26 @@ import { usePlayerSubtitles } from "@/lib/use-player-subtitles";
 import {
   NEXT_EPISODE_DELAY, PLAYBACK_RATES,
   bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, initialFileIndex, isBitmapSubtitle, isHevc,
-  libraryLoad, mediaErrorMessage, metadataTimedOut, playerShortcut,
-  progressPercent, scrubberTarget, stepVolume, streamWatchdog, textSubtitleTracks,
+  libraryLoad, mediaErrorMessage, playerShortcut,
+  progressPercent, scrubberTarget, stepVolume, textSubtitleTracks,
 } from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
 import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type PlayerOptionsTab } from "./PlayerOptionsModal";
-import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
 import { episodeFile, episodeCandidates } from "@/lib/episode-file";
 import { HlsPlaybackController } from "@/lib/hls-playback";
-import { activeSkipSegment, mergeSkipSegments, needsAniSkip, shiftSegments, skipAction, type SkipSegment } from "@/lib/skip-segments";
+import { useSkipSegments } from "@/lib/use-skip-segments";
+import { usePlaybackWatchdog } from "@/lib/use-playback-watchdog";
+import { useNextEpisodeCountdown } from "@/lib/use-next-episode-countdown";
 import { SkipSegmentButton } from "./SkipSegmentButton";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
-import { requestEpisodePreview, getSkipTimes, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
+import { requestEpisodePreview, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
 import {
   ArrowLeft,
   X,
@@ -187,8 +188,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   const itemHash = item?.info_hash || item?.id || null;
   const [prevItemHash, setPrevItemHash] = useState<string | null>(itemHash);
-  // Seconds left before the next episode starts on its own; null while idle or cancelled.
-  const [nextCountdown, setNextCountdown] = useState<number | null>(null);
+  const [nextCountdown, setNextCountdown] = useNextEpisodeCountdown(isPlaying, onNextEpisode);
 
   if (itemHash !== prevItemHash) {
     setPrevItemHash(itemHash);
@@ -218,47 +218,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // HLS: playbackOffset is 0 and fragments/subtitles are rebased by -timeline_origin server side,
   // so chapter times (raw file time) are shifted by -origin. AniSkip times already count from the
   // first frame, so they are not shifted.
-  const skipSeasonId = Number(diagnostic?.season_id);
-  const skipDuration = Math.round(videoMeta?.duration_sec || 0);
-  const skipKey = skipDuration > 0 ? episodeFileKey(skipSeasonId, episodeNumber, loadData?.info_hash, selectedFileIdx) : "";
-  const skipOrigin = hlsMode ? subtitleOrigin : 0;
-  const chapterSkips = React.useMemo(
-    () => shiftSegments(videoMeta?.skip_segments ?? [], skipOrigin),
-    [videoMeta?.skip_segments, skipOrigin],
-  );
-  const wantsAniSkip = skipKey !== "" && needsAniSkip(chapterSkips);
-  const [aniSkip, setAniSkip] = useState<{ key: string; segments: SkipSegment[] }>({ key: "", segments: [] });
-  // Fire-and-forget: never on the startup path, errors resolve to [].
-  useEffect(() => {
-    if (!wantsAniSkip) return;
-    const controller = new AbortController();
-    const [season, episode] = skipKey.split(":").map(Number);
-    void getSkipTimes(season, episode, skipDuration, controller.signal).then((segments) => {
-      if (!controller.signal.aborted) setAniSkip({ key: skipKey, segments });
-    });
-    return () => controller.abort();
-  }, [wantsAniSkip, skipKey, skipDuration]);
-  const skipSegments = React.useMemo(
-    () => mergeSkipSegments(chapterSkips, wantsAniSkip && aniSkip.key === skipKey ? aniSkip.segments : []),
-    [chapterSkips, wantsAniSkip, aniSkip, skipKey],
-  );
-  const skipSegmentsRef = useRef<SkipSegment[]>([]);
-  useEffect(() => { skipSegmentsRef.current = skipSegments; }, [skipSegments]);
-  const [activeSkip, setActiveSkip] = useState<SkipSegment | null>(null);
-  const activeSkipRef = useRef<SkipSegment | null>(null);
-  // Called on every timeupdate; re-renders only when the active segment changes.
-  const updateActiveSkip = useCallback((position: number) => {
-    const next = activeSkipSegment(skipSegmentsRef.current, position);
-    if (next === activeSkipRef.current) return;
-    activeSkipRef.current = next;
-    setActiveSkip(next);
-  }, []);
-  // A paused viewer inside an opening must see the button once late AniSkip results arrive.
-  useEffect(() => {
-    updateActiveSkip(playbackOffset + currentTimeRef.current);
-  }, [skipSegments, playbackOffset, updateActiveSkip]);
-  const shownSkip = activeSkip && skipSegments.includes(activeSkip) ? activeSkip : null;
-  const shownSkipAction = shownSkip ? skipAction(shownSkip, totalDuration, !!onNextEpisode) : "seek";
+  const { shownSkip, shownSkipAction, updateActiveSkip } = useSkipSegments({
+    seasonId: Number(diagnostic?.season_id), episodeNumber, infoHash: loadData?.info_hash, fileIndex: selectedFileIdx,
+    durationSec: videoMeta?.duration_sec || 0, chapters: videoMeta?.skip_segments, origin: hlsMode ? subtitleOrigin : 0,
+    totalDuration, hasNextEpisode: !!onNextEpisode, playbackOffset, currentTimeRef,
+  });
 
   // Direct DOM updates for smooth timeline
   const updateProgressDisplay = useCallback(
@@ -320,54 +284,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     else if (playbackError) reportFailure(playbackError,"media_error");
   }, [error, needsFileSelection, playbackError, reportFailure, loadData, item]);
 
-  // Metadata phase: wait as long as the swarm is alive (a connected peer or incoming bytes).
-  useEffect(() => {
-    if (!onPlaybackFailure || !item || !loading || (item as EpisodeSource).library) return;
-    const startedAt = Date.now();
-    let lastActivity = startedAt;
-    let lastBytes = 0;
-    const check = setInterval(() => {
-      getTorrentStats(item.info_hash, diagnostic).then((s) => {
-        // A connected peer alone does not prove metadata is arriving.
-        if (s.completed_bytes > lastBytes) lastActivity = Date.now();
-        lastBytes = s.completed_bytes;
-      }).catch(() => {});
-      const now = Date.now();
-      if (metadataTimedOut(now, startedAt, lastActivity, PLAYBACK_TIMEOUTS)) {
-        reportFailure("Cette source ne fournit pas ses métadonnées à temps.", "metadata_timeout");
-      }
-    }, 2000);
-    return () => clearInterval(check);
-  }, [loading, item, onPlaybackFailure, reportFailure, diagnostic]);
-
-  // Actual time advancement proves playback. Buffering can occur without an
-  // error event, so a dead swarm must not hold this source indefinitely.
-  useEffect(() => {
-    if (hlsMode || !onPlaybackFailure || loading || needsFileSelection) return;
-    const startedAt = Date.now();
-    let lastActivity = startedAt;
-    let lastBytes = -1;
-    let lastBuffered = 0;
-    let tick = 0;
-    const poll = setInterval(() => {
-      const video = videoRef.current;
-      if (!video || !resumePlaybackRef.current) return;
-      const now = Date.now();
-      // Activity = new bytes from the swarm or new buffered video: slow is fine, stuck is not.
-      const buffered = video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0;
-      if (buffered > lastBuffered) lastActivity = now;
-      lastBuffered = buffered;
-      if (item && !(item as EpisodeSource).library && ++tick % 2 === 0) {
-        getTorrentStats(item.info_hash, diagnostic).then((s) => {
-          if (lastBytes >= 0 && s.completed_bytes > lastBytes) lastActivity = Date.now();
-          lastBytes = s.completed_bytes;
-        }).catch(() => {});
-      }
-      const failure = streamWatchdog({ now, startedAt, lastActivity, lastProgressAt: lastProgressRef.current.at, hasStarted: hasStartedRef.current }, PLAYBACK_TIMEOUTS);
-      if (failure) reportFailure(failure.reason, failure.code);
-    }, 1000);
-    return () => clearInterval(poll);
-  }, [hlsMode, loading, needsFileSelection, onPlaybackFailure, reportFailure, timeOffset, selectedAudioTrack, item, diagnostic]);
+  usePlaybackWatchdog({
+    item, diagnostic, enabled: !!onPlaybackFailure, hlsMode, loading, needsFileSelection, reportFailure,
+    videoRef, resumePlaybackRef, hasStartedRef, lastProgressRef, timeOffset, audioTrack: selectedAudioTrack,
+  });
 
   // Auto-hide controls timer
   const triggerShowControls = useCallback(() => {
@@ -422,7 +342,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     updateProgressDisplay(0);
 
     triggerShowControls();
-  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls]);
+  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls, setNextCountdown]);
 
   const runSkip = useCallback(() => {
     if (!shownSkip) return;
@@ -446,15 +366,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       window.setTimeout(() => setPartyCopied(false), 2000);
     } catch { /* clipboard unavailable (insecure context) */ }
   }, [party]);
-  // Playing again (replay, a party member resuming) cancels the countdown.
-  if (isPlaying && nextCountdown !== null) setNextCountdown(null);
-  useEffect(() => {
-    if (nextCountdown === null) return;
-    const timer = window.setTimeout(() => {
-      if (nextCountdown <= 1) { setNextCountdown(null); onNextEpisode?.(); } else setNextCountdown(nextCountdown - 1);
-    }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [nextCountdown, onNextEpisode]);
   const [linkCopied, setLinkCopied] = useState(false);
   const copyTimeLink = useCallback(async () => {
     const position = Math.floor(hlsController.current?.position ?? (playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current)));
