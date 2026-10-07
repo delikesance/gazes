@@ -626,7 +626,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     failureReportedRef.current = false;
     hasStartedRef.current = false;
     // Time to first frame only means something when nothing waits on the viewer (paused resume).
-    loadStartedAtRef.current = initialPaused ? null : performance.now();
+    loadStartedAtRef.current = pausedIntent?.() ? null : performance.now();
     fileResolvedRef.current = false;
     subtitleSelectionRef.current = false;
     audioSelectionRef.current = false;
