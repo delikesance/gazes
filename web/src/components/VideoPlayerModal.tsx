@@ -3,15 +3,14 @@ import { useWatchParty } from "@/lib/use-watch-party";
 import { PlayerStartup } from "./PlayerStartup";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
-import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
+import { mediaTrackLabel } from "@/lib/media-tracks";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
 import { usePlayerPreferences } from "@/lib/use-player-preferences";
 import { usePlayerSubtitles } from "@/lib/use-player-subtitles";
 import {
-  NEXT_EPISODE_DELAY, PLAYBACK_RATES,
-  bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, initialFileIndex, isBitmapSubtitle, isHevc,
-  libraryLoad, mediaErrorMessage, playerShortcut,
+  PLAYBACK_RATES,
+  bufferedSpan, clampSeek, episodeFileKey, fileSelectionFailure, formatTime, isBitmapSubtitle, isHevc, playerShortcut,
   progressPercent, stepVolume, textSubtitleTracks,
 } from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
@@ -19,8 +18,8 @@ import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebug
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
 import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type PlayerOptionsTab } from "./PlayerOptionsModal";
-import { episodeFile, episodeCandidates } from "@/lib/episode-file";
-import { HlsPlaybackController } from "@/lib/hls-playback";
+import { episodeCandidates } from "@/lib/episode-file";
+import type { HlsPlaybackController } from "@/lib/hls-playback";
 import { useSkipSegments } from "@/lib/use-skip-segments";
 import { usePlaybackWatchdog } from "@/lib/use-playback-watchdog";
 import { useNextEpisodeCountdown } from "@/lib/use-next-episode-countdown";
@@ -34,11 +33,15 @@ import { PlayerNextEpisodeCard } from "./PlayerNextEpisodeCard";
 import { PlayerDetails } from "./PlayerDetails";
 import { PlayerFileSelection } from "./PlayerFileSelection";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
+import { useHlsPlayback } from "@/lib/use-hls-playback";
+import { useAudioTrackSelection } from "@/lib/use-audio-track-selection";
+import { useVideoEvents } from "@/lib/use-video-events";
+import { useTorrentLoad, useTorrentState } from "@/lib/use-torrent-load";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
-import { requestEpisodePreview, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata } from "@/lib/api";
+import { TorrentItem, FileInfo, VideoMetadata } from "@/types/api";
+import { requestEpisodePreview, getStreamUrl, getSubtitleUrl, fetchVideoMetadata } from "@/lib/api";
 import { AlertCircle, Loader2, Play } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -102,12 +105,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const hlsMode = engine === "hls";
   const hlsController = useRef<HlsPlaybackController | null>(null);
   const [subtitleOrigin, setSubtitleOrigin] = useState(0);
-  const [loading, setLoading] = useState(() => !libraryLoad(item));
-  const [error, setError] = useState<string | null>(null);
-  const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(() => libraryLoad(item));
-  const [needsFileSelection, setNeedsFileSelection] = useState(false);
-  const [selectedFileIdx, setSelectedFileIdx] = useState<number>(() => initialFileIndex(item));
-  const [stats, setStats] = useState<SwarmStats | null>(null);
+  const torrent = useTorrentState(item);
+  const { loading, error, loadData, needsFileSelection, setNeedsFileSelection, selectedFileIdx, setSelectedFileIdx, stats } = torrent;
   const [videoMeta, setVideoMeta] = useState<VideoMetadata | null>(null);
   const [forceRemux, setForceRemux] = useState(initialTime > 0);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -161,7 +160,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const currentTimeRef = useRef<number>(0);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const itemHash = item?.info_hash || item?.id || null;
   const [prevItemHash, setPrevItemHash] = useState<string | null>(itemHash);
@@ -170,21 +168,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   if (itemHash !== prevItemHash) {
     setPrevItemHash(itemHash);
     setNextCountdown(null); // the HLS player stays mounted across episodes: a pending countdown belongs to the old one
-    setLoading(true);
-    setError(null);
-    setStats(null);
     setVideoMeta(null);
     setTimeOffset(initialTime);
     setForceRemux(false);
     setSelectedAudioTrack(0);
     setSelectedSubTrack(null);
-    if (item) {
-      setPlaybackError(null);
-      setLoadData(libraryLoad(item));
-      setSelectedFileIdx(initialFileIndex(item));
-      setNeedsFileSelection(false);
-      setLoading(!libraryLoad(item));
-    }
+    if (item) setPlaybackError(null);
   }
 
   const totalDuration = videoMeta?.duration_sec || loadData?.main_video_metadata?.duration_sec || 0;
@@ -300,6 +289,16 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [triggerShowControls, isBuffering, hlsMode]);
 
+  // Legacy engine: a seek or audio switch restarts the remux at `position`, so the new stream's time 0 is that position.
+  const restartRemuxAt = useCallback((position: number) => {
+    hasStartedRef.current = false;
+    lastProgressRef.current = { time: 0, at: 0 };
+    setIsBuffering(true);
+    setForceRemux(true);
+    setTimeOffset(position);
+    currentTimeRef.current = 0;
+  }, []);
+
   const partySeekRef = useRef<(seconds: number) => void>(undefined);
   const handleSeek = useCallback((targetSec: number) => {
     diagnosticEvent(diagnostic,"playback.seek",{position:targetSec});
@@ -308,17 +307,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     partySeekRef.current?.(finalSec);
     if (hlsMode) { hlsController.current?.seek(finalSec); updateProgressDisplay(finalSec); triggerShowControls(); return; }
 
-    hasStartedRef.current = false;
-    lastProgressRef.current = { time: 0, at: 0 };
-    setIsBuffering(true);
-    setForceRemux(true);
-    setTimeOffset(finalSec);
-    currentTimeRef.current = 0;
+    restartRemuxAt(finalSec);
     setNeedsFileSelection(false);
     updateProgressDisplay(0);
 
     triggerShowControls();
-  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls, setNextCountdown]);
+  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls, setNextCountdown, setNeedsFileSelection, restartRemuxAt]);
 
   const runSkip = useCallback(() => {
     if (!shownSkip) return;
@@ -387,79 +381,21 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [triggerShowControls]);
 
-  // 1. Load Torrent Metadata
-  useEffect(() => {
-    if (!item) return;
-
-    resumePlaybackRef.current = !pausedIntent?.();
-    failureReportedRef.current = false;
-    hasStartedRef.current = false;
-    // Time to first frame only means something when nothing waits on the viewer (paused resume).
-    loadStartedAtRef.current = pausedIntent?.() ? null : performance.now();
-    fileResolvedRef.current = false;
-    resetSubtitleChoice();
-    audioSelectionRef.current = false;
-    let isMounted = true;
-    const controller = new AbortController();
-    currentTimeRef.current = 0;
-
-    // Library copies are plain files on the server: their load data is set on render, nothing to fetch.
-    if (libraryLoad(item)) {
-      return () => {
-        isMounted = false;
-        diagnosticEvent(diagnostic,"playback.abandoned",{position:playbackOffset+currentTimeRef.current});
-        controller.abort();
-      };
-    }
-
-    loadTorrent(item.magnet_uri, {metadataOnly: true, signal:controller.signal,diagnostic})
-      .then((data) => {
-        if (!isMounted) return;
-        setLoadData(data);
-        const isEpisode = "episode_number" in item && typeof item.episode_number === "number" && item.episode_number > 0;
-        const matched = isEpisode ? episodeFile(data.files,item as EpisodeSource) : data.main_video_index;
-        const initialIdx = matched === null ? -1 : matched;
-        setNeedsFileSelection(matched === null);
-        const selected=data.files.find(f=>f.index===initialIdx);
-        diagnosticEvent(diagnostic,selected?'playback.file_selected':'playback.file_rejected',{file_index:initialIdx,file_path:selected?.path||'',file_count:data.files.length,reason:selected?'episode_match':'episode_missing_or_ambiguous'});
-        setSelectedFileIdx(initialIdx);
-        if (data.main_video_metadata && initialIdx === data.main_video_index) {
-          receiveVideoMeta(data.main_video_metadata);
-
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.message || "Failed to load torrent metadata from swarm");
-        setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-      diagnosticEvent(diagnostic,"playback.abandoned",{position:playbackOffset+currentTimeRef.current});
-      controller.abort();
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
-  }, [item]);
-
-  // 2. Poll Live Swarm Stats
-  useEffect(() => {
-    if (!loadData || !loadData.info_hash || (item && "library" in item && (item as EpisodeSource).library)) return;
-
-    const fetchStats = () => {
-      getTorrentStats(loadData.info_hash,diagnostic)
-        .then((s) => {setStats(s);diagnosticEvent(diagnostic,"playback.swarm",{seeders:s.active_seeders,download_speed:s.download_rate_bps,buffer_percent:s.progress_pct});})
-        .catch(() => {});
-    };
-
-    fetchStats();
-    pollIntervalRef.current = setInterval(fetchStats, 5000);
-
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
-  }, [loadData]);
+  useTorrentLoad(torrent, {
+    item, diagnostic, onMainMetadata: receiveVideoMeta,
+    abandonedPosition: () => playbackOffset + currentTimeRef.current,
+    onLoadStart: () => {
+      resumePlaybackRef.current = !pausedIntent?.();
+      failureReportedRef.current = false;
+      hasStartedRef.current = false;
+      // Time to first frame only means something when nothing waits on the viewer (paused resume).
+      loadStartedAtRef.current = pausedIntent?.() ? null : performance.now();
+      fileResolvedRef.current = false;
+      resetSubtitleChoice();
+      audioSelectionRef.current = false;
+      currentTimeRef.current = 0;
+    },
+  });
 
   // Probe only the selected episode, one request at a time. Cancel an old
   // request when its source/file changes instead of accumulating blocked reads.
@@ -558,11 +494,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     }
   }, [hlsMode, streamUrl, videoMeta?.video_codec, loading, needsFileSelection]);
 
-  const hlsResumePosition = useRef(initialTime);
-  useEffect(() => {
-    if (!hlsMode || loading || needsFileSelection || !loadData || selectedFileIdx < 0 || !videoRef.current) return;
-    const video = videoRef.current;
-    const controller = new HlsPlaybackController(video, {
+  const hlsResumePositionRef = useHlsPlayback({
+    hlsMode, loading, needsFileSelection, loadData, fileIndex: selectedFileIdx, audioTrack: selectedAudioTrack,
+    videoRef, controllerRef: hlsController, resumePlaybackRef, diagnostic, initialTime, itemHash,
+    callbacks: video => ({
       state: state => {
         currentTimeRef.current = state.position;
         resumePlaybackRef.current = state.playing;
@@ -576,14 +511,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       metadata: (metadata, origin) => { receiveVideoMeta(metadata); setSubtitleOrigin(origin); },
       gesture: () => setNeedsPlaybackGesture(true),
       error: message => { setPlaybackError(message); },
-    }, diagnostic, !resumePlaybackRef.current);
-    hlsController.current = controller;
-    const position = hlsResumePosition.current;
-    void controller.open(loadData.info_hash, selectedFileIdx, selectedAudioTrack, position);
-    return () => { hlsResumePosition.current = video.currentTime || position; controller.dispose(); if (hlsController.current === controller) hlsController.current = null; };
-  }, [hlsMode, loadData, selectedFileIdx, selectedAudioTrack, loading, needsFileSelection]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { hlsResumePosition.current = initialTime; }, [itemHash, initialTime]);
+    }),
+  });
 
   const subtitleBitmap = isBitmapSubtitle(videoMeta?.subtitle_tracks?.find((track) => track.index === selectedSubTrack));
   const subtitleUrl =
@@ -597,28 +526,17 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     if (video) video.volume = volume;
   }, [streamUrl, volume, loading, needsFileSelection]);
 
-  const handleAudioTrackSelect = (trackIdx: number, manual = true) => {
-    if (manual) audioSelectionRef.current = true;
-    setOptionsTab(null);
-    if (trackIdx === selectedAudioTrack) return;
-    if (hlsMode) { hlsResumePosition.current = videoRef.current?.currentTime ?? currentTimeRef.current; setSelectedAudioTrack(trackIdx); return; }
-    const currentAbsoluteTime = playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
-    hasStartedRef.current = false;
-    lastProgressRef.current = { time: 0, at: 0 };
-    setForceRemux(true);
-    setSelectedAudioTrack(trackIdx);
-    setIsBuffering(true);
-    setTimeOffset(currentAbsoluteTime);
-    currentTimeRef.current = 0;
-
-    triggerShowControls();
-  };
-
-  useEffect(() => {
-    if (!videoMeta || selectedFileIdx < 0) return;
-    const preferred = preferredAudioTrack(videoMeta.audio_tracks || [], selectedAudioTrack, audioSelectionRef.current);
-    if (preferred !== selectedAudioTrack) handleAudioTrackSelect(preferred, false);
-  }, [videoMeta, selectedFileIdx, selectedAudioTrack]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleAudioTrackSelect = useAudioTrackSelection({
+    meta: videoMeta, fileIndex: selectedFileIdx, selected: selectedAudioTrack, manualRef: audioSelectionRef,
+    onPick: () => setOptionsTab(null),
+    apply: (trackIdx) => {
+      if (hlsMode) { hlsResumePositionRef.current = videoRef.current?.currentTime ?? currentTimeRef.current; setSelectedAudioTrack(trackIdx); return; }
+      const currentAbsoluteTime = playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
+      setSelectedAudioTrack(trackIdx);
+      restartRemuxAt(currentAbsoluteTime);
+      triggerShowControls();
+    },
+  });
 
   useEffect(() => {
     if (selectedFileIdx >= 0 && videoMeta?.probe_status === 'complete') onVideoMetadata?.(videoMeta);
@@ -678,6 +596,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     setSelectedSubTrack(null);
     updateProgressDisplay(0);
   };
+
+  const videoEvents = useVideoEvents({
+    item, diagnostic, hlsMode, videoRef, resumePlaybackRef, hasStartedRef, lastProgressRef, loadStartedAtRef, currentTimeRef,
+    fileResolvedRef, onFileResolvedRef, loadData, selectedFileIdx, videoMeta, audioTrack: selectedAudioTrack, subtitleTrack: selectedSubTrack,
+    playbackOffset, totalDuration, volume, isMuted, onProgress, onPlaybackFailure, onNextEpisode, reportFailure,
+    updateProgressDisplay, updateBuffered, updateActiveSkip,
+    setIsPlaying, setIsBuffering, setStarted, setNeedsPlaybackGesture, setPlaybackError, setNextCountdown,
+  });
 
   useAmbilight(ambilight.on && !isFullscreen, ambientRef, videoRef, containerRef, `${streamUrl}|${loading}|${error}|${needsFileSelection}|${itemHash}`);
   useDockReserve(containerRef, dockRef, `${loading}|${error}|${needsFileSelection}|${itemHash}`);
@@ -741,65 +667,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   src={engine && !hlsMode ? streamUrl : undefined}
                   playsInline
                   crossOrigin="anonymous"
-                  onTimeUpdate={(event) => {
-                  if (hlsMode && event.currentTarget.dataset.playbackPhase === "preparing") return;
-                  if(!hasStartedRef.current&&event.currentTarget===videoRef.current&&event.currentTarget.currentTime>lastProgressRef.current.time&&event.currentTarget.videoWidth>0){const startedAt=loadStartedAtRef.current;loadStartedAtRef.current=null;diagnosticEvent(diagnostic,"playback.started",{position:playbackOffset+event.currentTarget.currentTime,width:event.currentTarget.videoWidth,height:event.currentTarget.videoHeight,...(startedAt!==null?{startup_ms:Math.round(performance.now()-startedAt)}:{})});}
-                    if (event.currentTarget === videoRef.current) {
-                      const time = videoRef.current.currentTime;
-                      if (time > lastProgressRef.current.time && videoRef.current.videoWidth > 0) {
-                        hasStartedRef.current = true;
-                        lastProgressRef.current = { time, at: Date.now() };
-                      }
-                      currentTimeRef.current = time;
-                      onProgress?.(playbackOffset + time, totalDuration, {audioLang:videoMeta?.audio_tracks?.find(track=>track.index===selectedAudioTrack)?.language, subLang:selectedSubTrack===null?"":videoMeta?.subtitle_tracks?.find(track=>track.index===selectedSubTrack)?.language});
-                      updateProgressDisplay(videoRef.current.currentTime);
-                      updateBuffered();
-                      updateActiveSkip(playbackOffset + time);
-                    }
-                  }}
-                  onPlay={(event) => { if (event.currentTarget === videoRef.current) {resumePlaybackRef.current=true;setNeedsPlaybackGesture(false);setIsPlaying(true);} }}
-                  onPause={(event) => { if (event.currentTarget === videoRef.current) setIsPlaying(false); }}
-                  onWaiting={(event) => { if (event.currentTarget === videoRef.current) {setIsBuffering(true);diagnosticEvent(diagnostic,"playback.buffering",{position:playbackOffset+event.currentTarget.currentTime,ready_state:event.currentTarget.readyState});} }}
-                  onProgress={() => updateBuffered()}
-                  onPlaying={(event) => { if (event.currentTarget === videoRef.current) {
-                    setIsBuffering(false); setStarted(true);
-                    if (!fileResolvedRef.current && loadData && selectedFileIdx >= 0 && !(item && "library" in item && (item as EpisodeSource).library)) {
-                      fileResolvedRef.current = true;
-                      onFileResolvedRef.current?.(loadData.info_hash, selectedFileIdx);
-                    }
-                  } }}
-                  onCanPlay={(event) => {
-                    if (hlsMode) return;
-                    const video = event.currentTarget;
-                    if (video !== videoRef.current) return;
-                    video.volume = volume;
-                    video.muted = isMuted;
-                    setIsBuffering(false);
-                    if (resumePlaybackRef.current && video.paused) {
-                      video.play().catch((err: DOMException) => {
-                        if (video !== videoRef.current || err.name === "AbortError") return;
-                        if(err.name==="NotAllowedError"){resumePlaybackRef.current=false;loadStartedAtRef.current=null;setIsPlaying(false);setNeedsPlaybackGesture(true);diagnosticEvent(diagnostic,"playback.gesture_required");return;}
-                        setPlaybackError("Impossible de reprendre la lecture. Cliquez sur Lecture pour réessayer.");
-                      });
-                    }
-                  }}
-                  onError={(event) => {
-                    if (hlsMode) return;
-                    if (event.currentTarget !== videoRef.current) return;
-                    const mediaError = event.currentTarget.error;
-                    diagnosticEvent(diagnostic,"playback.media_error",{error_code:String(mediaError?.code||0),ready_state:event.currentTarget.readyState,network_state:event.currentTarget.networkState,video_codec:videoMeta?.video_codec||"",position:playbackOffset+event.currentTarget.currentTime});
-                    setIsBuffering(false);
-                    setIsPlaying(false);
-                    setPlaybackError(mediaErrorMessage(mediaError?.code, videoMeta?.video_codec));
-                  }}
-                  onEnded={(event) => {
-                    if (event.currentTarget !== videoRef.current) return;
-                    if (onPlaybackFailure && endedEarly(playbackOffset + event.currentTarget.currentTime, totalDuration)) {
-                      reportFailure("La lecture de cette source s’est interrompue avant la fin de l’épisode.","premature_end");
-                      return;
-                    }
-                    if (onNextEpisode) setNextCountdown(NEXT_EPISODE_DELAY);
-                  }}
+                  {...videoEvents}
                   onClick={togglePlay}
                   className="absolute inset-0 h-full w-full object-contain cursor-pointer"
                 >

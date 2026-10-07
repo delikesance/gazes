@@ -69,6 +69,32 @@ test('libraryLoad and initialFileIndex: library copies are file 0, torrents wait
   assert.equal(S.initialFileIndex(library), 0);
 });
 
+test('isLibrarySource: only items carrying a library copy', () => {
+  const torrent = { id: 'a', info_hash: 'a', magnet_uri: 'm', title: 't', size_bytes: 1, seeders: 1 };
+  assert.equal(S.isLibrarySource(null), false);
+  assert.equal(S.isLibrarySource(torrent), false);
+  assert.equal(S.isLibrarySource({ ...torrent, library: undefined }), false);
+  assert.equal(S.isLibrarySource({ ...torrent, library: { stream_id: 'lib-1' } }), true);
+});
+
+test('matchedFileIndex: episodes match by name, other items take the main video', () => {
+  const files = [{ index: 0, path: 'Show - 01.mkv', length: 1, is_video: true }, { index: 1, path: 'Show - 02.mkv', length: 1, is_video: true }];
+  const data = { info_hash: 'h', files, main_video_index: 0 };
+  const torrent = { id: 'a', info_hash: 'a', magnet_uri: 'm', title: 'Show', size_bytes: 1, seeders: 1 };
+  assert.equal(S.matchedFileIndex(data, torrent), 0, 'not an episode: main video');
+  assert.equal(S.matchedFileIndex(data, { ...torrent, episode_number: 0 }), 0, 'episode 0 is not an episode');
+  assert.equal(S.matchedFileIndex(data, { ...torrent, episode_number: 2, season_number: 1, anime_aliases: ['Show'] }), 1);
+  assert.equal(S.matchedFileIndex(data, { ...torrent, episode_number: 7, season_number: 1, anime_aliases: ['Show'] }), null, 'missing episode: ask');
+});
+
+test('progressTracks reports track languages, "" when subtitles are off', () => {
+  const meta = { duration_sec: 1, audio_tracks: [{ index: 1, language: 'jpn' }, { index: 2, language: 'fre' }], subtitle_tracks: [track(3, 'fre')] };
+  assert.deepEqual(S.progressTracks(meta, 2, 3), { audioLang: 'fre', subLang: 'fre' });
+  assert.deepEqual(S.progressTracks(meta, 2, null), { audioLang: 'fre', subLang: '' });
+  assert.deepEqual(S.progressTracks(meta, 9, 9), { audioLang: undefined, subLang: undefined });
+  assert.deepEqual(S.progressTracks(null, 0, null), { audioLang: undefined, subLang: '' });
+});
+
 test('clampSeek keeps targets inside the known duration', () => {
   assert.equal(S.clampSeek(-3, 100), 0);
   assert.equal(S.clampSeek(150, 100), 100);
