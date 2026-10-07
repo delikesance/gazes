@@ -149,6 +149,20 @@ func (s *Service) measureSources(ctx context.Context, now time.Time) measure {
 	return measure{value: fptr(top), detail: "SRC_DEAD sur 30 min : " + strings.Join(parts, ", ")}
 }
 
+// measureSaturation is the share of the concurrent stream limit in use (limit_concurrent_streams).
+func (s *Service) measureSaturation(ctx context.Context) measure {
+	st := s.pbDeps().stats
+	if st == nil {
+		return measure{detail: "flux non comptés (moteur de lecture HLS désactivé)"}
+	}
+	limit := s.StreamLimit(ctx)
+	if limit == 0 {
+		return measure{detail: "aucune limite de flux définie"}
+	}
+	n := st.ActiveSessions()
+	return measure{value: fptr(float64(n) / float64(limit) * 100), detail: fmt.Sprintf("%d flux ouverts pour une limite de %d", n, limit)}
+}
+
 type ruleDef struct {
 	rule, label, unit string
 	threshold         func(ctx context.Context, s *Service) float64
@@ -176,8 +190,8 @@ func watchRules() []ruleDef {
 				return measure{detail: "durée de démarrage non instrumentée"}
 			}},
 		{RuleSaturation, "Saturation des flux", "%", thresholdOf(RuleSaturation),
-			func(context.Context, *Service, time.Time, WatchConfig) measure {
-				return measure{detail: "limite de flux non mesurée"}
+			func(ctx context.Context, s *Service, _ time.Time, _ WatchConfig) measure {
+				return s.measureSaturation(ctx)
 			}},
 		{RuleDisk, "Occupation du disque", "%", thresholdOf(RuleDisk),
 			func(_ context.Context, s *Service, _ time.Time, cfg WatchConfig) measure {
@@ -222,6 +236,9 @@ func (s *Service) EvaluateWatch(ctx context.Context) ([]RuleState, error) {
 	start := time.Now()
 	now := s.now()
 	cfg := s.watchConfig()
+	if s.inMaintenance(ctx, now) {
+		cfg.WebhookURL = "" // planned work: issues are still opened, nobody is woken up
+	}
 	var out []RuleState
 	var breached, sent, failed int
 	for _, d := range watchRules() {
