@@ -27,9 +27,7 @@ jobs:
         run: npm install -g pnpm@11.25.0
       - name: Verify
         env:
-          # The Go suite still has known failures: report them without blocking.
-          # Switch to "0" once it is green (see deploy/ci-verify.sh).
-          GO_TEST_ADVISORY: "1"
+          GO_TEST_ADVISORY: "0"
         run: bash deploy/ci-verify.sh
 
   deploy:
