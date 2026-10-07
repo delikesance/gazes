@@ -21,7 +21,7 @@ The admin panel is the web UI under `/admin`, the REST API under `/api/v1/admin`
 
 ## What runs in the background
 
-One replica per period (Redis election): the metrics rollup every 10 minutes (idempotent, replayable) and the watch evaluation every minute. The first start backfills 30 days. Rows older than the retention (setting `retention_days`, default 180, 30 to 730; no screen or action sets it yet, edit the `settings` table) are pruned hourly from `playback_errors` and `mcp_audit`.
+One replica per period (Redis election): the metrics rollup every 10 minutes (idempotent, replayable) and the watch evaluation every minute. The first start backfills 30 days. Rows older than the retention (setting `retention_days`, default 180, 30 to 730; no screen or action sets it yet, edit the `settings` table) are pruned hourly from `playback_errors`, `playback_startups` and `mcp_audit`.
 
 ## Security model in one page
 
@@ -56,4 +56,4 @@ Back up `accounts.sqlite` (it is the source of truth) and `admin.sqlite` (settin
 
 ## Known limits
 
-Not measured yet, shown as `[À MESURER]`: startup p50/p95, stream capacity, device, country, acquisition source, favorites. The runtime actions (`retry_source`, `warm_cache`, `requeue_av1`, `pause_source`, `purge_cache`, `limit_concurrent_streams`, `schedule_maintenance`) act on the server process; called through the standalone `gazes-mcp` binary, or when their part is off (library disabled, legacy playback engine for the stream limit), they answer 503 `unavailable` with no effect. `purge_cache` only covers `episode_sources` and `indexer_results`: the catalog caches are left out on purpose (refilling them hits the AniList limit), and the torrent download cache on disk is not a scope. Without Redis the leader election is skipped and two replicas would both run the background jobs.
+Not measured yet, shown as `[À MESURER]`: stream capacity, device, country, acquisition source, favorites. The runtime actions (`retry_source`, `warm_cache`, `requeue_av1`, `pause_source`, `purge_cache`, `limit_concurrent_streams`, `schedule_maintenance`) act on the server process; called through the standalone `gazes-mcp` binary, or when their part is off (library disabled, legacy playback engine for the stream limit), they answer 503 `unavailable` with no effect. `purge_cache` only covers `episode_sources` and `indexer_results`: the catalog caches are left out on purpose (refilling them hits the AniList limit), and the torrent download cache on disk is not a scope. Without Redis the leader election is skipped and two replicas would both run the background jobs.
