@@ -31,14 +31,12 @@ func (s *Service) handleCosts(w http.ResponseWriter, r *http.Request) {
 	from, to, _ := pbRange(p.From, p.To)
 	pfrom, pto, _ := pbRange(p.PrevFrom, p.PrevTo)
 	activeUsers := func(a, b int64) (int64, error) {
-		var n int64
-		err := s.accountsDB().QueryRowContext(ctx,
-			`SELECT COUNT(DISTINCT user_id) FROM watch_sessions WHERE started_at >= ? AND started_at < ?`, a, b).Scan(&n)
-		return n, err
+		recs, err := s.userActivity(ctx, a, b, nil, nil, false)
+		return actDistinctUsers(recs, a, b), err
 	}
 	users, e3 := activeUsers(from, to)
 	pusers, e4 := activeUsers(pfrom, pto)
-	peak, truncated, e5 := s.pbPeakConcurrent(r, from, to)
+	peak, truncated, e5 := s.peakConcurrent(r, from, to)
 	if err := firstErr(e1, e2, e3, e4, e5); err != nil {
 		pbServerError(w, err)
 		return
@@ -103,8 +101,8 @@ func (s *Service) handleCosts(w http.ResponseWriter, r *http.Request) {
 }
 
 // pbPeakConcurrent estimates the highest number of simultaneous sessions in [from, to) by a
-// sweep over [started_at, updated_at] intervals.
-// TODO(rollup): a metrics_hourly peak column would avoid this bounded scan of watch_sessions.
+// sweep over [started_at, updated_at] intervals. peakConcurrent answers the same from the
+// per-day peaks and only falls back to this bounded scan for a period it cannot answer exactly.
 func (s *Service) pbPeakConcurrent(r *http.Request, from, to int64) (peak int, truncated bool, err error) {
 	rows, err := s.accountsDB().QueryContext(r.Context(),
 		`SELECT started_at, MAX(updated_at, started_at) FROM watch_sessions WHERE started_at >= ? AND started_at < ? LIMIT ?`,
