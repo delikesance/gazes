@@ -10,7 +10,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Build, vet, typecheck and test the exact commit before it reaches the host.
+  # Steps live in deploy/ci-verify.sh so this job stays identical in every workflow.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install pnpm
+        run: npm install -g pnpm@11.25.0
+      - name: Verify
+        env:
+          GO_TEST_ADVISORY: "0"
+        run: bash deploy/ci-verify.sh
+
   deploy:
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
