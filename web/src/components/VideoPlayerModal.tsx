@@ -11,15 +11,15 @@ import { usePlayerSubtitles } from "@/lib/use-player-subtitles";
 import {
   NEXT_EPISODE_DELAY, PLAYBACK_RATES,
   bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, initialFileIndex, isBitmapSubtitle, isHevc,
-  libraryLoad, mediaErrorMessage, playerShortcut,
-  progressPercent, stepVolume, textSubtitleTracks,
+  isLibrarySource, libraryLoad, matchedFileIndex, mediaErrorMessage, playerShortcut,
+  progressPercent, progressTracks, stepVolume, textSubtitleTracks,
 } from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
 import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
 import { PlayerOptionsModal, type PlayerOptionsTab } from "./PlayerOptionsModal";
-import { episodeFile, episodeCandidates } from "@/lib/episode-file";
+import { episodeCandidates } from "@/lib/episode-file";
 import { HlsPlaybackController } from "@/lib/hls-playback";
 import { useSkipSegments } from "@/lib/use-skip-segments";
 import { usePlaybackWatchdog } from "@/lib/use-playback-watchdog";
@@ -416,8 +416,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       .then((data) => {
         if (!isMounted) return;
         setLoadData(data);
-        const isEpisode = "episode_number" in item && typeof item.episode_number === "number" && item.episode_number > 0;
-        const matched = isEpisode ? episodeFile(data.files,item as EpisodeSource) : data.main_video_index;
+        const matched = matchedFileIndex(data, item);
         const initialIdx = matched === null ? -1 : matched;
         setNeedsFileSelection(matched === null);
         const selected=data.files.find(f=>f.index===initialIdx);
@@ -445,7 +444,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   // 2. Poll Live Swarm Stats
   useEffect(() => {
-    if (!loadData || !loadData.info_hash || (item && "library" in item && (item as EpisodeSource).library)) return;
+    if (!loadData || !loadData.info_hash || isLibrarySource(item)) return;
 
     const fetchStats = () => {
       getTorrentStats(loadData.info_hash,diagnostic)
@@ -751,7 +750,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                         lastProgressRef.current = { time, at: Date.now() };
                       }
                       currentTimeRef.current = time;
-                      onProgress?.(playbackOffset + time, totalDuration, {audioLang:videoMeta?.audio_tracks?.find(track=>track.index===selectedAudioTrack)?.language, subLang:selectedSubTrack===null?"":videoMeta?.subtitle_tracks?.find(track=>track.index===selectedSubTrack)?.language});
+                      onProgress?.(playbackOffset + time, totalDuration, progressTracks(videoMeta, selectedAudioTrack, selectedSubTrack));
                       updateProgressDisplay(videoRef.current.currentTime);
                       updateBuffered();
                       updateActiveSkip(playbackOffset + time);
@@ -763,7 +762,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   onProgress={() => updateBuffered()}
                   onPlaying={(event) => { if (event.currentTarget === videoRef.current) {
                     setIsBuffering(false); setStarted(true);
-                    if (!fileResolvedRef.current && loadData && selectedFileIdx >= 0 && !(item && "library" in item && (item as EpisodeSource).library)) {
+                    if (!fileResolvedRef.current && loadData && selectedFileIdx >= 0 && !isLibrarySource(item)) {
                       fileResolvedRef.current = true;
                       onFileResolvedRef.current?.(loadData.info_hash, selectedFileIdx);
                     }
