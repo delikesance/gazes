@@ -10,8 +10,8 @@ import { usePlayerPreferences } from "@/lib/use-player-preferences";
 import { usePlayerSubtitles } from "@/lib/use-player-subtitles";
 import {
   NEXT_EPISODE_DELAY, PLAYBACK_RATES,
-  bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, initialFileIndex, isBitmapSubtitle, isHevc,
-  isLibrarySource, libraryLoad, matchedFileIndex, mediaErrorMessage, playerShortcut,
+  bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, isBitmapSubtitle, isHevc,
+  isLibrarySource, mediaErrorMessage, playerShortcut,
   progressPercent, progressTracks, stepVolume, textSubtitleTracks,
 } from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
@@ -34,11 +34,12 @@ import { PlayerNextEpisodeCard } from "./PlayerNextEpisodeCard";
 import { PlayerDetails } from "./PlayerDetails";
 import { PlayerFileSelection } from "./PlayerFileSelection";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
+import { useTorrentLoad, useTorrentState } from "@/lib/use-torrent-load";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
-import { requestEpisodePreview, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata } from "@/lib/api";
+import { TorrentItem, FileInfo, VideoMetadata } from "@/types/api";
+import { requestEpisodePreview, getStreamUrl, getSubtitleUrl, fetchVideoMetadata } from "@/lib/api";
 import { AlertCircle, Loader2, Play } from "lucide-react";
 
 interface VideoPlayerModalProps {
@@ -102,12 +103,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const hlsMode = engine === "hls";
   const hlsController = useRef<HlsPlaybackController | null>(null);
   const [subtitleOrigin, setSubtitleOrigin] = useState(0);
-  const [loading, setLoading] = useState(() => !libraryLoad(item));
-  const [error, setError] = useState<string | null>(null);
-  const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(() => libraryLoad(item));
-  const [needsFileSelection, setNeedsFileSelection] = useState(false);
-  const [selectedFileIdx, setSelectedFileIdx] = useState<number>(() => initialFileIndex(item));
-  const [stats, setStats] = useState<SwarmStats | null>(null);
+  const torrent = useTorrentState(item);
+  const { loading, error, loadData, needsFileSelection, setNeedsFileSelection, selectedFileIdx, setSelectedFileIdx, stats } = torrent;
   const [videoMeta, setVideoMeta] = useState<VideoMetadata | null>(null);
   const [forceRemux, setForceRemux] = useState(initialTime > 0);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -161,7 +158,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const currentTimeRef = useRef<number>(0);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const itemHash = item?.info_hash || item?.id || null;
   const [prevItemHash, setPrevItemHash] = useState<string | null>(itemHash);
@@ -170,21 +166,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   if (itemHash !== prevItemHash) {
     setPrevItemHash(itemHash);
     setNextCountdown(null); // the HLS player stays mounted across episodes: a pending countdown belongs to the old one
-    setLoading(true);
-    setError(null);
-    setStats(null);
     setVideoMeta(null);
     setTimeOffset(initialTime);
     setForceRemux(false);
     setSelectedAudioTrack(0);
     setSelectedSubTrack(null);
-    if (item) {
-      setPlaybackError(null);
-      setLoadData(libraryLoad(item));
-      setSelectedFileIdx(initialFileIndex(item));
-      setNeedsFileSelection(false);
-      setLoading(!libraryLoad(item));
-    }
+    if (item) setPlaybackError(null);
   }
 
   const totalDuration = videoMeta?.duration_sec || loadData?.main_video_metadata?.duration_sec || 0;
@@ -318,7 +305,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     updateProgressDisplay(0);
 
     triggerShowControls();
-  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls, setNextCountdown]);
+  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls, setNextCountdown, setNeedsFileSelection]);
 
   const runSkip = useCallback(() => {
     if (!shownSkip) return;
@@ -387,78 +374,21 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [triggerShowControls]);
 
-  // 1. Load Torrent Metadata
-  useEffect(() => {
-    if (!item) return;
-
-    resumePlaybackRef.current = !pausedIntent?.();
-    failureReportedRef.current = false;
-    hasStartedRef.current = false;
-    // Time to first frame only means something when nothing waits on the viewer (paused resume).
-    loadStartedAtRef.current = pausedIntent?.() ? null : performance.now();
-    fileResolvedRef.current = false;
-    resetSubtitleChoice();
-    audioSelectionRef.current = false;
-    let isMounted = true;
-    const controller = new AbortController();
-    currentTimeRef.current = 0;
-
-    // Library copies are plain files on the server: their load data is set on render, nothing to fetch.
-    if (libraryLoad(item)) {
-      return () => {
-        isMounted = false;
-        diagnosticEvent(diagnostic,"playback.abandoned",{position:playbackOffset+currentTimeRef.current});
-        controller.abort();
-      };
-    }
-
-    loadTorrent(item.magnet_uri, {metadataOnly: true, signal:controller.signal,diagnostic})
-      .then((data) => {
-        if (!isMounted) return;
-        setLoadData(data);
-        const matched = matchedFileIndex(data, item);
-        const initialIdx = matched === null ? -1 : matched;
-        setNeedsFileSelection(matched === null);
-        const selected=data.files.find(f=>f.index===initialIdx);
-        diagnosticEvent(diagnostic,selected?'playback.file_selected':'playback.file_rejected',{file_index:initialIdx,file_path:selected?.path||'',file_count:data.files.length,reason:selected?'episode_match':'episode_missing_or_ambiguous'});
-        setSelectedFileIdx(initialIdx);
-        if (data.main_video_metadata && initialIdx === data.main_video_index) {
-          receiveVideoMeta(data.main_video_metadata);
-
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.message || "Failed to load torrent metadata from swarm");
-        setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-      diagnosticEvent(diagnostic,"playback.abandoned",{position:playbackOffset+currentTimeRef.current});
-      controller.abort();
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
-  }, [item]);
-
-  // 2. Poll Live Swarm Stats
-  useEffect(() => {
-    if (!loadData || !loadData.info_hash || isLibrarySource(item)) return;
-
-    const fetchStats = () => {
-      getTorrentStats(loadData.info_hash,diagnostic)
-        .then((s) => {setStats(s);diagnosticEvent(diagnostic,"playback.swarm",{seeders:s.active_seeders,download_speed:s.download_rate_bps,buffer_percent:s.progress_pct});})
-        .catch(() => {});
-    };
-
-    fetchStats();
-    pollIntervalRef.current = setInterval(fetchStats, 5000);
-
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
-  }, [loadData]);
+  useTorrentLoad(torrent, {
+    item, diagnostic, onMainMetadata: receiveVideoMeta,
+    abandonedPosition: () => playbackOffset + currentTimeRef.current,
+    onLoadStart: () => {
+      resumePlaybackRef.current = !pausedIntent?.();
+      failureReportedRef.current = false;
+      hasStartedRef.current = false;
+      // Time to first frame only means something when nothing waits on the viewer (paused resume).
+      loadStartedAtRef.current = pausedIntent?.() ? null : performance.now();
+      fileResolvedRef.current = false;
+      resetSubtitleChoice();
+      audioSelectionRef.current = false;
+      currentTimeRef.current = 0;
+    },
+  });
 
   // Probe only the selected episode, one request at a time. Cancel an old
   // request when its source/file changes instead of accumulating blocked reads.
