@@ -14,7 +14,7 @@ const (
 )
 
 // PublicStatus answers GET /api/v1/status without authentication. It reveals one word about
-// playback health, nothing about users, sources or volumes.
+// playback health and the scheduled maintenance, nothing about users, sources or volumes.
 func (s *Service) PublicStatus(w http.ResponseWriter, r *http.Request) {
 	since := s.now().Add(-statusWindow).Unix()
 	var errs, starts int64
@@ -28,5 +28,9 @@ func (s *Service) PublicStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=30")
-	_ = json.NewEncoder(w).Encode(map[string]string{"playback": status})
+	out := map[string]any{"playback": status}
+	if m, ok := s.Maintenance(r.Context()); ok {
+		out["maintenance"] = m
+	}
+	_ = json.NewEncoder(w).Encode(out)
 }
