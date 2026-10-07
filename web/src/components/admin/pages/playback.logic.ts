@@ -293,7 +293,7 @@ export function computedFindings(health: AdminPlaybackHealth, summary: AdminErro
     out.push({
       level: "basse",
       title: `Temps de démarrage : ${MISSING}.`,
-      action: "Piste : instrumenter la durée entre la demande de lecture et la première image pour obtenir p50 et p95.",
+      action: "Aucun démarrage mesuré sur la période : le lecteur envoie la durée jusqu'à la première image à chaque lecture lancée.",
     });
   }
   return out;
@@ -320,7 +320,7 @@ export interface NotMeasured {
 
 export function notMeasured(health: AdminPlaybackHealth, sources: AdminSources, costs: AdminCosts | null): NotMeasured[] {
   const out: NotMeasured[] = [];
-  if (!health.startup_ms.measured) out.push({ label: "Temps de démarrage (p50, p95)", reason: "Le lecteur n'envoie pas encore cette mesure." });
+  if (!health.startup_ms.measured) out.push({ label: "Temps de démarrage (p50, p95)", reason: "Aucun démarrage mesuré sur la période." });
   out.push({ label: "Rebuffering par heure", reason: "Aucune mesure des coupures de lecture n'est enregistrée." });
   if (!health.sources.measured) out.push({ label: "Sources actives sur le total", reason: "Le parc de sources n'est pas exposé par l'API." });
   if (sources.not_measured.includes("attempts_per_source")) out.push({ label: "Taux d'échec par source", reason: "Les tentatives par source ne sont pas comptées, seulement les échecs." });
