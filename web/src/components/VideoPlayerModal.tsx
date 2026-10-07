@@ -465,7 +465,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       lastProgressRef.current.at = Date.now();
       videoRef.current.play().catch((err:DOMException) => {
  if(err.name==="AbortError")return;
- if(err.name==="NotAllowedError"){resumePlaybackRef.current=false;setIsPlaying(false);setNeedsPlaybackGesture(true);diagnosticEvent(diagnostic,"playback.gesture_required");return;}
+ if(err.name==="NotAllowedError"){resumePlaybackRef.current=false;loadStartedAtRef.current=null;setIsPlaying(false);setNeedsPlaybackGesture(true);diagnosticEvent(diagnostic,"playback.gesture_required");return;}
  setPlaybackError("Impossible de reprendre la lecture. Cliquez sur Lecture pour réessayer.");
  });
       setIsPlaying(true);
@@ -593,7 +593,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     resumePlaybackRef.current = !initialPaused;
     failureReportedRef.current = false;
     hasStartedRef.current = false;
-    loadStartedAtRef.current = performance.now();
+    // Time to first frame only means something when nothing waits on the viewer (paused resume).
+    loadStartedAtRef.current = initialPaused ? null : performance.now();
     fileResolvedRef.current = false;
     setPlaybackError(null);
     subtitleSelectionRef.current = false;
@@ -1166,7 +1167,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     if (resumePlaybackRef.current && video.paused) {
                       video.play().catch((err: DOMException) => {
                         if (video !== videoRef.current || err.name === "AbortError") return;
-                        if(err.name==="NotAllowedError"){resumePlaybackRef.current=false;setIsPlaying(false);setNeedsPlaybackGesture(true);diagnosticEvent(diagnostic,"playback.gesture_required");return;}
+                        if(err.name==="NotAllowedError"){resumePlaybackRef.current=false;loadStartedAtRef.current=null;setIsPlaying(false);setNeedsPlaybackGesture(true);diagnosticEvent(diagnostic,"playback.gesture_required");return;}
                         setPlaybackError("Impossible de reprendre la lecture. Cliquez sur Lecture pour réessayer.");
                       });
                     }

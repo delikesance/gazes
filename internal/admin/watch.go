@@ -33,6 +33,8 @@ const (
 
 	watchErrorWindow     = time.Hour
 	watchMinSessions     = 20 // below this many sessions in the window the error rate is not meaningful
+	watchStartupWindow   = time.Hour
+	watchMinStartups     = 20 // below this many startups in the window the p95 is not meaningful
 	watchSourceWindow    = 30 * time.Minute
 	watchSourceThreshold = 5.0 // SRC_DEAD failures of one source in the window
 	watchNearRatio       = 0.8 // "near" starts at 80 % of the threshold
@@ -110,6 +112,17 @@ func (s *Service) measureErrorRate(ctx context.Context, now time.Time) measure {
 	return measure{value: fptr(float64(errs) / float64(sessions) * 100), detail: fmt.Sprintf("%d erreurs pour %d séances sur 60 min", errs, sessions)}
 }
 
+func (s *Service) measureStartup(ctx context.Context, now time.Time) measure {
+	p50, p95, n, err := s.pbStartupPercentiles(ctx, now.Add(-watchStartupWindow).Unix(), now.Unix()+1)
+	if err != nil {
+		return measure{detail: "démarrages illisibles"}
+	}
+	if n < watchMinStartups {
+		return measure{detail: fmt.Sprintf("échantillon trop faible (%d démarrages sur 60 min)", n)}
+	}
+	return measure{value: fptr(p95 / 1000), detail: fmt.Sprintf("p50 %.1f s, p95 %.1f s sur %d démarrages (60 min)", p50/1000, p95/1000, n)}
+}
+
 func (s *Service) measureDisk(path string) measure {
 	if path == "" {
 		return measure{detail: "chemin non configuré (GAZES_WATCH_DISK_PATH)"}
@@ -172,8 +185,8 @@ func watchRules() []ruleDef {
 				return s.measureErrorRate(ctx, now)
 			}},
 		{RuleStartup, "Démarrage p95", "s", thresholdOf(RuleStartup),
-			func(context.Context, *Service, time.Time, WatchConfig) measure {
-				return measure{detail: "durée de démarrage non instrumentée"}
+			func(ctx context.Context, s *Service, now time.Time, _ WatchConfig) measure {
+				return s.measureStartup(ctx, now)
 			}},
 		{RuleSaturation, "Saturation des flux", "%", thresholdOf(RuleSaturation),
 			func(context.Context, *Service, time.Time, WatchConfig) measure {
