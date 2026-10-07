@@ -7,19 +7,19 @@ import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
 import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
-import { MAX_SUBTITLE_FILE_BYTES, subtitleFileToAss } from "@/lib/subtitle-file";
-import type { SubtitleStyle } from "@/lib/ass-style";
+import { usePlayerPreferences } from "@/lib/use-player-preferences";
+import { usePlayerSubtitles } from "@/lib/use-player-subtitles";
 import {
-  AMBILIGHT_KEY, NEXT_EPISODE_DELAY, PLAYBACK_RATES, RATE_KEY, SUBTITLE_STYLE_KEY,
+  NEXT_EPISODE_DELAY, PLAYBACK_RATES,
   bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, initialFileIndex, isBitmapSubtitle, isHevc,
-  libraryLoad, mediaErrorMessage, metadataTimedOut, parseAmbilight, parseRate, parseSubtitleStyle, pickDefaultSubtitle, playerShortcut,
-  progressPercent, scrubberTarget, stepRate, stepVolume, streamWatchdog, textSubtitleTracks,
+  libraryLoad, mediaErrorMessage, metadataTimedOut, playerShortcut,
+  progressPercent, scrubberTarget, stepVolume, streamWatchdog, textSubtitleTracks,
 } from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
 import { PlayerFailover, type FailoverInfo } from "./PlayerFailover";
-import { PlayerOptionsModal, type AmbilightSettings, type PlayerOptionsTab } from "./PlayerOptionsModal";
+import { PlayerOptionsModal, type PlayerOptionsTab } from "./PlayerOptionsModal";
 import { PLAYBACK_TIMEOUTS } from "@/lib/playback-sources";
 import { episodeFile, episodeCandidates } from "@/lib/episode-file";
 import { HlsPlaybackController } from "@/lib/hls-playback";
@@ -90,11 +90,6 @@ interface VideoPlayerModalProps {
 
 export { PLAYBACK_RATES };
 
-const storedValue = (key: string) => { try { return typeof window !== "undefined" ? window.localStorage.getItem(key) : null; } catch { return null; } };
-const loadSubtitleStyle = () => parseSubtitleStyle(storedValue(SUBTITLE_STYLE_KEY));
-const loadAmbilight = () => parseAmbilight(storedValue(AMBILIGHT_KEY));
-const loadRate = () => parseRate(storedValue(RATE_KEY));
-
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   item,
   onFileResolved,
@@ -140,16 +135,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
   // Audio and Subtitle Tracks
   const [selectedAudioTrack, setSelectedAudioTrack] = useState<number>(0);
-  const [selectedSubTrack, setSelectedSubTrack] = useState<number | null>(null);
+  const subtitles = usePlayerSubtitles(diagnostic, t);
+  const { selectedSubTrack, setSelectedSubTrack, localSubtitle, subtitleError } = subtitles;
   const [started, setStarted] = useState(false);
   const [optionsTab, setOptionsTab] = useState<PlayerOptionsTab | null>(null);
   const [showEpisodes, setShowEpisodes] = useState(false);
-  const [ambilight, setAmbilight] = useState<AmbilightSettings>(loadAmbilight);
-  // A subtitle file the viewer picked: ASS text rendered in place of the embedded tracks.
-  const [localSubtitle, setLocalSubtitle] = useState<{ name: string; ass: string } | null>(null);
-  const [subtitleFileError, setSubtitleFileError] = useState<string | null>(null);
-  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(loadSubtitleStyle);
-  const [playbackRate, setPlaybackRateState] = useState(loadRate);
+  const { ambilight, updateAmbilight, subtitleStyle, updateSubtitleStyle, playbackRate, setPlaybackRate, stepPlaybackRate } = usePlayerPreferences();
   const [canPip] = useState(() => typeof document !== "undefined" && !!document.pictureInPictureEnabled);
 
   // Player controls state
@@ -171,12 +162,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const dockRef = useRef<HTMLDivElement>(null);
   const ambientRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [subtitleError, setSubtitleError] = useState<{ message: string; code?: string } | null>(null);
-  const [toastHovered, setToastHovered] = useState(false);
-  const handleSubtitleError = useCallback((message: string | null, code?: string) => {
-    setSubtitleError(message ? { message, code } : null);
-    if (message) diagnosticEvent(diagnostic, "playback.subtitle_failed", { error_code: code || "unknown" });
-  }, [diagnostic]);
   const resumePlaybackRef = useRef(true);
   const failureReportedRef = useRef(false);
   const hasStartedRef = useRef(false);
@@ -185,17 +170,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const onFileResolvedRef = useRef(onFileResolved);
   useEffect(() => { onFileResolvedRef.current = onFileResolved; }, [onFileResolved]);
   const lastProgressRef = useRef({ time: 0, at: 0 });
-  const subtitleSelectionRef = useRef(false);
   const audioSelectionRef = useRef(false);
-  // New metadata picks the default subtitle once, unless the viewer already chose one.
+  const { offerTracks: offerSubtitleTracks, resetChoice: resetSubtitleChoice } = subtitles;
   const receiveVideoMeta = useCallback((meta: VideoMetadata) => {
     setVideoMeta(meta);
-    const tracks = textSubtitleTracks(meta.subtitle_tracks);
-    if (!subtitleSelectionRef.current && tracks.length) {
-      subtitleSelectionRef.current = true;
-      setSelectedSubTrack(pickDefaultSubtitle(tracks).index);
-    }
-  }, []);
+    offerSubtitleTracks(meta);
+  }, [offerSubtitleTracks]);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const playedBarRef = useRef<HTMLDivElement>(null);
   const bufferedBarRef = useRef<HTMLDivElement>(null);
@@ -230,13 +210,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       setLoading(!libraryLoad(item));
     }
   }
-
-  // The subtitle error is informational: it fades out on its own.
-  useEffect(() => {
-    if (!subtitleError || toastHovered) return;
-    const timer = setTimeout(() => setSubtitleError(null), 8000);
-    return () => clearTimeout(timer);
-  }, [subtitleError, toastHovered]);
 
   const totalDuration = videoMeta?.duration_sec || loadData?.main_video_metadata?.duration_sec || 0;
 
@@ -503,15 +476,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [isMuted, triggerShowControls]);
 
-  const setPlaybackRate = useCallback((rate: number) => {
-    setPlaybackRateState(rate);
-    try { window.localStorage.setItem(RATE_KEY, String(rate)); } catch { /* storage unavailable */ }
-  }, []);
-
-  const stepPlaybackRate = useCallback((direction: 1 | -1) => {
-    setPlaybackRate(stepRate(playbackRate, direction));
-  }, [playbackRate, setPlaybackRate]);
-
   // Safari/iOS only: opens the system AirPlay picker for the video element.
   const [canAirPlay] = useState(() => typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window);
   const showAirPlay = useCallback(() => {
@@ -546,7 +510,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     // Time to first frame only means something when nothing waits on the viewer (paused resume).
     loadStartedAtRef.current = pausedIntent?.() ? null : performance.now();
     fileResolvedRef.current = false;
-    subtitleSelectionRef.current = false;
+    resetSubtitleChoice();
     audioSelectionRef.current = false;
     let isMounted = true;
     const controller = new AbortController();
@@ -794,21 +758,13 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   }, [videoMeta, diagnostic?.season_id, episodeNumber, loadData, selectedFileIdx, episodes]);
 
   const pickSubtitleFile = async (file: File) => {
-    setSubtitleFileError(null);
-    if (file.size > MAX_SUBTITLE_FILE_BYTES) { setSubtitleFileError(t("Fichier trop volumineux.")); return; }
-    const ass = subtitleFileToAss(file.name, await file.text().catch(() => ""));
-    if (!ass) { setSubtitleFileError(t("Fichier de sous-titres illisible (formats : .srt, .vtt, .ass).")); return; }
-    subtitleSelectionRef.current = true;
-    setLocalSubtitle({ name: file.name, ass });
-    setSelectedSubTrack(null);
+    if (!(await subtitles.pickFile(file))) return;
     setOptionsTab(null);
     triggerShowControls();
   };
 
   const handleSubtitleTrackSelect = (trackIdx: number | null) => {
-    subtitleSelectionRef.current = true;
-    setLocalSubtitle(null);
-    setSelectedSubTrack(trackIdx);
+    subtitles.selectTrack(trackIdx);
     setOptionsTab(null);
     triggerShowControls();
   };
@@ -855,22 +811,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     void copyText(item.magnet_uri);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const updateSubtitleStyle = (patch: Partial<SubtitleStyle>) => {
-    setSubtitleStyle((current) => {
-      const next = { ...current, ...patch };
-      try { window.localStorage.setItem(SUBTITLE_STYLE_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
-      return next;
-    });
-  };
-
-  const updateAmbilight = (patch: Partial<AmbilightSettings>) => {
-    setAmbilight((current) => {
-      const next = { ...current, ...patch };
-      try { window.localStorage.setItem(AMBILIGHT_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
-      return next;
-    });
   };
 
   // Ambilight: paint a tiny copy of the current frame (cover-fit to the stage); CSS blurs and fades it.
@@ -1090,7 +1030,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   bitmap={subtitleBitmap}
                   timeOffset={playbackOffset}
                   style={subtitleStyle}
-                  onError={handleSubtitleError}
+                  onError={subtitles.handleSubtitleError}
                 />
                 {debugMode && (
                   <PlayerDebugPanel
@@ -1100,8 +1040,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   />
                 )}
                 {subtitleError && (
-                  <div onMouseEnter={() => setToastHovered(true)} onMouseLeave={() => setToastHovered(false)} className="contents">
-                    <ErrorAlert className="player-toast" message={subtitleError.message} code={subtitleError.code} reference={diagnostic?.playback_session_id} onClose={() => setSubtitleError(null)} />
+                  <div onMouseEnter={() => subtitles.setToastHovered(true)} onMouseLeave={() => subtitles.setToastHovered(false)} className="contents">
+                    <ErrorAlert className="player-toast" message={subtitleError.message} code={subtitleError.code} reference={diagnostic?.playback_session_id} onClose={() => subtitles.setSubtitleError(null)} />
                   </div>
                 )}
                 </div>
@@ -1307,7 +1247,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     onSubtitleStyleChange={updateSubtitleStyle}
                     localSubtitleName={localSubtitle?.name ?? null}
                     onPickSubtitleFile={(file) => void pickSubtitleFile(file)}
-                    subtitleFileError={subtitleFileError}
+                    subtitleFileError={subtitles.subtitleFileError}
                   />
                 )}
               </div>
@@ -1358,7 +1298,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     <select
                       value={selectedFileIdx}
                       onChange={(e) => {
-                        subtitleSelectionRef.current = false;
+                        resetSubtitleChoice();
                         audioSelectionRef.current = false;
                         resumePlaybackRef.current = true;
                         setVideoMeta(null);
