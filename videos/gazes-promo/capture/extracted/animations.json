@@ -1,0 +1,178 @@
+{
+  "summary": {
+    "webAnimations": 4,
+    "cssDeclarations": 110,
+    "scrollTargets": 204,
+    "cdpAnimations": 171,
+    "canvases": 0
+  },
+  "namedAnimations": [
+    "hero-art-in",
+    "hero-copy-in",
+    "hero-poster-in",
+    "hero-ring"
+  ],
+  "scrollTriggeredElements": 204,
+  "representativeAnimations": [
+    {
+      "type": "CSSAnimation",
+      "playState": "finished",
+      "animationName": "hero-art-in",
+      "targetSelector": "div.anime-hero-art",
+      "targetRect": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 972,
+        "top": 0,
+        "right": 1920,
+        "bottom": 972,
+        "left": 0
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "ease",
+          "composite": "auto",
+          "opacity": "0",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "ease",
+          "composite": "replace",
+          "opacity": "0.55",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 800,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSAnimation",
+      "playState": "finished",
+      "animationName": "hero-copy-in",
+      "targetSelector": "div.anime-hero-copy",
+      "targetRect": {
+        "x": 75,
+        "y": 404.328125,
+        "width": 760,
+        "height": 451.671875,
+        "top": 404.328125,
+        "right": 835,
+        "bottom": 856,
+        "left": 75
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+          "composite": "auto",
+          "transform": "translateX(28px)",
+          "opacity": "0",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+          "composite": "auto",
+          "transform": "none",
+          "opacity": "1",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 550,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSAnimation",
+      "playState": "finished",
+      "animationName": "hero-poster-in",
+      "targetSelector": "div.hero-poster",
+      "targetRect": {
+        "x": 1275.3673095703125,
+        "y": 251.94735717773438,
+        "width": 450.484130859375,
+        "height": 614.636474609375,
+        "top": 251.94735717773438,
+        "right": 1725.8514404296875,
+        "bottom": 866.5838317871094,
+        "left": 1275.3673095703125
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+          "composite": "auto",
+          "transform": "translateX(90px) rotate(12deg) scale(0.95)",
+          "opacity": "0",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+          "composite": "auto",
+          "transform": "rotate(3deg)",
+          "opacity": "1",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 700,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSAnimation",
+      "playState": "running",
+      "animationName": "hero-ring",
+      "targetSelector": "circle",
+      "targetRect": {
+        "x": 1026,
+        "y": 901,
+        "width": 34,
+        "height": 34,
+        "top": 901,
+        "right": 1060,
+        "bottom": 935,
+        "left": 1026
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "linear",
+          "composite": "auto",
+          "strokeDashoffset": "100px",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "linear",
+          "composite": "auto",
+          "strokeDashoffset": "0px",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 8000,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    }
+  ]
+}
