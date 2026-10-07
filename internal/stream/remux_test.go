@@ -170,7 +170,9 @@ func TestHEVCAudioSwitch(t *testing.T) {
 					if _, ok := sourceTimes[hash]; ok {
 						matched++
 					}
-					if original, ok := sourceTimes[hash]; ok && math.Abs(timestamp-original+2.35) > .002 {
+					// FFmpeg 6.x shifts the remuxed timeline by up to one AAC frame
+					// (1024 samples at 48 kHz) of priming; newer releases do not.
+					if original, ok := sourceTimes[hash]; ok && math.Abs(timestamp-original+2.35) > 1024.0/48000+.002 {
 						t.Fatalf("packet timeline shifted: output %.6f, source %.6f", timestamp, original)
 					}
 				}
