@@ -4,7 +4,6 @@ import { PlayerStartup } from "./PlayerStartup";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
 import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
-import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
 import { usePlayerPreferences } from "@/lib/use-player-preferences";
@@ -13,7 +12,7 @@ import {
   NEXT_EPISODE_DELAY, PLAYBACK_RATES,
   bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, initialFileIndex, isBitmapSubtitle, isHevc,
   libraryLoad, mediaErrorMessage, playerShortcut,
-  progressPercent, scrubberTarget, stepVolume, textSubtitleTracks,
+  progressPercent, stepVolume, textSubtitleTracks,
 } from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
@@ -26,39 +25,19 @@ import { useSkipSegments } from "@/lib/use-skip-segments";
 import { usePlaybackWatchdog } from "@/lib/use-playback-watchdog";
 import { useNextEpisodeCountdown } from "@/lib/use-next-episode-countdown";
 import { SkipSegmentButton } from "./SkipSegmentButton";
+import { PlayerTopBar } from "./PlayerTopBar";
+import { PlayerTimeline } from "./PlayerTimeline";
+import { PlayerControls } from "./PlayerControls";
+import { PlayerNextEpisodeCard } from "./PlayerNextEpisodeCard";
+import { PlayerDetails } from "./PlayerDetails";
+import { PlayerFileSelection } from "./PlayerFileSelection";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
-import { requestEpisodePreview, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
-import {
-  ArrowLeft,
-  X,
-  Play,
-  Pause,
-  Maximize,
-  Minimize,
-  Volume2,
-  VolumeX,
-  Volume1,
-  RotateCcw,
-  RotateCw,
-  Copy,
-  Check,
-  AlertCircle,
-  SkipForward,
-  SkipBack,
-  Layers,
-  Loader2,
-  Settings,
-  List,
-  Image as ImageIcon,
-  Link2,
-  Users,
-  PictureInPicture2,
-  Cast,
-} from "lucide-react";
+import { requestEpisodePreview, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata } from "@/lib/api";
+import { AlertCircle, Loader2, Play } from "lucide-react";
 
 interface VideoPlayerModalProps {
   /** Whether the viewer last paused; read when a source starts loading. */
@@ -124,12 +103,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [loading, setLoading] = useState(() => !libraryLoad(item));
   const [error, setError] = useState<string | null>(null);
   const [loadData, setLoadData] = useState<LoadTorrentResponse | null>(() => libraryLoad(item));
-  const [fileSearch, setFileSearch] = useState("");
   const [needsFileSelection, setNeedsFileSelection] = useState(false);
   const [selectedFileIdx, setSelectedFileIdx] = useState<number>(() => initialFileIndex(item));
   const [stats, setStats] = useState<SwarmStats | null>(null);
   const [videoMeta, setVideoMeta] = useState<VideoMetadata | null>(null);
-  const [copied, setCopied] = useState(false);
   const [forceRemux, setForceRemux] = useState(initialTime > 0);
   const [isBuffering, setIsBuffering] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
@@ -153,8 +130,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [hoverTime, setHoverTime] = useState<number | null>(null);
-  const [hoverPosition, setHoverPosition] = useState<number>(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   // Also kept in state: the fullscreen top bar is portaled into it during render.
@@ -206,7 +181,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       setLoadData(libraryLoad(item));
       setSelectedFileIdx(initialFileIndex(item));
       setNeedsFileSelection(false);
-      setFileSearch("");
       setLoading(!libraryLoad(item));
     }
   }
@@ -550,7 +524,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
 
 
   const matchingFiles = loadData && item && "episode_number" in item ? episodeCandidates(loadData.files,item as EpisodeSource) : [];
-  const selectionFiles = (matchingFiles.length ? matchingFiles : loadData?.files.filter(file=>file.is_video) || []).filter(file=>file.path.toLowerCase().includes(fileSearch.toLowerCase()));
   const currentFile: FileInfo | undefined = loadData?.files[selectedFileIdx];
   const streamUrl = loadData && selectedFileIdx >= 0
     ? hlsMode ? `hls:${loadData.info_hash}:${selectedFileIdx}:${selectedAudioTrack}` : getStreamUrl(loadData.info_hash, selectedFileIdx, forceRemux, timeOffset, selectedAudioTrack,diagnostic)
@@ -680,34 +653,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   };
 
-  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressBarRef.current || totalDuration <= 0) return;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    handleSeek(ratio * totalDuration);
-  };
-
-  // The scrubber is a slider for keyboards and screen readers: arrows seek 5 s, Page keys 30 s.
-  const handleProgressBarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (totalDuration <= 0 || e.ctrlKey || e.metaKey || e.altKey) return;
-    const target = scrubberTarget(e.key, playbackOffset + currentTimeRef.current, totalDuration);
-    if (target === null) return;
-    // The window-level shortcuts would seek a second time.
-    e.preventDefault();
-    e.stopPropagation();
-    handleSeek(target);
-  };
-
-  const handleProgressBarMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressBarRef.current || totalDuration <= 0) return;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    setHoverPosition(ratio * 100);
-    setHoverTime(ratio * totalDuration);
-  };
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
+  const handleVolumeChange = (val: number) => {
     setVolume(val);
     if (videoRef.current) {
       videoRef.current.volume = val;
@@ -717,11 +663,18 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   };
 
-  const handleCopyMagnet = () => {
-    if (!item) return;
-    void copyText(item.magnet_uri);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // The file switcher below the player: a fresh start on the chosen file, defaults picked again.
+  const selectFileManually = (index: number) => {
+    resetSubtitleChoice();
+    audioSelectionRef.current = false;
+    resumePlaybackRef.current = true;
+    setVideoMeta(null);
+    setSelectedFileIdx(index);
+    setTimeOffset(0);
+    currentTimeRef.current = 0;
+    setSelectedAudioTrack(0);
+    setSelectedSubTrack(null);
+    updateProgressDisplay(0);
   };
 
   // Ambilight: paint a tiny copy of the current frame (cover-fit to the stage); CSS blurs and fades it.
@@ -784,37 +737,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // Fullscreen only paints descendants of the video box. Keep the heading
   // inside that layer while fullscreen, without remounting the video itself.
   const topBar = (
-    <div onMouseMove={triggerShowControls} className={`player-heading player-topbar${!showControls?" watch-heading-hidden":""}`}>
-      <div className="flex min-w-0 items-center gap-2.5">
-        <button
-          aria-label={t(pageMode?"Voir les saisons":"Fermer le lecteur")}
-          onClick={onClose}
-          className="player-frost player-pill player-pill--icon shrink-0"
-        >
-          {pageMode ? <ArrowLeft className="h-5 w-5" aria-hidden="true" /> : <X className="h-5 w-5" aria-hidden="true" />}
-        </button>
-        <div className="player-frost player-pill player-episode-pill min-w-0">
-          {episodeNumber && <span className="player-chip player-chip--solid">EP {episodeNumber}</span>}
-          {previewSaved && <span role="status" className="player-chip player-chip--solid player-chip--preview"><ImageIcon size={13} aria-hidden="true" /><Check size={13} aria-hidden="true" />{t("Aperçu enregistré")}</span>}
-          <h2 className="min-w-0 truncate text-[13px] font-medium" title={animeTitle || item.title}>
-            {animeTitle || item.anime_details?.display_title || item.title}
-          </h2>
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-2.5">
-        {stats && (
-          <div className="player-frost player-pill hidden !gap-2 sm:inline-flex" role="status">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
-            <span className="font-mono text-xs">{stats.active_seeders} {t("Seeders")} · {formatBytes(stats.download_rate_bps)}/s</span>
-          </div>
-        )}
-        {onChangeSource && (
-          <button onClick={onChangeSource} aria-label={t("Changer de source pour cet épisode")} title={t("Changer de source pour cet épisode")} className="player-frost player-pill player-pill--collapse">
-            <Layers className="h-4 w-4" /><span className="player-label">{t("Sources")}</span>
-          </button>
-        )}
-      </div>
-    </div>
+    <PlayerTopBar
+      item={item} animeTitle={animeTitle} episodeNumber={episodeNumber} pageMode={pageMode} showControls={showControls}
+      previewSaved={previewSaved} stats={stats} onActivity={triggerShowControls} onClose={onClose} onChangeSource={onChangeSource}
+    />
   );
 
   return (
@@ -833,15 +759,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           {loading && !hlsMode ? (
             <PlayerStartup stage="connect" image={fallbackThumbnail} title={animeTitle} episode={episodeNumber} />
           ) : needsFileSelection && !hlsMode ? (
-            <div className="p-6 pt-24 space-y-4">
-              <p>{onPlaybackFailure ? t("Cet épisode ne peut pas être identifié dans ce pack. Essai de la source suivante…") : t("Choisissez le fichier correspondant à l’épisode {episode}. Aucun fichier n’a été lancé automatiquement.", {episode:episodeNumber ?? "—"})}</p>
-              {!onPlaybackFailure && <>
-              <input aria-label={t("Rechercher un fichier")} placeholder={t("Rechercher un fichier…")} value={fileSearch} onChange={event=>setFileSearch(event.target.value)} className="w-full bg-zinc-900 border border-zinc-700 p-3 rounded-full" />
-              <p>{selectionFiles.length} {" "}{t("fichiers")}{matchingFiles.length ? t(" correspondant à cet épisode") : t(" vidéo")}</p>
-              {selectionFiles.slice(0,50).map(file => <button key={file.index} className="block p-3 bg-zinc-900 rounded-2xl text-left w-full" onClick={() => { setSelectedFileIdx(file.index); setNeedsFileSelection(false); }}>{file.path}</button>)}
-              {selectionFiles.length>50 && <p>{t("Affichage des 50 premiers fichiers. Affinez la recherche.")}</p>}
-              </>}
-            </div>
+            <PlayerFileSelection
+              matchingFiles={matchingFiles} allFiles={loadData?.files ?? []} episodeNumber={episodeNumber}
+              failingOver={!!onPlaybackFailure} onSelect={(index) => { setSelectedFileIdx(index); setNeedsFileSelection(false); }}
+            />
           ) : error && !hlsMode ? (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center space-y-3">
               <AlertCircle className="h-8 w-8 text-zinc-500" />
@@ -999,141 +920,28 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     />
                   )}
                   <div className="player-frost flex flex-col gap-3 px-4 py-3.5 text-zinc-200 sm:gap-3.5 sm:px-[18px] sm:py-4" style={{ borderRadius: "var(--radius-dock, 32px)" }}>
-                    {/* Scrubber */}
-                    <div className="flex items-center gap-3.5 px-1.5">
-                      <span ref={timeDisplayRef} className="min-w-11 font-mono text-xs text-zinc-50">{formatTime(playbackOffset)}</span>
-                      <div
-                        ref={progressBarRef}
-                        onClick={handleProgressBarClick}
-                        role="slider"
-                        tabIndex={0}
-                        aria-label={t("Position de lecture")}
-                        aria-valuemin={0}
-                        aria-valuenow={0} /* moved by updateProgressDisplay; React never rewrites an unchanged prop */
-                        aria-valuemax={Math.floor(totalDuration)}
-                        onKeyDown={handleProgressBarKeyDown}
-                        onMouseMove={handleProgressBarMouseMove}
-                        onMouseLeave={() => setHoverTime(null)}
-                        className="group/bar relative flex h-5 flex-1 cursor-pointer items-center"
-                      >
-                        <div className="relative h-1.5 w-full rounded-full bg-white/20 transition-all group-hover/bar:h-2">
-                          <div ref={bufferedBarRef} className="absolute top-0 h-full rounded-full bg-white/55" style={{ left: "0%", width: "0%" }} />
-                          <div ref={playedBarRef} className="absolute left-0 top-0 h-full rounded-full bg-[var(--accent)]" style={{ width: "0%" }} />
-                          <div
-                            ref={knobRef}
-                            className="absolute top-1/2 -ml-2 -mt-2 h-4 w-4 rounded-full bg-white shadow-[0_0_0_5px_color-mix(in_srgb,var(--accent)_30%,transparent)]"
-                            style={{ left: "0%" }}
-                          />
-                        </div>
-                        {hoverTime !== null && (
-                          <div
-                            className="player-frost pointer-events-none absolute bottom-6 -translate-x-1/2 rounded-full px-2.5 py-0.5 font-mono text-[11px] text-white"
-                            style={{ left: `${hoverPosition}%` }}
-                          >
-                            {formatTime(hoverTime)}
-                          </div>
-                        )}
-                      </div>
-                      <span className="min-w-11 text-right font-mono text-xs text-zinc-400">
-                        {totalDuration > 0 ? formatTime(totalDuration) : videoMeta?.formatted_duration || "--:--"}
-                      </span>
-                    </div>
+                    <PlayerTimeline
+                      timeRef={timeDisplayRef} barRef={progressBarRef} bufferedRef={bufferedBarRef} playedRef={playedBarRef} knobRef={knobRef}
+                      playbackOffset={playbackOffset} totalDuration={totalDuration} formattedDuration={videoMeta?.formatted_duration}
+                      position={() => playbackOffset + currentTimeRef.current} onSeek={handleSeek}
+                    />
 
-                    {/* Controls Row */}
-                    <div className="player-controls-row flex items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-2">
-                        <button onClick={togglePlay} className="player-pill player-pill--icon player-pill--solid" aria-label={isPlaying ? t("Pause (Space)") : t("Play (Space)")} title={isPlaying ? t("Pause (Space)") : t("Play (Space)")}>
-                          {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
-                        </button>
-                        {onPrevEpisode && (
-                          <button onClick={onPrevEpisode} className="player-pill player-pill--icon" aria-label={t("Previous Episode")} title={t("Previous Episode")}>
-                            <SkipBack className="h-[18px] w-[18px]" />
-                          </button>
-                        )}
-                        {onNextEpisode && (
-                          <button onClick={onNextEpisode} className="player-pill player-pill--icon" aria-label={t("Next Episode")} title={t("Next Episode")}>
-                            <SkipForward className="h-[18px] w-[18px]" />
-                          </button>
-                        )}
-                        <button onClick={() => handleSeek(playbackOffset + currentTimeRef.current - 10)} className="player-pill player-pill--icon" aria-label={t("Rewind 10s (←)")} title={t("Rewind 10s (←)")}>
-                          <RotateCcw className="h-[18px] w-[18px]" />
-                        </button>
-                        <button onClick={() => handleSeek(playbackOffset + currentTimeRef.current + 10)} className="player-pill player-pill--icon" aria-label={t("Forward 10s (→)")} title={t("Forward 10s (→)")}>
-                          <RotateCw className="h-[18px] w-[18px]" />
-                        </button>
-                        {/* Volume */}
-                        <div className="hidden items-center gap-3 rounded-full bg-white/[.06] pr-5 sm:flex">
-                          <button onClick={toggleMute} className="player-pill player-pill--icon" aria-label={t(isMuted ? "Unmute (M)" : "Mute (M)")} title={t(isMuted ? "Unmute (M)" : "Mute (M)")}>
-                            {isMuted || volume === 0 ? <VolumeX className="h-[18px] w-[18px]" /> : volume < 0.5 ? <Volume1 className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
-                          </button>
-                          <input
-                            aria-label={t("Volume")}
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={isMuted ? 0 : volume}
-                            onChange={handleVolumeChange}
-                            style={{ background: `linear-gradient(to right, var(--accent) ${(isMuted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(isMuted ? 0 : volume) * 100}%)` }}
-                            className="h-1.5 w-20 cursor-pointer appearance-none rounded-full accent-white"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Right: Episodes, Settings, Fullscreen */}
-                      <div className="flex items-center gap-2">
-                        {episodes && episodes.length > 0 && onSelectEpisode && (
-                          <button
-                            onClick={() => { setShowEpisodes(!showEpisodes); }}
-                            data-active={showEpisodes}
-                            aria-expanded={showEpisodes}
-                            className="player-pill player-pill--collapse"
-                            title={t("Épisodes")}
-                          >
-                            <List className="h-4 w-4" /><span className="player-label">{t("Épisodes")}</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => { setShowEpisodes(false); setOptionsTab(optionsTab ? null : "audio"); }}
-                          data-active={optionsTab !== null}
-                          aria-haspopup="dialog"
-                          className="player-pill player-pill--collapse"
-                          title={t("Select Audio Track")}
-                        >
-                          <Settings className="h-4 w-4" /><span className="player-label">{t("Réglages")}</span>
-                        </button>
-                        <button onClick={copyPartyLink} className="player-pill player-pill--icon" data-active={party.room !== null} aria-live="polite" aria-label={t(partyCopied ? "Lien copié" : "Regarder ensemble : copier l’invitation")} title={t(partyCopied ? "Lien copié" : "Regarder ensemble : copier l’invitation")}>
-                          <Users className="h-[18px] w-[18px]" />
-                        </button>
-                        <button onClick={copyTimeLink} className="player-pill player-pill--icon" aria-live="polite" aria-label={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")} title={t(linkCopied ? "Lien copié" : "Copier le lien à cet instant")}>
-                          <Link2 className="h-[18px] w-[18px]" />
-                        </button>
-                        {canAirPlay && (
-                          <button onClick={showAirPlay} className="player-pill player-pill--icon" aria-label={t("AirPlay")} title={t("AirPlay")}>
-                            <Cast className="h-[18px] w-[18px]" />
-                          </button>
-                        )}
-                        {canPip && (
-                          <button onClick={togglePip} className="player-pill player-pill--icon" aria-label={t("Picture-in-Picture (P)")} title={t("Picture-in-Picture (P)")}>
-                            <PictureInPicture2 className="h-[18px] w-[18px]" />
-                          </button>
-                        )}
-                        <button onClick={toggleFullscreen} className="player-pill player-pill--icon" aria-label={t("Toggle Fullscreen (F)")} title={t("Toggle Fullscreen (F)")}>
-                          {isFullscreen ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
-                        </button>
-                      </div>
-                    </div>
+                    <PlayerControls
+                      isPlaying={isPlaying} onTogglePlay={togglePlay} onPrevEpisode={onPrevEpisode} onNextEpisode={onNextEpisode}
+                      onSeekBy={(delta) => handleSeek(playbackOffset + currentTimeRef.current + delta)}
+                      isMuted={isMuted} volume={volume} onToggleMute={toggleMute} onVolumeChange={handleVolumeChange}
+                      onToggleEpisodes={episodes && episodes.length > 0 && onSelectEpisode ? () => setShowEpisodes(!showEpisodes) : undefined} showEpisodes={showEpisodes}
+                      optionsOpen={optionsTab !== null} onToggleOptions={() => { setShowEpisodes(false); setOptionsTab(optionsTab ? null : "audio"); }}
+                      partyActive={party.room !== null} partyCopied={partyCopied} onCopyPartyLink={copyPartyLink}
+                      linkCopied={linkCopied} onCopyTimeLink={copyTimeLink}
+                      onAirPlay={canAirPlay ? showAirPlay : undefined} onPip={canPip ? togglePip : undefined}
+                      isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen}
+                    />
                   </div>
                 </div>
 
                 {nextCountdown !== null && (
-                  <div className="next-episode-card" role="status" aria-live="polite">
-                    <p>{t("Épisode suivant dans {seconds} s", { seconds: nextCountdown })}</p>
-                    <div className="next-episode-actions">
-                      <button type="button" className="clay clay-primary clay-sm" onClick={() => { setNextCountdown(null); onNextEpisode?.(); }}>{t("Lancer maintenant")}</button>
-                      <button type="button" className="clay clay-secondary clay-sm" onClick={() => setNextCountdown(null)}>{t("Annuler")}</button>
-                    </div>
-                  </div>
+                  <PlayerNextEpisodeCard seconds={nextCountdown} onStartNow={() => { setNextCountdown(null); onNextEpisode?.(); }} onCancel={() => setNextCountdown(null)} />
                 )}
 
                 {failover && !started && <PlayerFailover info={failover} onChangeSource={onChangeSource} />}
@@ -1163,103 +971,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 )}
               </div>
 
-              {/* Swarm & Metadata Telemetry HUD */}
-              <div className="player-telemetry border-b border-zinc-800 bg-zinc-900/20 p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  {/* Seeders */}
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
-                    <p className="text-[11px] text-zinc-400">{t("Seeders")}</p>
-                    <p className="font-mono text-zinc-200 font-medium mt-0.5">
-                      {stats?.active_seeders ?? item.seeders} <span className="text-zinc-500 font-normal">({stats?.total_peers ?? 0} {" "}{t("peers)")}</span>
-                    </p>
-                  </div>
-
-                  {/* Download Speed */}
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
-                    <p className="text-[11px] text-zinc-400">{t("Download Speed")}</p>
-                    <p className="font-mono text-zinc-200 font-medium mt-0.5">
-                      {stats ? `${formatBytes(stats.download_rate_bps)}/s` : t("Buffering...")}
-                    </p>
-                  </div>
-
-                  {/* Duration */}
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
-                    <p className="text-[11px] text-zinc-400">{t("Duration")}</p>
-                    <p className="font-mono text-zinc-200 font-medium mt-0.5">
-                      {totalDuration > 0 ? formatTime(totalDuration) : videoMeta?.formatted_duration || t("Detecting...")}
-                    </p>
-                  </div>
-
-                  {/* File Size */}
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
-                    <p className="text-[11px] text-zinc-400">{t("File Size")}</p>
-                    <p className="font-mono text-zinc-200 font-medium mt-0.5">
-                      {formatBytes(videoMeta?.total_bytes || currentFile?.length || item.size_bytes)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* File Selector & Controls */}
-              <div className="player-advanced p-4 space-y-3">
-                {!onPlaybackFailure && loadData && loadData.files.length > 1 && (
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1 font-mono">
-                      {t("Episode / File (")}{loadData.files.length} {t("items):")}</label>
-                    <select
-                      value={selectedFileIdx}
-                      onChange={(e) => {
-                        resetSubtitleChoice();
-                        audioSelectionRef.current = false;
-                        resumePlaybackRef.current = true;
-                        setVideoMeta(null);
-                        setSelectedFileIdx(parseInt(e.target.value, 10));
-                        setTimeOffset(0);
-                        currentTimeRef.current = 0;
-                        setSelectedAudioTrack(0);
-                        setSelectedSubTrack(null);
-                        updateProgressDisplay(0);
-                      }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none font-mono"
-                    >
-                      {loadData.files.map((file) => (
-                        <option key={file.index} value={file.index}>
-                          {file.path} ({formatBytes(file.length)}) {file.is_video ? "🎬" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                  <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={forceRemux}
-                      onChange={(e) => setForceRemux(e.target.checked)}
-                      className="rounded border-zinc-700 bg-zinc-800 text-white focus:ring-0"
-                    />
-                    <span>{t("Force FFmpeg Remux (Stereo AAC Transcoding)")}</span>
-                  </label>
-
-                  <button
-                    onClick={handleCopyMagnet}
-                    className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-zinc-200" />
-                        <span>{t("Magnet Copied")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5 text-zinc-400" />
-                        <span>{t("Copy Magnet Link")}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+              <PlayerDetails
+                item={item} stats={stats} totalDuration={totalDuration} formattedDuration={videoMeta?.formatted_duration}
+                fileSize={videoMeta?.total_bytes || currentFile?.length || item.size_bytes}
+                files={!onPlaybackFailure ? loadData?.files : undefined} selectedFileIdx={selectedFileIdx} onSelectFile={selectFileManually}
+                forceRemux={forceRemux} onForceRemuxChange={setForceRemux}
+              />
             </div>
           )}
         </div>
