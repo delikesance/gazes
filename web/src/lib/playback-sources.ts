@@ -15,12 +15,19 @@ function undecodableCodecs(): RegExp | null {
 /** A release whose title advertises a codec this browser cannot play would only fail and trigger a failover. */
 const unplayable = (source: EpisodeSource) => Number(undecodableCodecs()?.test(source.title) ?? false);
 
+/** Mirror of the backend LanguageTier: VF > VOSTFR > unconfirmed MULTI (never French points) > other. */
+function languageTier(source: EpisodeSource): number {
+ const breakdown = source.score_breakdown;
+ if (!breakdown) return source.language_tag==='VF'?200:source.language_tag==='VOSTFR'?100:0;
+ return breakdown.french > 0 ? breakdown.french : (breakdown.multi ?? 0) > 0 ? 75 : 0;
+}
+
 export function playbackSources(sources: EpisodeSource[]): EpisodeSource[] {
  const seen = new Set<string>();
  return [...sources].sort((a,b) =>
   unplayable(a) - unplayable(b) ||
   Number(b.seeders > 0) - Number(a.seeders > 0) ||
-  (b.score_breakdown?.french ?? (b.language_tag==='VF'?200:b.language_tag==='VOSTFR'?100:0)) - (a.score_breakdown?.french ?? (a.language_tag==='VF'?200:a.language_tag==='VOSTFR'?100:0)) ||
+  languageTier(b) - languageTier(a) ||
   Number(b.is_batch) - Number(a.is_batch) ||
   (b.score_breakdown?.quality ?? 0) - (a.score_breakdown?.quality ?? 0) ||
   b.score_rank - a.score_rank || b.seeders - a.seeders ||
