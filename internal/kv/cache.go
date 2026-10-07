@@ -10,6 +10,7 @@ import (
 	"errors"
 	"math"
 	mrand "math/rand/v2"
+	"strings"
 	"sync"
 	"time"
 
@@ -223,6 +224,54 @@ func (ca *Cache[T]) Invalidate(ctx context.Context, key string) {
 	if d := ca.durable(); d != nil {
 		d.Delete(ca.domain, ca.c.Up(ca.domain, key))
 	}
+}
+
+// Purge drops every key of the domain from this process, Redis and the durable store, and returns
+// how many Redis keys it removed. Other instances keep their in-process copies until L1TTL ends.
+func (ca *Cache[T]) Purge(ctx context.Context) (int, error) {
+	ca.l1.clear()
+	if ca.c == nil {
+		return 0, nil
+	}
+	if d := ca.durable(); d != nil {
+		d.PruneOlderThan(ca.domain, -time.Hour) // every entry, whatever its age
+	}
+	pattern := globEscape(ca.c.Up(ca.domain, "")) + "*"
+	n := 0
+	iter := ca.c.rdb.Scan(ctx, 0, pattern, 500).Iterator()
+	var batch []string
+	flush := func() error {
+		if len(batch) == 0 {
+			return nil
+		}
+		removed, err := ca.c.rdb.Del(ctx, batch...).Result()
+		n += int(removed)
+		batch = batch[:0]
+		return err
+	}
+	for iter.Next(ctx) {
+		if batch = append(batch, iter.Val()); len(batch) >= 500 {
+			if err := flush(); err != nil {
+				return n, err
+			}
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return n, err
+	}
+	return n, flush()
+}
+
+// globEscape quotes the Redis glob metacharacters of s.
+func globEscape(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if strings.ContainsRune(`*?[]\^`, r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // durable is the disk store behind this cache, nil when it did not opt in.
@@ -490,6 +539,13 @@ func (l *lru[T]) put(key string, v *T, ttl time.Duration) {
 		l.ll.Remove(last)
 		delete(l.m, last.Value.(*lruItem[T]).key)
 	}
+}
+
+func (l *lru[T]) clear() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.ll.Init()
+	clear(l.m)
 }
 
 func (l *lru[T]) drop(key string) {

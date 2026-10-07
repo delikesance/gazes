@@ -80,8 +80,8 @@ func TestActionToolsListedByScope(t *testing.T) {
 		absent []string
 	}{
 		{"metrics only", []string{"metrics:read"}, nil, actionNames},
-		{"ops:write", []string{"ops:write"}, []string{"set_issue_status", "create_issue", "add_note"}, []string{"set_alert_threshold", "get_approval"}},
-		{"config:write", []string{"config:write"}, []string{"set_alert_threshold"}, []string{"set_issue_status", "create_issue", "add_note", "get_approval"}},
+		{"ops:write", []string{"ops:write"}, []string{"set_issue_status", "create_issue", "add_note", "retry_source", "warm_cache", "requeue_av1"}, []string{"set_alert_threshold", "get_approval", "pause_source"}},
+		{"config:write", []string{"config:write"}, []string{"set_alert_threshold", "pause_source", "purge_cache", "limit_concurrent_streams", "schedule_maintenance"}, []string{"set_issue_status", "create_issue", "add_note", "get_approval", "retry_source"}},
 		{"diagnostics:read", []string{"diagnostics:read"}, []string{"get_approval"}, []string{"set_issue_status", "create_issue", "add_note", "set_alert_threshold"}},
 	}
 	for _, tc := range tests {
