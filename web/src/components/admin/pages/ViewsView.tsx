@@ -129,7 +129,7 @@ export function ViewsView({ views, periodDays, from, to }: ViewsViewProps) {
             yMin={ret.yMin}
             yMax={100}
             yTickCount={4}
-            xTickCount={6}
+            xTickCount={4}
             unit="%"
             decimals={0}
             area
