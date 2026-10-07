@@ -9,10 +9,9 @@ import { SubtitleRenderer } from "./SubtitleRenderer";
 import { usePlayerPreferences } from "@/lib/use-player-preferences";
 import { usePlayerSubtitles } from "@/lib/use-player-subtitles";
 import {
-  NEXT_EPISODE_DELAY, PLAYBACK_RATES,
-  bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, isBitmapSubtitle, isHevc,
-  isLibrarySource, mediaErrorMessage, playerShortcut,
-  progressPercent, progressTracks, stepVolume, textSubtitleTracks,
+  PLAYBACK_RATES,
+  bufferedSpan, clampSeek, episodeFileKey, fileSelectionFailure, formatTime, isBitmapSubtitle, isHevc, playerShortcut,
+  progressPercent, stepVolume, textSubtitleTracks,
 } from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
@@ -36,6 +35,7 @@ import { PlayerFileSelection } from "./PlayerFileSelection";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import { useHlsPlayback } from "@/lib/use-hls-playback";
 import { useAudioTrackSelection } from "@/lib/use-audio-track-selection";
+import { useVideoEvents } from "@/lib/use-video-events";
 import { useTorrentLoad, useTorrentState } from "@/lib/use-torrent-load";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
@@ -597,6 +597,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     updateProgressDisplay(0);
   };
 
+  const videoEvents = useVideoEvents({
+    item, diagnostic, hlsMode, videoRef, resumePlaybackRef, hasStartedRef, lastProgressRef, loadStartedAtRef, currentTimeRef,
+    fileResolvedRef, onFileResolvedRef, loadData, selectedFileIdx, videoMeta, audioTrack: selectedAudioTrack, subtitleTrack: selectedSubTrack,
+    playbackOffset, totalDuration, volume, isMuted, onProgress, onPlaybackFailure, onNextEpisode, reportFailure,
+    updateProgressDisplay, updateBuffered, updateActiveSkip,
+    setIsPlaying, setIsBuffering, setStarted, setNeedsPlaybackGesture, setPlaybackError, setNextCountdown,
+  });
+
   useAmbilight(ambilight.on && !isFullscreen, ambientRef, videoRef, containerRef, `${streamUrl}|${loading}|${error}|${needsFileSelection}|${itemHash}`);
   useDockReserve(containerRef, dockRef, `${loading}|${error}|${needsFileSelection}|${itemHash}`);
 
@@ -659,65 +667,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                   src={engine && !hlsMode ? streamUrl : undefined}
                   playsInline
                   crossOrigin="anonymous"
-                  onTimeUpdate={(event) => {
-                  if (hlsMode && event.currentTarget.dataset.playbackPhase === "preparing") return;
-                  if(!hasStartedRef.current&&event.currentTarget===videoRef.current&&event.currentTarget.currentTime>lastProgressRef.current.time&&event.currentTarget.videoWidth>0){const startedAt=loadStartedAtRef.current;loadStartedAtRef.current=null;diagnosticEvent(diagnostic,"playback.started",{position:playbackOffset+event.currentTarget.currentTime,width:event.currentTarget.videoWidth,height:event.currentTarget.videoHeight,...(startedAt!==null?{startup_ms:Math.round(performance.now()-startedAt)}:{})});}
-                    if (event.currentTarget === videoRef.current) {
-                      const time = videoRef.current.currentTime;
-                      if (time > lastProgressRef.current.time && videoRef.current.videoWidth > 0) {
-                        hasStartedRef.current = true;
-                        lastProgressRef.current = { time, at: Date.now() };
-                      }
-                      currentTimeRef.current = time;
-                      onProgress?.(playbackOffset + time, totalDuration, progressTracks(videoMeta, selectedAudioTrack, selectedSubTrack));
-                      updateProgressDisplay(videoRef.current.currentTime);
-                      updateBuffered();
-                      updateActiveSkip(playbackOffset + time);
-                    }
-                  }}
-                  onPlay={(event) => { if (event.currentTarget === videoRef.current) {resumePlaybackRef.current=true;setNeedsPlaybackGesture(false);setIsPlaying(true);} }}
-                  onPause={(event) => { if (event.currentTarget === videoRef.current) setIsPlaying(false); }}
-                  onWaiting={(event) => { if (event.currentTarget === videoRef.current) {setIsBuffering(true);diagnosticEvent(diagnostic,"playback.buffering",{position:playbackOffset+event.currentTarget.currentTime,ready_state:event.currentTarget.readyState});} }}
-                  onProgress={() => updateBuffered()}
-                  onPlaying={(event) => { if (event.currentTarget === videoRef.current) {
-                    setIsBuffering(false); setStarted(true);
-                    if (!fileResolvedRef.current && loadData && selectedFileIdx >= 0 && !isLibrarySource(item)) {
-                      fileResolvedRef.current = true;
-                      onFileResolvedRef.current?.(loadData.info_hash, selectedFileIdx);
-                    }
-                  } }}
-                  onCanPlay={(event) => {
-                    if (hlsMode) return;
-                    const video = event.currentTarget;
-                    if (video !== videoRef.current) return;
-                    video.volume = volume;
-                    video.muted = isMuted;
-                    setIsBuffering(false);
-                    if (resumePlaybackRef.current && video.paused) {
-                      video.play().catch((err: DOMException) => {
-                        if (video !== videoRef.current || err.name === "AbortError") return;
-                        if(err.name==="NotAllowedError"){resumePlaybackRef.current=false;loadStartedAtRef.current=null;setIsPlaying(false);setNeedsPlaybackGesture(true);diagnosticEvent(diagnostic,"playback.gesture_required");return;}
-                        setPlaybackError("Impossible de reprendre la lecture. Cliquez sur Lecture pour réessayer.");
-                      });
-                    }
-                  }}
-                  onError={(event) => {
-                    if (hlsMode) return;
-                    if (event.currentTarget !== videoRef.current) return;
-                    const mediaError = event.currentTarget.error;
-                    diagnosticEvent(diagnostic,"playback.media_error",{error_code:String(mediaError?.code||0),ready_state:event.currentTarget.readyState,network_state:event.currentTarget.networkState,video_codec:videoMeta?.video_codec||"",position:playbackOffset+event.currentTarget.currentTime});
-                    setIsBuffering(false);
-                    setIsPlaying(false);
-                    setPlaybackError(mediaErrorMessage(mediaError?.code, videoMeta?.video_codec));
-                  }}
-                  onEnded={(event) => {
-                    if (event.currentTarget !== videoRef.current) return;
-                    if (onPlaybackFailure && endedEarly(playbackOffset + event.currentTarget.currentTime, totalDuration)) {
-                      reportFailure("La lecture de cette source s’est interrompue avant la fin de l’épisode.","premature_end");
-                      return;
-                    }
-                    if (onNextEpisode) setNextCountdown(NEXT_EPISODE_DELAY);
-                  }}
+                  {...videoEvents}
                   onClick={togglePlay}
                   className="absolute inset-0 h-full w-full object-contain cursor-pointer"
                 >
