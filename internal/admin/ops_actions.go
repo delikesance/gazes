@@ -92,37 +92,21 @@ func issueIDArg(args map[string]any, name string) (string, error) {
 
 // ---- registry -------------------------------------------------------------------------------
 
-// actionList is the action registry. Actions whose effect has no clean, safe function in the code
-// base yet are declared (visible in the catalogue) with Implemented=false: they never have any effect.
+// actionList is the action registry.
 func (s *Service) actionList() []Action {
-	acts := []Action{
+	return []Action{
 		s.actSetIssueStatus(),
 		s.actCreateIssue(),
 		s.actAddNote(),
 		s.actSetAlertThreshold(),
+		s.actRetrySource(),
+		s.actWarmCache(),
+		s.actRequeueAV1(),
+		s.actPauseSource(),
+		s.actPurgeCache(),
+		s.actLimitStreams(),
+		s.actScheduleMaintenance(),
 	}
-	stub := func(name, level, summary string) Action {
-		scope := ScopeOpsWrite
-		if level == ActionSensitive {
-			scope = ScopeConfigWrite
-		}
-		return Action{
-			Name: name, Level: level, Scope: scope, Summary: summary,
-			Validate: func(args map[string]any) error { return nil },
-			Plan:     func(context.Context, map[string]any) (Plan, error) { return Plan{}, ErrNotImplemented },
-			Do:       func(context.Context, map[string]any) (Result, string, error) { return nil, "", ErrNotImplemented },
-			Undo:     func(context.Context, string) error { return ErrNotImplemented },
-		}
-	}
-	return append(acts,
-		stub("retry_source", ActionReversible, "Retry a failing stream source"),
-		stub("warm_cache", ActionReversible, "Warm the cache for an anime episode"),
-		stub("requeue_av1", ActionReversible, "Put an item back in the AV1 encode queue"),
-		stub("pause_source", ActionSensitive, "Pause a stream source"),
-		stub("purge_cache", ActionSensitive, "Purge a cache scope"),
-		stub("limit_concurrent_streams", ActionSensitive, "Limit concurrent streams"),
-		stub("schedule_maintenance", ActionSensitive, "Schedule a maintenance window"),
-	)
 }
 
 // issueUndo is the undo token of the issue actions.

@@ -27,6 +27,7 @@ type Service struct {
 	watchMu   sync.Mutex        // one evaluation of the watch rules at a time
 	toolsFn   func() []ToolInfo // MCP tool catalogue, set by the API layer (nil = none)
 	donations *donations.Store  // donations (nil = the donations pages answer 503)
+	hooks     OpsHooks          // effects of the runtime actions (ops_runtime.go), guarded by mu
 
 	mu       sync.Mutex
 	tokenMWs map[string]func(http.Handler) http.Handler
