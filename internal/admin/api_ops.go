@@ -130,8 +130,8 @@ type actionBody struct {
 	ExpectedEffect string         `json:"expected_effect"`
 }
 
-// handleActionsCatalogue: GET /ops/actions (diagnostics:read) — the registry, including declared
-// but not implemented actions.
+// handleActionsCatalogue: GET /ops/actions (diagnostics:read) — the registry, with each action's
+// implemented flag.
 func (s *Service) handleActionsCatalogue(w http.ResponseWriter, r *http.Request) {
 	type item struct {
 		Name        string `json:"name"`
