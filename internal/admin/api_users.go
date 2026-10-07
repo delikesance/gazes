@@ -303,10 +303,13 @@ func (s *Service) handleUsersSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Active sessions: only counts, no token_hash and no user_id leave the query.
-	var valid, expiring int64
+	var valid, expiring, exp24, exp48 int64
 	if err := db.QueryRowContext(ctx, `SELECT COALESCE(SUM(expires_at > :now), 0),
-		COALESCE(SUM(expires_at > :now AND expires_at <= :soon), 0) FROM sessions`,
-		sql.Named("now", nowU), sql.Named("soon", nowU+7*usersDay)).Scan(&valid, &expiring); err != nil {
+		COALESCE(SUM(expires_at > :now AND expires_at <= :soon), 0),
+		COALESCE(SUM(expires_at > :now AND expires_at <= :d1), 0),
+		COALESCE(SUM(expires_at > :d1 AND expires_at <= :d2), 0) FROM sessions`,
+		sql.Named("now", nowU), sql.Named("soon", nowU+7*usersDay),
+		sql.Named("d1", nowU+usersDay), sql.Named("d2", nowU+2*usersDay)).Scan(&valid, &expiring, &exp24, &exp48); err != nil {
 		usersInternal(w, err)
 		return
 	}
@@ -321,8 +324,21 @@ func (s *Service) handleUsersSummary(w http.ResponseWriter, r *http.Request) {
 		},
 		"segments":        segOut,
 		"seniority":       senior,
-		"active_sessions": map[string]int64{"valid": valid, "expiring_7d": expiring},
+		"active_sessions": map[string]int64{"valid": valid, "expiring_7d": expiring, "expiring_24h": exp24, "expiring_24_48h": exp48},
 	})
+}
+
+// medianSeconds is the median of the delays (mean of the two middle values when even), nil when empty.
+func medianSeconds(v []int64) *int64 {
+	if len(v) == 0 {
+		return nil
+	}
+	slices.Sort(v)
+	m := v[len(v)/2]
+	if len(v)%2 == 0 {
+		m = (v[len(v)/2-1] + m) / 2
+	}
+	return &m
 }
 
 func usersInternal(w http.ResponseWriter, err error) {
@@ -916,7 +932,11 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 
 	// Time to first session.
 	ttf := [5]int64{}
+	var delays []int64
 	for _, c := range cohort {
+		if c.n > 0 {
+			delays = append(delays, max(c.first-c.created, 0))
+		}
 		switch dt := c.first - c.created; {
 		case c.n == 0:
 			ttf[4]++
@@ -973,7 +993,7 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 		"cumulative_users":      cumul,
 		"funnel":                funnel,
 		"cohorts":               cohorts,
-		"time_to_first_session": map[string]any{"cohort_size": nAll, "buckets": ttfOut},
+		"time_to_first_session": map[string]any{"cohort_size": nAll, "buckets": ttfOut, "median_seconds": medianSeconds(delays)},
 		"churn": map[string]any{"previous_window_active": prevActive, "churned": churned,
 			"churn_pct": usersPctPtr(churned, prevActive), "window_days": 30},
 		"not_measured":        []string{"visitor_to_signup", "acquisition_sources"},

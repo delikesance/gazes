@@ -51,6 +51,20 @@ export function viewsKpis(views: AdminViews): ViewsKpi[] {
   ];
 }
 
+/** Median and split of active users by distinct episodes watched. */
+export function episodesDistribution(views: AdminViews): {
+  median: string;
+  hasData: boolean;
+  bars: Array<{ key: string; name: string; value: number; text: string }>;
+} {
+  const d = views.episodes_per_user_dist;
+  return {
+    median: d.median === null ? "" : `${fmtDec(d.median, d.median % 1 === 0 ? 0 : 1)} ${d.median > 1 ? "épisodes" : "épisode"}`,
+    hasData: d.active_users > 0,
+    bars: d.buckets.map((b) => ({ key: b.key, name: b.label, value: b.share_pct, text: `${fmtInt(b.users)} · ${fmtDec(b.share_pct, 1)} %` })),
+  };
+}
+
 export interface ViewsSessionsChart {
   current: number[];
   previous: number[];
