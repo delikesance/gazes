@@ -8,7 +8,13 @@ import { copyText } from "@/lib/clipboard";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
 import { MAX_SUBTITLE_FILE_BYTES, subtitleFileToAss } from "@/lib/subtitle-file";
-import { DEFAULT_SUBTITLE_STYLE, SUBTITLE_LIFTS, SUBTITLE_SCALES, type SubtitleStyle } from "@/lib/ass-style";
+import type { SubtitleStyle } from "@/lib/ass-style";
+import {
+  AMBILIGHT_KEY, NEXT_EPISODE_DELAY, PLAYBACK_RATES, RATE_KEY, SUBTITLE_STYLE_KEY,
+  bufferedSpan, clampSeek, endedEarly, episodeFileKey, fileSelectionFailure, formatTime, initialFileIndex, isBitmapSubtitle, isHevc,
+  libraryLoad, mediaErrorMessage, metadataTimedOut, parseAmbilight, parseRate, parseSubtitleStyle, pickDefaultSubtitle, playerShortcut,
+  progressPercent, scrubberTarget, stepRate, stepVolume, streamWatchdog, textSubtitleTracks,
+} from "@/lib/player-state";
 import { ErrorAlert } from "./ErrorAlert";
 import { PlayerDebugPanel, useDebugMode, type DebugAttempt } from "./PlayerDebugPanel";
 import { PlayerEpisodePicker } from "./PlayerEpisodePicker";
@@ -23,7 +29,7 @@ import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata, SubtitleTrack } from "@/types/api";
+import { TorrentItem, LoadTorrentResponse, SwarmStats, FileInfo, VideoMetadata } from "@/types/api";
 import { requestEpisodePreview, getSkipTimes, loadTorrent, getTorrentStats, getStreamUrl, getSubtitleUrl, fetchVideoMetadata, formatBytes } from "@/lib/api";
 import {
   ArrowLeft,
@@ -82,88 +88,12 @@ interface VideoPlayerModalProps {
   onFileResolved?: (infoHash: string, fileIndex: number) => void;
 }
 
-const SUBTITLE_STYLE_KEY = "gazes-subtitle-style";
+export { PLAYBACK_RATES };
 
-function loadSubtitleStyle(): SubtitleStyle {
-  try {
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(SUBTITLE_STYLE_KEY) : null;
-    const value = raw ? JSON.parse(raw) : null;
-    return {
-      scale: SUBTITLE_SCALES.includes(value?.scale) ? value.scale : DEFAULT_SUBTITLE_STYLE.scale,
-      lift: SUBTITLE_LIFTS.includes(value?.lift) ? value.lift : DEFAULT_SUBTITLE_STYLE.lift,
-    };
-  } catch {
-    return DEFAULT_SUBTITLE_STYLE;
-  }
-}
-
-const AMBILIGHT_KEY = "gazes-ambilight";
-const AMBILIGHT_DEFAULT: AmbilightSettings = { on: true, level: "medium", dim: true };
-
-function loadAmbilight(): AmbilightSettings {
-  try {
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(AMBILIGHT_KEY) : null;
-    return raw ? { ...AMBILIGHT_DEFAULT, ...JSON.parse(raw) } : AMBILIGHT_DEFAULT;
-  } catch {
-    return AMBILIGHT_DEFAULT;
-  }
-}
-
-const RATE_KEY = "gazes-playback-rate";
-export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
-
-function loadRate(): number {
-  try {
-    const rate = Number(typeof window !== "undefined" ? window.localStorage.getItem(RATE_KEY) : null);
-    return PLAYBACK_RATES.includes(rate) ? rate : 1;
-  } catch {
-    return 1;
-  }
-}
-
-// Only PGS can be rendered as a bitmap; other bitmap codecs (VobSub, DVB, XSUB) cannot be converted.
-const UNSUPPORTED_SUBTITLE_CODECS = new Set(["dvd_subtitle", "dvb_subtitle", "xsub"]);
-const isBitmapSubtitle = (track?: SubtitleTrack) => track?.codec === "hdmv_pgs_subtitle";
-function textSubtitleTracks(tracks?: SubtitleTrack[]): SubtitleTrack[] {
-  return (tracks ?? []).filter((track) => !UNSUPPORTED_SUBTITLE_CODECS.has(track.codec));
-}
-
-// Partial tracks (forced signs, SDH, dubbing credits, commentary) are never a good default.
-const PARTIAL_SUBTITLE = /\b(forced|sdh|cc|dubbing|dubtitle|signs?|songs?|commentary|karaoke)\b/i;
-/** Default subtitle: a full French track, else any full track, else the default one. */
-function pickDefaultSubtitle(tracks: SubtitleTrack[]): SubtitleTrack {
-  const full = tracks.filter((track) => !track.is_forced && !PARTIAL_SUBTITLE.test(track.title));
-  const pool = full.length ? full : tracks;
-  const french = (track: SubtitleTrack) => /^(fre|fra|fr)$/i.test(track.language) || /french|français|vostfr/i.test(track.title);
-  return pool.find(french) ?? pool.find((track) => track.is_default) ?? pool[0];
-}
-
-function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds) || seconds < 0) return "00:00";
-  const total = Math.floor(seconds);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) {
-    return `${h}:${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
-  }
-  return `${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
-}
-
-const NEXT_EPISODE_DELAY = 5;
-
-type PlayerItem = VideoPlayerModalProps["item"];
-
-/** A library copy is a plain file on the server: no swarm, no file matching. */
-function libraryLoad(item: PlayerItem): LoadTorrentResponse | null {
-  const library = item && "library" in item ? (item as EpisodeSource).library : undefined;
-  return library ? { info_hash: library.stream_id, files: [{ index: 0, path: "episode.mkv", length: 0, is_video: true, mime_type: "video/x-matroska" }], main_video_index: 0 } : null;
-}
-
-/** Torrent files are matched once metadata arrives (-1 until then); a library copy is file 0. */
-function initialFileIndex(item: PlayerItem): number {
-  return item && !libraryLoad(item) ? -1 : 0;
-}
+const storedValue = (key: string) => { try { return typeof window !== "undefined" ? window.localStorage.getItem(key) : null; } catch { return null; } };
+const loadSubtitleStyle = () => parseSubtitleStyle(storedValue(SUBTITLE_STYLE_KEY));
+const loadAmbilight = () => parseAmbilight(storedValue(AMBILIGHT_KEY));
+const loadRate = () => parseRate(storedValue(RATE_KEY));
 
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   item,
@@ -317,8 +247,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // first frame, so they are not shifted.
   const skipSeasonId = Number(diagnostic?.season_id);
   const skipDuration = Math.round(videoMeta?.duration_sec || 0);
-  const skipKey = skipSeasonId > 0 && episodeNumber && skipDuration > 0 && loadData && selectedFileIdx >= 0
-    ? `${skipSeasonId}:${episodeNumber}:${loadData.info_hash}:${selectedFileIdx}` : "";
+  const skipKey = skipDuration > 0 ? episodeFileKey(skipSeasonId, episodeNumber, loadData?.info_hash, selectedFileIdx) : "";
   const skipOrigin = hlsMode ? subtitleOrigin : 0;
   const chapterSkips = React.useMemo(
     () => shiftSegments(videoMeta?.skip_segments ?? [], skipOrigin),
@@ -369,7 +298,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
       progressBarRef.current?.setAttribute("aria-valuenow", String(Math.floor(cur)));
       progressBarRef.current?.setAttribute("aria-valuetext", formatTime(cur));
       if (totalDuration > 0) {
-        const pct = Math.min(100, Math.max(0, (cur / totalDuration) * 100));
+        const pct = progressPercent(cur, totalDuration);
         if (playedBarRef.current) {
           playedBarRef.current.style.width = `${pct}%`;
         }
@@ -386,15 +315,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     const video = videoRef.current;
     const bar = bufferedBarRef.current;
     if (!video || !bar || totalDuration <= 0) return;
-    const now = video.currentTime;
-    let end = now;
-    for (let i = 0; i < video.buffered.length; i++) {
-      if (video.buffered.start(i) <= now + 0.5 && video.buffered.end(i) >= now) end = Math.max(end, video.buffered.end(i));
-    }
-    const start = Math.min(100, Math.max(0, (playbackOffset / totalDuration) * 100));
-    const stop = Math.min(100, Math.max(start, ((playbackOffset + end) / totalDuration) * 100));
-    bar.style.left = `${start}%`;
-    bar.style.width = `${stop - start}%`;
+    const ranges: [number, number][] = [];
+    for (let i = 0; i < video.buffered.length; i++) ranges.push([video.buffered.start(i), video.buffered.end(i)]);
+    const { left, width } = bufferedSpan(ranges, video.currentTime, playbackOffset, totalDuration);
+    bar.style.left = `${left}%`;
+    bar.style.width = `${width}%`;
   }, [playbackOffset, totalDuration]);
 
   useEffect(() => () => {
@@ -416,8 +341,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   useEffect(() => {
     if (error) reportFailure(error,"torrent_metadata_failed");
     else if (needsFileSelection) {
-      const none = !!loadData && !!item && episodeCandidates(loadData.files, item as EpisodeSource).length === 0;
-      reportFailure(none ? "L’épisode demandé est introuvable dans ce pack." : "L’épisode demandé n’est pas identifié sans ambiguïté dans ce pack.","episode_missing_or_ambiguous");
+      const failure = fileSelectionFailure(loadData && item ? episodeCandidates(loadData.files, item as EpisodeSource).length : 1);
+      reportFailure(failure.reason, failure.code);
     }
     else if (playbackError) reportFailure(playbackError,"media_error");
   }, [error, needsFileSelection, playbackError, reportFailure, loadData, item]);
@@ -435,7 +360,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         lastBytes = s.completed_bytes;
       }).catch(() => {});
       const now = Date.now();
-      if (now - lastActivity >= PLAYBACK_TIMEOUTS.metadata || now - startedAt >= PLAYBACK_TIMEOUTS.max) {
+      if (metadataTimedOut(now, startedAt, lastActivity, PLAYBACK_TIMEOUTS)) {
         reportFailure("Cette source ne fournit pas ses métadonnées à temps.", "metadata_timeout");
       }
     }, 2000);
@@ -465,11 +390,8 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           lastBytes = s.completed_bytes;
         }).catch(() => {});
       }
-      if (!hasStartedRef.current) {
-        if (now-lastActivity >= PLAYBACK_TIMEOUTS.startup || now-startedAt >= PLAYBACK_TIMEOUTS.max) reportFailure("La lecture ne démarre pas sur cette source.","startup_timeout");
-      } else if (now-lastProgressRef.current.at >= PLAYBACK_TIMEOUTS.stall && now-lastActivity >= PLAYBACK_TIMEOUTS.stall) {
-        reportFailure("Cette source ne fournit plus de vidéo.","swarm_stall");
-      }
+      const failure = streamWatchdog({ now, startedAt, lastActivity, lastProgressAt: lastProgressRef.current.at, hasStarted: hasStartedRef.current }, PLAYBACK_TIMEOUTS);
+      if (failure) reportFailure(failure.reason, failure.code);
     }, 1000);
     return () => clearInterval(poll);
   }, [hlsMode, loading, needsFileSelection, onPlaybackFailure, reportFailure, timeOffset, selectedAudioTrack, item, diagnostic]);
@@ -512,9 +434,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const partySeekRef = useRef<(seconds: number) => void>(undefined);
   const handleSeek = useCallback((targetSec: number) => {
     diagnosticEvent(diagnostic,"playback.seek",{position:targetSec});
-    let finalSec = targetSec;
-    if (finalSec < 0) finalSec = 0;
-    if (totalDuration > 0 && finalSec > totalDuration) finalSec = totalDuration;
+    const finalSec = clampSeek(targetSec, totalDuration);
     setNextCountdown(null); // seeking back after the end means staying on this episode
     partySeekRef.current?.(finalSec);
     if (hlsMode) { hlsController.current?.seek(finalSec); updateProgressDisplay(finalSec); triggerShowControls(); return; }
@@ -589,9 +509,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   }, []);
 
   const stepPlaybackRate = useCallback((direction: 1 | -1) => {
-    const index = PLAYBACK_RATES.indexOf(playbackRate);
-    const next = PLAYBACK_RATES[Math.max(0, Math.min(PLAYBACK_RATES.length - 1, index + direction))];
-    setPlaybackRate(next);
+    setPlaybackRate(stepRate(playbackRate, direction));
   }, [playbackRate, setPlaybackRate]);
 
   // Safari/iOS only: opens the system AirPlay picker for the video element.
@@ -729,62 +647,25 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         return;
       }
 
-      const cur = playbackOffset + currentTimeRef.current;
-
-      switch (e.code) {
-        case "Space":
-        case "KeyK":
-          e.preventDefault();
-          togglePlay();
-          break;
-        case "ArrowLeft":
-        case "KeyJ":
-          e.preventDefault();
-          handleSeek(cur - 10);
-          break;
-        case "ArrowRight":
-        case "KeyL":
-          e.preventDefault();
-          handleSeek(cur + 10);
-          break;
-        case "ArrowUp":
-        case "ArrowDown": {
-          e.preventDefault();
-          const next = Math.max(0, Math.min(1, Math.round(((isMuted ? 0 : volume) + (e.code === "ArrowUp" ? 0.05 : -0.05)) * 20) / 20));
+      const shortcut = playerShortcut(e, { hasNextEpisode: !!onNextEpisode, canPip, hasSkip: !!shownSkip });
+      if (!shortcut) return;
+      e.preventDefault();
+      switch (shortcut.action) {
+        case "toggle-play": togglePlay(); break;
+        case "seek": handleSeek(playbackOffset + currentTimeRef.current + shortcut.delta); break;
+        case "volume": {
+          const next = stepVolume(volume, isMuted, shortcut.up);
           setVolume(next);
           if (videoRef.current) { videoRef.current.volume = next; videoRef.current.muted = next === 0; }
           setIsMuted(next === 0);
           break;
         }
-        case "KeyN":
-          if (e.ctrlKey || e.metaKey || e.altKey || !onNextEpisode) break;
-          e.preventDefault();
-          onNextEpisode();
-          break;
-        case "KeyF":
-          e.preventDefault();
-          toggleFullscreen();
-          break;
-        case "KeyM":
-          e.preventDefault();
-          toggleMute();
-          break;
-        case "KeyP":
-          if (e.ctrlKey || e.metaKey || e.altKey || !canPip) break;
-          e.preventDefault();
-          togglePip();
-          break;
-        case "Comma":
-        case "Period":
-          if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) break;
-          e.preventDefault();
-          stepPlaybackRate(e.code === "Period" ? 1 : -1);
-          break;
-        case "KeyS":
-          if (e.ctrlKey || e.metaKey || e.altKey || !shownSkip) break;
-          e.preventDefault();
-          runSkip();
-          break;
+        case "next-episode": onNextEpisode?.(); break;
+        case "fullscreen": toggleFullscreen(); break;
+        case "mute": toggleMute(); break;
+        case "pip": togglePip(); break;
+        case "rate": stepPlaybackRate(shortcut.direction); break;
+        case "skip": runSkip(); break;
       }
     };
 
@@ -819,8 +700,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   useEffect(() => {
     // An unsupported HEVC track may still play its AAC audio without a media error.
     // Check both common HEVC profiles rather than waiting for onError alone.
-    const codec = hlsMode ? undefined : videoMeta?.video_codec?.toLowerCase();
-    if ((codec === "hevc" || codec === "h265") && videoRef.current &&
+    if (!hlsMode && isHevc(videoMeta?.video_codec) && videoRef.current &&
         videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA &&
         !videoRef.current.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"') &&
         !videoRef.current.canPlayType('video/mp4; codecs="hvc1.2.4.L123.B0"')) {
@@ -903,7 +783,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     const seasonId = Number(diagnostic?.season_id);
     if (!(seasonId > 0) || !episodeNumber || !loadData || selectedFileIdx < 0 || !videoMeta?.duration_sec) return;
     if (episodes?.find(e => e.episode_number === episodeNumber)?.thumbnail) return;
-    const key = `${seasonId}:${episodeNumber}:${loadData.info_hash}:${selectedFileIdx}`;
+    const key = episodeFileKey(seasonId, episodeNumber, loadData.info_hash, selectedFileIdx);
     if (previewRequested.current === key) return;
     previewRequested.current = key;
     void requestEpisodePreview(seasonId, episodeNumber, loadData.info_hash, selectedFileIdx, videoMeta.duration_sec, () => previewAlive.current).then(created => {
@@ -943,17 +823,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   // The scrubber is a slider for keyboards and screen readers: arrows seek 5 s, Page keys 30 s.
   const handleProgressBarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (totalDuration <= 0 || e.ctrlKey || e.metaKey || e.altKey) return;
-    const cur = playbackOffset + currentTimeRef.current;
-    const step = { ArrowLeft: -5, ArrowDown: -5, ArrowRight: 5, ArrowUp: 5, PageDown: -30, PageUp: 30 }[e.key];
-    let target: number;
-    if (step !== undefined) target = cur + step;
-    else if (e.key === "Home") target = 0;
-    else if (e.key === "End") target = totalDuration;
-    else return;
+    const target = scrubberTarget(e.key, playbackOffset + currentTimeRef.current, totalDuration);
+    if (target === null) return;
     // The window-level shortcuts would seek a second time.
     e.preventDefault();
     e.stopPropagation();
-    handleSeek(Math.max(0, Math.min(totalDuration, target)));
+    handleSeek(target);
   };
 
   const handleProgressBarMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1193,18 +1068,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     diagnosticEvent(diagnostic,"playback.media_error",{error_code:String(mediaError?.code||0),ready_state:event.currentTarget.readyState,network_state:event.currentTarget.networkState,video_codec:videoMeta?.video_codec||"",position:playbackOffset+event.currentTarget.currentTime});
                     setIsBuffering(false);
                     setIsPlaying(false);
-                    if (mediaError?.code === 3 || mediaError?.code === 4) {
-                      const codec = videoMeta?.video_codec?.toLowerCase();
-                      setPlaybackError(codec === "hevc" || codec === "h265"
-                        ? "Cette vidéo H.265/HEVC ne peut pas être décodée dans ce navigateur ou sur cet appareil. Essayez une source H.264/AVC ou un navigateur compatible HEVC."
-                        : "Impossible de décoder cette vidéo. Essayez une autre source ou un navigateur compatible avec son codec.");
-                    } else {
-                      setPlaybackError("La lecture a été interrompue. Réessayez ou choisissez une autre source.");
-                    }
+                    setPlaybackError(mediaErrorMessage(mediaError?.code, videoMeta?.video_codec));
                   }}
                   onEnded={(event) => {
                     if (event.currentTarget !== videoRef.current) return;
-                    if (onPlaybackFailure && totalDuration > 0 && playbackOffset + event.currentTarget.currentTime < totalDuration - 2) {
+                    if (onPlaybackFailure && endedEarly(playbackOffset + event.currentTarget.currentTime, totalDuration)) {
                       reportFailure("La lecture de cette source s’est interrompue avant la fin de l’épisode.","premature_end");
                       return;
                     }

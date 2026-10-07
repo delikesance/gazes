@@ -13,6 +13,7 @@
     "test:admin-audience": "node --test scripts/admin-pages-audience.test.mjs",
     "test:files": "node scripts/episode-file.test.mjs",
     "test:seasons": "node scripts/season-flow.mjs",
+    "test:player:state": "node --test scripts/player-state.test.mjs",
     "test:player": "node scripts/subtitle-assets.mjs && node scripts/player-subtitles.test.mjs",
     "test:player:fullscreen": "node scripts/player-fullscreen.test.mjs",
     "test:subtitles:windows": "node scripts/subtitle-window.test.mjs",
