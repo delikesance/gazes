@@ -10,9 +10,8 @@ package mcp
 //     justification and expected_effect are then required. get_approval follows the decision.
 //
 // Approving, rejecting, undoing, the kill switch and token management are deliberately NOT tools.
-// The actions declared in the admin registry without an implementation (retry_source,
-// warm_cache, requeue_av1, pause_source, purge_cache, limit_concurrent_streams,
-// schedule_maintenance) have no tool: see GET /ops/actions.
+// The runtime actions (sources, caches, AV1 queue, stream limit, maintenance) answer 503
+// unavailable when their collaborator is not in this process (the stdio binary, for instance).
 
 // actionCommon are the parameters every action tool takes.
 func actionCommon(sensitive bool) []Param {
@@ -65,6 +64,34 @@ func actionTools() []ToolDef {
 			sens+"Change an alert threshold. Allowed rules and bounds: error_rate_pct 0.1-50, startup_p95_s 0.5-60, stream_saturation_pct 10-100, disk_pct 50-99.", "Change an alert threshold",
 			Param{Name: "rule", Required: true, Enum: []string{"error_rate_pct", "startup_p95_s", "stream_saturation_pct", "disk_pct"}},
 			Param{Name: "value", Type: "number", Required: true, Description: "New threshold, within the rule's bounds."}),
+		actionTool("retry_source", LevelReversible, "ops:write",
+			rev+"Retry a failing stream source now: close its circuit breaker so the next searches query it instead of waiting for the backoff. Refused while the source is paused. Nothing to undo.", "Retry a stream source",
+			Param{Name: "source", Required: true, Description: "Source (provider) name, as listed by the sources health tool."}),
+		actionTool("warm_cache", LevelReversible, "ops:write",
+			rev+"Resolve the sources of one episode in the background so its next play starts from the cache. No effect when already cached unless refresh is true. Nothing to undo.", "Warm an episode's sources",
+			Param{Name: "season_id", Type: "integer", Required: true, Description: "AniList id of the season (anime_id of the playback errors)."},
+			Param{Name: "episode", Type: "integer", Required: true, Description: "Episode number."},
+			Param{Name: "refresh", Type: "boolean", Description: "Drop the cached findings and resolve again."}),
+		actionTool("requeue_av1", LevelReversible, "ops:write",
+			rev+"Put a library copy whose AV1 encode was abandoned (3 failures) back in the encode queue with a fresh attempt count.", "Requeue an AV1 encode",
+			Param{Name: "season_id", Type: "integer", Required: true, Description: "AniList id of the season."},
+			Param{Name: "episode", Type: "integer", Required: true, Description: "Episode number."},
+			Param{Name: "lang", Required: true, Enum: []string{"vostfr", "vf"}}),
+		actionTool("pause_source", LevelSensitive, "config:write",
+			sens+"Pause a stream source: its searches are skipped on every instance, the other sources answer. Refused when it would leave no active source. Undoing the approval resumes it.", "Pause a stream source",
+			Param{Name: "source", Required: true, Description: "Source (provider) name."},
+			Param{Name: "minutes", Type: "integer", Required: true, Description: "Pause length, 5 to 1440 minutes."}),
+		actionTool("purge_cache", LevelSensitive, "config:write",
+			sens+"Purge a cache scope. episode_sources: every episode's source findings (each is resolved again on its next play). indexer_results: the trackers' cached answers. Cannot be undone; it refills on demand.", "Purge a cache scope",
+			Param{Name: "scope", Required: true, Enum: []string{"episode_sources", "indexer_results"}}),
+		actionTool("limit_concurrent_streams", LevelSensitive, "config:write",
+			sens+"Cap the concurrent playback sessions (HLS engine): new sessions get 503 stream_limit_reached while the cap is reached, open ones play on. 0 lifts the cap. Also feeds the stream_saturation_pct watch rule.", "Limit concurrent streams",
+			Param{Name: "max_streams", Type: "integer", Required: true, Description: "Maximum concurrent sessions, 0 to 1000 (0 = no limit)."}),
+		actionTool("schedule_maintenance", LevelSensitive, "config:write",
+			sens+"Schedule a maintenance window (at most 24 h, starting within 30 days). It is announced on the public status page, and watch notifications are muted while it runs (issues are still opened). Replaces any window already scheduled.", "Schedule a maintenance",
+			Param{Name: "starts_at", Description: "RFC 3339 start (default: now)."},
+			Param{Name: "ends_at", Required: true, Description: "RFC 3339 end."},
+			Param{Name: "message", Description: "One line shown to visitors (max 200 characters, plain text)."}),
 		{
 			Name: "get_approval", Level: LevelRead, Scope: "diagnostics:read", Method: "GET", Path: "/approvals/{id}",
 			Description: "Follow a pending approval: its status (pending, approved, rejected, failed, undone), who decided, and the result once executed.",
