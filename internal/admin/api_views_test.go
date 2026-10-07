@@ -235,6 +235,8 @@ func TestEmptyDatabase(t *testing.T) {
 		{"completion_by_weekday", "len:7"}, {"by_timezone", "len:0"}, {"drop_episodes", "len:0"}, {"drop_points", "len:0"},
 		{"retention_curve", "len:10"}, {"retention_curve.0.retained_pct", 0.0}, {"resume_vs_first.resume", 0.0},
 		{"episodes_per_active_user.value", 0.0},
+		{"episodes_per_user_dist.active_users", 0.0}, {"episodes_per_user_dist.median", nil},
+		{"episodes_per_user_dist.buckets", "len:4"}, {"episodes_per_user_dist.buckets.0.share_pct", 0.0},
 	})
 	checkAll(t, f.data(t, "/api/v1/admin/catalog"), []vcheck{
 		{"anime", "len:0"}, {"anime_total", 0.0}, {"quadrant.points", "len:0"}, {"genres", "len:0"}, {"formats", "len:0"},
@@ -259,6 +261,11 @@ func TestViews(t *testing.T) {
 		{"by_timezone", "len:2"}, {"by_timezone.0.tz_offset", 60.0}, {"by_timezone.0.sessions", 6.0}, {"by_timezone.0.share_pct", 85.71},
 		{"by_timezone.1.tz_offset", -300.0},
 		{"episodes_per_active_user.value", 1.5}, {"episodes_per_active_user.previous", 1.0}, {"episodes_per_active_user.delta_pct", 50.0},
+		// distinct episodes per user: 2, 2, 1, 1
+		{"episodes_per_user_dist.active_users", 4.0}, {"episodes_per_user_dist.median", 1.5},
+		{"episodes_per_user_dist.buckets.0.key", "1"}, {"episodes_per_user_dist.buckets.0.users", 2.0},
+		{"episodes_per_user_dist.buckets.1.users", 2.0}, {"episodes_per_user_dist.buckets.1.share_pct", 50.0},
+		{"episodes_per_user_dist.buckets.3.users", 0.0},
 		{"resume_vs_first.resume", 2.0}, {"resume_vs_first.first", 5.0}, {"resume_vs_first.resume_pct", 28.57},
 		{"retention_curve", "len:10"},
 		{"retention_curve.0.retained_pct", 100.0}, {"retention_curve.1.retained_pct", 80.0}, {"retention_curve.2.retained_pct", 60.0},
