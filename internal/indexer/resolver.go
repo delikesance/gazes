@@ -173,6 +173,19 @@ func CleanTitleForSearch(title string) string {
 	return strings.TrimSpace(t)
 }
 
+// LanguageTier orders sources VF > VOSTFR > unconfirmed MULTI > other, whatever their swarm.
+// MULTI is not proof of a French track, but it is a better French-audience fallback than an
+// English-only release, so it sits below confirmed VOSTFR/VF and above everything else.
+func LanguageTier(b ScoreBreakdown) int {
+	if b.French > 0 {
+		return b.French
+	}
+	if b.Multi > 0 {
+		return 75
+	}
+	return 0
+}
+
 type ScoreBreakdown struct {
 	French   int `json:"french"`
 	Multi    int `json:"multi"`
@@ -635,14 +648,9 @@ func RankSource(item TorrentItem, identity EpisodeIdentity, batch bool) EpisodeS
 		evidence = "release_title"
 	}
 	if multi {
-		// A MULTI release is not proof of a French track, but it is a materially
-		// better French-audience fallback than an English-only release. Keep it
-		// below confirmed VOSTFR/VF while making that policy independent of a
-		// much larger foreign swarm.
+		// A MULTI release is not proof of a French track: it never earns French
+		// points. LanguageTier still sorts it above English-only releases.
 		breakdown.Multi = 2
-		if breakdown.French == 0 {
-			breakdown.French = 75
-		}
 	}
 	animeTitle := ""
 	if len(identity.Titles) > 0 {
@@ -1110,8 +1118,8 @@ func SortEpisodeSources(sources []EpisodeSource) {
 		if (a.Seeders > 0) != (b.Seeders > 0) {
 			return a.Seeders > 0
 		}
-		if a.ScoreBreakdown.French != b.ScoreBreakdown.French {
-			return a.ScoreBreakdown.French > b.ScoreBreakdown.French
+		if at, bt := LanguageTier(a.ScoreBreakdown), LanguageTier(b.ScoreBreakdown); at != bt {
+			return at > bt
 		}
 		if a.IsBatch != b.IsBatch {
 			return a.IsBatch

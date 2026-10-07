@@ -1,7 +1,7 @@
 "use client";
 import { randomId } from "@/lib/random-id";
 import { useI18n } from "@/lib/i18n";
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { EpisodeInfo, EpisodeSource, LibraryCopy } from '@/types/api';
 import { diagnosticEvent } from "@/lib/diagnostics";
 import { loadTorrent, getSeasonSources, getLibraryCopies, registerLibraryCopy } from "@/lib/api";
@@ -67,8 +67,9 @@ export function AutoEpisodePlayer({ sources, sourcesPending, sourcesFailed, init
  const registeredRef = useRef(new Set<string>());
  const [attempt, setAttempt] = useState({ index: 0, position: props.initialTime || 0, reason: '', id:randomId() });
  const attemptRef = useRef(attempt);
- attemptRef.current = attempt;
- const [discoveryState, setDiscoveryState] = useState<'idle'|'loading'|'done'|'failed'>('idle');
+ useLayoutEffect(() => { attemptRef.current = attempt; }, [attempt]);
+ // 'idle' until the full discovery settles; discoveryController marks it in flight.
+ const [discoveryState, setDiscoveryState] = useState<'idle'|'done'|'failed'>('idle');
  const discoveryController = useRef<AbortController | null>(null);
  const [choosingSource, setChoosingSource] = useState(false);
  const [tried, setTried] = useState<{ label: string; reason?: string }[]>([]);
@@ -91,10 +92,10 @@ export function AutoEpisodePlayer({ sources, sourcesPending, sourcesFailed, init
   });
   return()=>{cancelled=true;};
  },[seasonId,props.episodeNumber,libraryBase,initialLibraryCopies]);
- useEffect(()=>()=>discoveryController.current?.abort(),[]);
+ useEffect(()=>()=>{discoveryController.current?.abort();discoveryController.current=null;},[]);
  useEffect(()=>{
-  if (!partial || !animeId || !seasonId || discoveryState!=='idle' || (attempt.index===0 && source)) return;
-  const controller=new AbortController();discoveryController.current=controller;setDiscoveryState('loading');
+  if (!partial || !animeId || !seasonId || discoveryState!=='idle' || discoveryController.current || (attempt.index===0 && source)) return;
+  const controller=new AbortController();discoveryController.current=controller;
   diagnosticEvent(diagnostic,'playback.discovery_started',{discovery:'full'});
   void getSeasonSources(animeId,seasonId,props.episodeNumber,controller.signal,session,'full').then(data=>{
    if(controller.signal.aborted)return;
@@ -116,7 +117,7 @@ export function AutoEpisodePlayer({ sources, sourcesPending, sourcesFailed, init
   setAttempt(current => current.id === attempt.id
    ? { index: current.index + 1, position: Math.max(0, failure.position), reason: failure.reason, id:randomId() }
    : current);
- }, [attempt.id, attempt.index, candidates]); // eslint-disable-line react-hooks/exhaustive-deps
+ }, [attempt.id, attempt.index, candidates]);
  // French audio is selected within VideoPlayerModal when available; missing or
  // unconfirmed French audio must never reject an otherwise playable source.
  // Warm the next candidates' metadata in the background: a failing source then hands over to a ready one.
@@ -130,7 +131,7 @@ export function AutoEpisodePlayer({ sources, sourcesPending, sourcesFailed, init
   return()=>{clearTimeout(timer);controller.abort();};
  },[candidates,attempt.index]);
  if (!libraryReady) return <div role="status" className="fixed inset-0 z-50 bg-black/90" />;
- if (!source && partial && animeId && seasonId && (discoveryState==='idle'||discoveryState==='loading')) return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
+ if (!source && partial && animeId && seasonId && discoveryState==='idle') return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
  if (playerWaitState({ hasSource: Boolean(source), sourcesState: sourcesPending ? 'pending' : 'loaded' }) === 'pending') return <div role="status" className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 text-zinc-100">{t("Recherche de sources supplémentaires…")}</div>;
  if (!source) return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6">
   <div role="alert" className="max-w-lg space-y-4 text-center text-zinc-100">
@@ -165,7 +166,7 @@ export function AutoEpisodePlayer({ sources, sourcesPending, sourcesFailed, init
   void registerLibraryCopy(seasonId,props.episodeNumber,lang,{info_hash:infoHash,file_index:fileIndex,release_name:played.title,anime_id:animeId,title:props.animeTitle});
  };
  return <VideoPlayerModal key={engine === 'hls' ? 'hls-player' : attempt.id} {...props}
-  initialPaused={pausedRef.current} onPlaybackIntent={playing=>{pausedRef.current=!playing;}}
+  pausedIntent={()=>pausedRef.current} onPlaybackIntent={playing=>{pausedRef.current=!playing;}}
   onChangeSource={()=>setChoosingSource(true)} sourcePicker={picker}
   onProgress={(position,duration)=>{positionRef.current=position;props.onProgress?.(position,duration);}}
   failover={tried.length?({tried,current:sourceLabel(source)} satisfies FailoverInfo):undefined}
