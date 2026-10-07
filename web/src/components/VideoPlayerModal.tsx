@@ -3,7 +3,7 @@ import { useWatchParty } from "@/lib/use-watch-party";
 import { PlayerStartup } from "./PlayerStartup";
 import { diagnosticEvent, type PlaybackDiagnostic } from "@/lib/diagnostics";
 import { useI18n } from "@/lib/i18n";
-import { mediaTrackLabel, preferredAudioTrack } from "@/lib/media-tracks";
+import { mediaTrackLabel } from "@/lib/media-tracks";
 
 import { SubtitleRenderer } from "./SubtitleRenderer";
 import { usePlayerPreferences } from "@/lib/use-player-preferences";
@@ -35,6 +35,7 @@ import { PlayerDetails } from "./PlayerDetails";
 import { PlayerFileSelection } from "./PlayerFileSelection";
 import { usePlaybackEngine } from "@/lib/use-playback-engine";
 import { useHlsPlayback } from "@/lib/use-hls-playback";
+import { useAudioTrackSelection } from "@/lib/use-audio-track-selection";
 import { useTorrentLoad, useTorrentState } from "@/lib/use-torrent-load";
 import type { EpisodeInfo, EpisodeSource } from "@/types/api";
 import { createPortal } from "react-dom";
@@ -288,6 +289,16 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     triggerShowControls();
   }, [triggerShowControls, isBuffering, hlsMode]);
 
+  // Legacy engine: a seek or audio switch restarts the remux at `position`, so the new stream's time 0 is that position.
+  const restartRemuxAt = useCallback((position: number) => {
+    hasStartedRef.current = false;
+    lastProgressRef.current = { time: 0, at: 0 };
+    setIsBuffering(true);
+    setForceRemux(true);
+    setTimeOffset(position);
+    currentTimeRef.current = 0;
+  }, []);
+
   const partySeekRef = useRef<(seconds: number) => void>(undefined);
   const handleSeek = useCallback((targetSec: number) => {
     diagnosticEvent(diagnostic,"playback.seek",{position:targetSec});
@@ -296,17 +307,12 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     partySeekRef.current?.(finalSec);
     if (hlsMode) { hlsController.current?.seek(finalSec); updateProgressDisplay(finalSec); triggerShowControls(); return; }
 
-    hasStartedRef.current = false;
-    lastProgressRef.current = { time: 0, at: 0 };
-    setIsBuffering(true);
-    setForceRemux(true);
-    setTimeOffset(finalSec);
-    currentTimeRef.current = 0;
+    restartRemuxAt(finalSec);
     setNeedsFileSelection(false);
     updateProgressDisplay(0);
 
     triggerShowControls();
-  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls, setNextCountdown, setNeedsFileSelection]);
+  }, [hlsMode, totalDuration, updateProgressDisplay, triggerShowControls, setNextCountdown, setNeedsFileSelection, restartRemuxAt]);
 
   const runSkip = useCallback(() => {
     if (!shownSkip) return;
@@ -520,28 +526,17 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     if (video) video.volume = volume;
   }, [streamUrl, volume, loading, needsFileSelection]);
 
-  const handleAudioTrackSelect = (trackIdx: number, manual = true) => {
-    if (manual) audioSelectionRef.current = true;
-    setOptionsTab(null);
-    if (trackIdx === selectedAudioTrack) return;
-    if (hlsMode) { hlsResumePositionRef.current = videoRef.current?.currentTime ?? currentTimeRef.current; setSelectedAudioTrack(trackIdx); return; }
-    const currentAbsoluteTime = playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
-    hasStartedRef.current = false;
-    lastProgressRef.current = { time: 0, at: 0 };
-    setForceRemux(true);
-    setSelectedAudioTrack(trackIdx);
-    setIsBuffering(true);
-    setTimeOffset(currentAbsoluteTime);
-    currentTimeRef.current = 0;
-
-    triggerShowControls();
-  };
-
-  useEffect(() => {
-    if (!videoMeta || selectedFileIdx < 0) return;
-    const preferred = preferredAudioTrack(videoMeta.audio_tracks || [], selectedAudioTrack, audioSelectionRef.current);
-    if (preferred !== selectedAudioTrack) handleAudioTrackSelect(preferred, false);
-  }, [videoMeta, selectedFileIdx, selectedAudioTrack]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleAudioTrackSelect = useAudioTrackSelection({
+    meta: videoMeta, fileIndex: selectedFileIdx, selected: selectedAudioTrack, manualRef: audioSelectionRef,
+    onPick: () => setOptionsTab(null),
+    apply: (trackIdx) => {
+      if (hlsMode) { hlsResumePositionRef.current = videoRef.current?.currentTime ?? currentTimeRef.current; setSelectedAudioTrack(trackIdx); return; }
+      const currentAbsoluteTime = playbackOffset + (videoRef.current?.currentTime ?? currentTimeRef.current);
+      setSelectedAudioTrack(trackIdx);
+      restartRemuxAt(currentAbsoluteTime);
+      triggerShowControls();
+    },
+  });
 
   useEffect(() => {
     if (selectedFileIdx >= 0 && videoMeta?.probe_status === 'complete') onVideoMetadata?.(videoMeta);
