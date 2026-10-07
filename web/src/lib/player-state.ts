@@ -1,5 +1,6 @@
 // Pure player logic (no React, no DOM): VideoPlayerModal and its hooks call these, scripts/player-state.test.mjs covers them.
-import type { EpisodeSource, LoadTorrentResponse, SubtitleTrack, TorrentItem } from '../types/api';
+import type { EpisodeSource, LoadTorrentResponse, SubtitleTrack, TorrentItem, VideoMetadata } from '../types/api';
+import { episodeFile } from './episode-file';
 import type { SubtitleStyle } from './ass-style';
 import { DEFAULT_SUBTITLE_STYLE, SUBTITLE_LIFTS, SUBTITLE_SCALES } from './ass-style';
 import type { AmbilightSettings } from '../components/PlayerOptionsModal';
@@ -77,6 +78,11 @@ export function pickDefaultSubtitle(tracks: SubtitleTrack[]): SubtitleTrack {
 export type PlayerItem = TorrentItem | null;
 
 /** A library copy is a plain file on the server: no swarm, no file matching. */
+/** A library copy is a plain file on the server: no swarm to poll or report. */
+export function isLibrarySource(item: PlayerItem): boolean {
+  return !!(item && "library" in item && (item as EpisodeSource).library);
+}
+
 export function libraryLoad(item: PlayerItem): LoadTorrentResponse | null {
   const library = item && "library" in item ? (item as EpisodeSource).library : undefined;
   return library ? { info_hash: library.stream_id, files: [{ index: 0, path: "episode.mkv", length: 0, is_video: true, mime_type: "video/x-matroska" }], main_video_index: 0 } : null;
@@ -85,6 +91,20 @@ export function libraryLoad(item: PlayerItem): LoadTorrentResponse | null {
 /** Torrent files are matched once metadata arrives (-1 until then); a library copy is file 0. */
 export function initialFileIndex(item: PlayerItem): number {
   return item && !libraryLoad(item) ? -1 : 0;
+}
+
+/** The file to play once torrent metadata arrives: the matching episode, else the main video; null = ask the viewer. */
+export function matchedFileIndex(data: LoadTorrentResponse, item: NonNullable<PlayerItem>): number | null {
+  const isEpisode = "episode_number" in item && typeof item.episode_number === "number" && item.episode_number > 0;
+  return isEpisode ? episodeFile(data.files, item as EpisodeSource) : data.main_video_index;
+}
+
+/** Languages reported with watch progress ("" = subtitles off). */
+export function progressTracks(meta: VideoMetadata | null, audioTrack: number, subtitleTrack: number | null): { audioLang?: string; subLang?: string } {
+  return {
+    audioLang: meta?.audio_tracks?.find(track => track.index === audioTrack)?.language,
+    subLang: subtitleTrack === null ? "" : meta?.subtitle_tracks?.find(track => track.index === subtitleTrack)?.language,
+  };
 }
 
 export function clampSeek(target: number, totalDuration: number): number {
