@@ -27,7 +27,7 @@ const TOKEN_COLUMNS: ColumnDef[] = [
   { key: "expires", label: "Expire", type: "text", sortable: true },
   { key: "lastUsed", label: "Dernier usage", type: "text" },
   { key: "statusLabel", label: "État", type: "chip" },
-  { key: "revoke", label: "", type: "button" },
+  { key: "revoke", label: "Action", type: "button", align: "right", sortable: false },
 ];
 
 const PRIVACY_FACTS = [
