@@ -31,6 +31,10 @@
 .admin-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 56px 24px; border-radius: 20px; background: var(--admin-card); box-shadow: inset 0 0 0 1px var(--admin-border); text-align: center; }
 .admin-empty h2 { margin: 0; font-size: 18px; font-weight: 500; }
 .admin-empty p { margin: 0; font-size: 13px; color: var(--admin-muted); }
+.admin-retry { margin-top: 14px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--admin-accent); color: #09090b; font: 500 13px var(--font-dm-sans), system-ui, sans-serif; cursor: pointer; }
+.admin-retry:hover { filter: brightness(.94); }
+.admin-retry:disabled { opacity: .6; cursor: progress; }
+.admin-retry:focus-visible { outline: 2px solid var(--admin-fg); outline-offset: 3px; }
 @media (min-width: 900px) {
   .admin-shell { flex-direction: row-reverse; }
   .admin-topbar { display: none; }
