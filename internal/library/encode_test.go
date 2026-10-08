@@ -173,6 +173,27 @@ func TestEncoderNotSmallerKeepsOriginal(t *testing.T) {
 	}
 }
 
+func TestEncoderSkipsAlreadyAV1Original(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "ran")
+	env := newEncEnv(t, "touch "+marker+"\n"+writeOutput(400), EncodeSettings{})
+	if _, err := env.store.Update(env.key, func(en *Entry) error { en.VideoCodec = "av1"; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if env.enc.encodeNext(context.Background()) {
+		t.Fatal("an AV1 original counted as work")
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatal("ffmpeg ran on a file that is already AV1")
+	}
+	en := env.entry(t)
+	if en.State != StateOriginal || en.EncodeSkipped != "already_av1" || en.ReservedBytes != 0 || en.SizeBytes != origSize {
+		t.Fatalf("entry %+v", en)
+	}
+	if env.reserved() != 0 {
+		t.Fatalf("reservation leaked: %d", env.reserved())
+	}
+}
+
 func TestDiskRemovedDuringEncodeMarksUnavailable(t *testing.T) {
 	env := newEncEnv(t, "echo out_time_us=1\nrm -rf \"$DISK_DIR\"\nexit 1\n", EncodeSettings{})
 	t.Setenv("DISK_DIR", env.diskDir)
