@@ -86,7 +86,7 @@ type Config struct {
 // Load loads configuration from environment variables with fallback defaults.
 func Load() *Config {
 	return &Config{
-		PlaybackEngine:           getEnv("PLAYBACK_ENGINE", "legacy"),
+		PlaybackEngine:           NormalizePlaybackEngine(getEnv("PLAYBACK_ENGINE", "legacy")),
 		PlaybackMemoryBytes:      getEnvInt64("PLAYBACK_MEMORY_BYTES", 64<<20),
 		PlaybackDiskBytes:        getEnvInt64("PLAYBACK_DISK_BYTES", 1<<30),
 		AppEnv:                   getEnv("APP_ENV", "development"),
@@ -232,4 +232,19 @@ func splitList(v string) []string {
 		}
 	}
 	return out
+}
+
+// NormalizePlaybackEngine maps the PLAYBACK_ENGINE value to "hls" or "legacy". Anything else
+// (a typo, an empty value) selects legacy, the per-viewer remux, so a bad value never changes
+// behavior silently towards the new engine.
+func NormalizePlaybackEngine(v string) string {
+	if strings.EqualFold(strings.TrimSpace(v), "hls") {
+		return "hls"
+	}
+	return "legacy"
+}
+
+// UsesHLS reports whether playback goes through the shared-segment HLS engine.
+func (c *Config) UsesHLS() bool {
+	return c != nil && NormalizePlaybackEngine(c.PlaybackEngine) == "hls"
 }
