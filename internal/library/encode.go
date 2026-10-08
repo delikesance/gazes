@@ -149,6 +149,10 @@ func NewEncoder(store *Store, pool *Pool, p Prober, active func() int, s EncodeS
 		slog.Warn("library: invalid encode window, encoding at any time", "window", s.Window, "err", err)
 		s.Window = ""
 	}
+	if _, err := InWindow(s.PeakWindow, time.Now()); err != nil {
+		slog.Warn("library: invalid encode peak window, ignoring it", "window", s.PeakWindow, "err", err)
+		s.PeakWindow = ""
+	}
 	_, err := exec.LookPath("nice")
 	return &Encoder{
 		store: store, pool: pool, probe: p, active: active, s: s, clock: clock,
@@ -184,7 +188,11 @@ func (e *Encoder) setStatus(k *Key, progress float64, paused bool) {
 }
 
 // encodeNext picks the first encodable ORIGINAL entry and encodes it. It reports whether it did any work.
+// Nothing is started while encoding should be paused, so no entry is claimed just to be suspended.
 func (e *Encoder) encodeNext(ctx context.Context) bool {
+	if e.shouldPause() {
+		return false
+	}
 	list, err := e.store.List(Filter{States: []State{StateOriginal}})
 	if err != nil {
 		slog.Warn("library: encoder list", "err", err)
@@ -560,14 +568,22 @@ loop:
 	return st.Size(), nil
 }
 
-// shouldPause is true outside the time window or while enough streams are being watched.
+// shouldPause is true outside the time window, during peak hours, or while enough streams are being watched.
 func (e *Encoder) shouldPause() bool {
-	in, err := InWindow(e.s.Window, e.clock())
+	now := e.clock()
+	in, err := InWindow(e.s.Window, now)
 	if err != nil {
 		slog.Warn("library: encoder window", "err", err)
 		in = true
 	}
-	return !in || (e.s.PauseStreams > 0 && e.active() >= e.s.PauseStreams)
+	peak := false
+	if e.s.PeakWindow != "" {
+		if peak, err = InWindow(e.s.PeakWindow, now); err != nil {
+			slog.Warn("library: encoder peak window", "err", err)
+			peak = false
+		}
+	}
+	return !in || peak || (e.s.PauseStreams > 0 && e.active() >= e.s.PauseStreams)
 }
 
 // tailBuffer keeps the last few KiB written to it (ffmpeg's stderr).

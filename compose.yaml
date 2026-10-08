@@ -116,6 +116,8 @@ services:
       APP_ENV: production
       HOST: 0.0.0.0
       PORT: "8090"
+      # legacy (per-viewer remux, 32 concurrent) or hls (segments shared between viewers). See docs/runbooks/playback-engine.md.
+      PLAYBACK_ENGINE: "${PLAYBACK_ENGINE:-legacy}"
       INDEXER_CONFIG_FILE: /run/gazes/indexers.json
       LOG_LEVEL: "${LOG_LEVEL:-debug}"
       LOG_DIR: /app/diagnostics
