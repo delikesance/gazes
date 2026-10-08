@@ -143,6 +143,16 @@ export const fixtures = {
       { tz_offset: 9000, sessions: 1000, share_pct: 0.8 },
     ],
     episodes_per_active_user: kpi(8.2, 7.1),
+    episodes_per_user_dist: {
+      active_users: 3120,
+      median: 5,
+      buckets: [
+        { key: "1", label: "1 épisode", users: 610, share_pct: 19.55 },
+        { key: "2_5", label: "2 à 5", users: 1040, share_pct: 33.33 },
+        { key: "6_12", label: "6 à 12", users: 890, share_pct: 28.53 },
+        { key: "13_plus", label: "13 et plus", users: 580, share_pct: 18.59 },
+      ],
+    },
     resume_vs_first: { resume: 68400, first: 55900, resume_pct: 54.9 },
     retention_curve: [
       { decile: 0, from_pct: 0, present: 124300, eligible: 124300, retained_pct: 100.0 },
@@ -302,7 +312,7 @@ export const fixtures = {
       { key: "180_365d", label: "180-365 j", users: 3200, share_pct: 17.37 },
       { key: "gt_365d", label: "> 1 an", users: 10440, share_pct: 56.66 },
     ],
-    active_sessions: { valid: 8240, expiring_7d: 420 },
+    active_sessions: { valid: 8240, expiring_7d: 420, expiring_24h: 64, expiring_24_48h: 71 },
   } as AdminUsersSummary,
 
   usersList: {
@@ -436,6 +446,7 @@ export const fixtures = {
         { key: "gt_7d", label: "> 7 j", users: 120, share_pct: 9.6 },
         { key: "never", label: "Jamais (aucune séance à ce jour)", users: 54, share_pct: 4.3 },
       ],
+      median_seconds: 14400,
     },
     churn: {
       previous_window_active: 12800,

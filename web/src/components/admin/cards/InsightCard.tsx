@@ -90,7 +90,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({
           style={{
             display: "inline-flex",
             alignItems: "center",
-            minHeight: 32,
+            minHeight: 44,
             fontSize: 13,
             fontWeight: 500,
             color: "#fafafa",

@@ -68,6 +68,36 @@
       "previous": 0,
       "delta_pct": null
     },
+    "episodes_per_user_dist": {
+      "active_users": 0,
+      "buckets": [
+        {
+          "key": "1",
+          "label": "1 épisode",
+          "share_pct": 0,
+          "users": 0
+        },
+        {
+          "key": "2_5",
+          "label": "2 à 5",
+          "share_pct": 0,
+          "users": 0
+        },
+        {
+          "key": "6_12",
+          "label": "6 à 12",
+          "share_pct": 0,
+          "users": 0
+        },
+        {
+          "key": "13_plus",
+          "label": "13 et plus",
+          "share_pct": 0,
+          "users": 0
+        }
+      ],
+      "median": null
+    },
     "resume_vs_first": {
       "first": 0,
       "resume": 0,

@@ -36,12 +36,14 @@ func TestOpenStoreMigratesLegacyDatabase(t *testing.T) {
 		t.Fatalf("user = %+v", u)
 	}
 	var v int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil || v != 7 {
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil || v != 8 {
 		t.Fatalf("user_version = %d, %v", v, err)
 	}
-	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name='watch_sessions_started'`).Scan(&n); err != nil || n != 1 {
-		t.Fatalf("started index missing: %d %v", n, err)
+	for _, idx := range []string{"watch_sessions_started", "users_created"} {
+		var n int
+		if err := s.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?`, idx).Scan(&n); err != nil || n != 1 {
+			t.Fatalf("index %s missing: %d %v", idx, n, err)
+		}
 	}
 }
 

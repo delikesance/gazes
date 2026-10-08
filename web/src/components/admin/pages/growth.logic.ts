@@ -204,6 +204,14 @@ export function weeksModel(growth: AdminGrowth): WeeksModel {
   };
 }
 
+/** A delay in seconds as short French text: "< 1 min", "45 min", "2,5 h", "3,0 j". */
+export function delayText(seconds: number): string {
+  if (seconds < 60) return "< 1 min";
+  if (seconds < 3600) return `${fmtInt(seconds / 60)} min`;
+  if (seconds < 86400) return `${fmtDec(seconds / 3600, 1)} h`;
+  return `${fmtDec(seconds / 86400, 1)} j`;
+}
+
 export interface DelayModel {
   hasData: boolean;
   tiles: Array<{ label: string; value: string }>;
@@ -218,7 +226,7 @@ export function delayModel(growth: AdminGrowth): DelayModel {
   return {
     hasData: t.cohort_size > 0,
     tiles: [
-      { label: "Délai médian", value: "" },
+      { label: "Délai médian", value: t.median_seconds === null ? "" : delayText(t.median_seconds) },
       { label: "Première séance sous 24 h", value: t.cohort_size > 0 ? `${fmtDec(within24, 1)} %` : "" },
       { label: "Ont déjà regardé", value: t.cohort_size > 0 ? `${fmtDec(100 - never, 1)} %` : "" },
     ],
