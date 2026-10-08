@@ -312,6 +312,11 @@ func startAdmin(cfg *config.Config, logger *slog.Logger, redis *kv.Client) (*adm
 		defer close(watchDone)
 		svc.RunWatch(ctx, admin.DefaultWatchInterval, elect("admin-watch", admin.DefaultWatchInterval-10*time.Second))
 	}()
+	loadDone := make(chan struct{})
+	go func() {
+		defer close(loadDone)
+		svc.RunLoadFlush(ctx, admin.DefaultLoadFlushInterval)
+	}()
 	go func() {
 		defer close(done)
 		if e := elect("admin-backfill", time.Hour); e == nil || e(ctx) {
@@ -325,6 +330,7 @@ func startAdmin(cfg *config.Config, logger *slog.Logger, redis *kv.Client) (*adm
 		cancel()
 		<-done
 		<-watchDone
+		<-loadDone
 		svc.Close()
 		store.Close()
 	}
