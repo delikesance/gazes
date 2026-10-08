@@ -39,7 +39,8 @@ func (s *Service) handleCosts(w http.ResponseWriter, r *http.Request) {
 	users, e3 := activeUsers(from, to)
 	pusers, e4 := activeUsers(pfrom, pto)
 	peak, truncated, e5 := s.pbPeakConcurrent(r, from, to)
-	if err := firstErr(e1, e2, e3, e4, e5); err != nil {
+	load, e6 := s.pbLoad(ctx, p.From, p.To)
+	if err := firstErr(e1, e2, e3, e4, e5, e6); err != nil {
 		pbServerError(w, err)
 		return
 	}
@@ -98,6 +99,7 @@ func (s *Service) handleCosts(w http.ResponseWriter, r *http.Request) {
 				"method": "sweep over watch_sessions (started_at..updated_at)",
 			},
 		},
+		"load":  load,
 		"costs": costs,
 	})
 }
