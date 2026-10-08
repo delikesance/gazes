@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/loadstats"
 	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/torrent"
 	"github.com/google/uuid"
@@ -150,6 +151,9 @@ func (m *Manager) Create(ctx context.Context, hash string, file, audio int, posi
 	m.mu.Unlock()
 	return cloneSession(s), nil
 }
+// NeedsTranscode says the session re-encodes the video to H.264 (the CPU-heavy path).
+func (s *Session) NeedsTranscode() bool { return s.transcode }
+
 // videoArgs copies the video, or re-encodes it to 8-bit H.264 (what every iPad and iPhone decodes) when transcode is set.
 func videoArgs(transcode bool) []string {
 	if !transcode {
@@ -380,7 +384,9 @@ func (m *Manager) produce(ctx context.Context, key string, j *job, s *Session, n
 	var stderr diagnostics.LimitedBuffer
 	cmd.Stderr = &stderr
 	started := time.Now()
+	loadstats.FFmpegStarted()
 	err = cmd.Run()
+	loadstats.FFmpegDone(cpuTime(cmd), s.transcode)
 	if err != nil {
 		m.finish(key, j, &RemuxError{Err: err, Stderr: stderr.String(), Timeout: errors.Is(ctx.Err(), context.DeadlineExceeded)})
 		return
@@ -518,4 +524,12 @@ func (m *Manager) evict(now time.Time) {
 			total -= j.bytes
 		}
 	}
+}
+
+// cpuTime is the user+system CPU the finished process consumed (0 when it never started).
+func cpuTime(cmd *exec.Cmd) time.Duration {
+	if cmd.ProcessState == nil {
+		return 0
+	}
+	return cmd.ProcessState.UserTime() + cmd.ProcessState.SystemTime()
 }

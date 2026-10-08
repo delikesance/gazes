@@ -13,6 +13,7 @@ import (
 
 	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/loadstats"
 	"github.com/gazes/gazes/internal/playback"
 	"github.com/go-chi/chi/v5"
 )
@@ -88,6 +89,7 @@ func (s *Server) HandlePlaybackCreate(w http.ResponseWriter, r *http.Request) {
 		playbackError(w, status, code)
 		return
 	}
+	loadstats.Session(r.UserAgent(), input.NoAV1, session.NeedsTranscode())
 	diagnostics.Logger(r.Context(), s.logger).Info("playback.session_created", "session_id", session.ID, "timeline_origin", session.Origin, "position", session.Position)
 	writePlaybackJSON(w, session)
 }
