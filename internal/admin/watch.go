@@ -33,6 +33,8 @@ const (
 
 	watchErrorWindow     = time.Hour
 	watchMinSessions     = 20 // below this many sessions in the window the error rate is not meaningful
+	watchStartupWindow   = time.Hour
+	watchMinStartups     = 20 // below this many startups in the window the p95 is not meaningful
 	watchSourceWindow    = 30 * time.Minute
 	watchSourceThreshold = 5.0 // SRC_DEAD failures of one source in the window
 	watchNearRatio       = 0.8 // "near" starts at 80 % of the threshold
@@ -110,6 +112,17 @@ func (s *Service) measureErrorRate(ctx context.Context, now time.Time) measure {
 	return measure{value: fptr(float64(errs) / float64(sessions) * 100), detail: fmt.Sprintf("%d erreurs pour %d séances sur 60 min", errs, sessions)}
 }
 
+func (s *Service) measureStartup(ctx context.Context, now time.Time) measure {
+	p50, p95, n, err := s.pbStartupPercentiles(ctx, now.Add(-watchStartupWindow).Unix(), now.Unix()+1)
+	if err != nil {
+		return measure{detail: "démarrages illisibles"}
+	}
+	if n < watchMinStartups {
+		return measure{detail: fmt.Sprintf("échantillon trop faible (%d démarrages sur 60 min)", n)}
+	}
+	return measure{value: fptr(p95 / 1000), detail: fmt.Sprintf("p50 %.1f s, p95 %.1f s sur %d démarrages (60 min)", p50/1000, p95/1000, n)}
+}
+
 func (s *Service) measureDisk(path string) measure {
 	if path == "" {
 		return measure{detail: "chemin non configuré (GAZES_WATCH_DISK_PATH)"}
@@ -149,6 +162,20 @@ func (s *Service) measureSources(ctx context.Context, now time.Time) measure {
 	return measure{value: fptr(top), detail: "SRC_DEAD sur 30 min : " + strings.Join(parts, ", ")}
 }
 
+// measureSaturation is the share of the concurrent stream limit in use (limit_concurrent_streams).
+func (s *Service) measureSaturation(ctx context.Context) measure {
+	st := s.pbDeps().stats
+	if st == nil {
+		return measure{detail: "flux non comptés (moteur de lecture HLS désactivé)"}
+	}
+	limit := s.StreamLimit(ctx)
+	if limit == 0 {
+		return measure{detail: "aucune limite de flux définie"}
+	}
+	n := st.ActiveSessions()
+	return measure{value: fptr(float64(n) / float64(limit) * 100), detail: fmt.Sprintf("%d flux ouverts pour une limite de %d", n, limit)}
+}
+
 type ruleDef struct {
 	rule, label, unit string
 	threshold         func(ctx context.Context, s *Service) float64
@@ -172,12 +199,12 @@ func watchRules() []ruleDef {
 				return s.measureErrorRate(ctx, now)
 			}},
 		{RuleStartup, "Démarrage p95", "s", thresholdOf(RuleStartup),
-			func(context.Context, *Service, time.Time, WatchConfig) measure {
-				return measure{detail: "durée de démarrage non instrumentée"}
+			func(ctx context.Context, s *Service, now time.Time, _ WatchConfig) measure {
+				return s.measureStartup(ctx, now)
 			}},
 		{RuleSaturation, "Saturation des flux", "%", thresholdOf(RuleSaturation),
-			func(context.Context, *Service, time.Time, WatchConfig) measure {
-				return measure{detail: "limite de flux non mesurée"}
+			func(ctx context.Context, s *Service, _ time.Time, _ WatchConfig) measure {
+				return s.measureSaturation(ctx)
 			}},
 		{RuleDisk, "Occupation du disque", "%", thresholdOf(RuleDisk),
 			func(_ context.Context, s *Service, _ time.Time, cfg WatchConfig) measure {
@@ -222,6 +249,9 @@ func (s *Service) EvaluateWatch(ctx context.Context) ([]RuleState, error) {
 	start := time.Now()
 	now := s.now()
 	cfg := s.watchConfig()
+	if s.inMaintenance(ctx, now) {
+		cfg.WebhookURL = "" // planned work: issues are still opened, nobody is woken up
+	}
 	var out []RuleState
 	var breached, sent, failed int
 	for _, d := range watchRules() {

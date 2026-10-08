@@ -18,7 +18,7 @@ export function diagnosticURL(url:string,context?:PlaybackDiagnostic):string {
  const query=new URLSearchParams();for(const key of ['playback_session_id','attempt_id','anime_id','season_id','episode'] as const)if(context[key])query.set(key,context[key]!);
  return `${url}${url.includes('?')?'&':'?'}${query}`;
 }
-let queued:Record<string,unknown>[]=[];
+const queued:Record<string,unknown>[]=[];
 let timer:ReturnType<typeof setTimeout>|undefined;
 function flush(){
  timer=undefined;if(typeof window==='undefined'||!queued.length)return;

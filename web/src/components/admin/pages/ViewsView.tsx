@@ -3,11 +3,12 @@ import { AdminPageHeader } from "@/components/admin/layout/AdminPageHeader";
 import { DataTable, InsightCard, KpiCard, SectionCard } from "@/components/admin/cards";
 import type { ColumnDef } from "@/components/admin/cards";
 import { BarChartCard, HBarListCard, LineChartCard } from "@/components/admin/charts";
-import { SplitBar, StatTile } from "@/components/admin/ui";
+import { ProgressBar, SplitBar, StatTile } from "@/components/admin/ui";
 import { rangeLabel } from "./fr-date";
 import { LIST_RESET, MUTED_TEXT, SURFACE, WRAP_ROW } from "./styles";
 import {
   durationBars,
+  episodesDistribution,
   hourBars,
   leaverRows,
   resumeBlock,
@@ -45,6 +46,7 @@ export function ViewsView({ views, periodDays, from, to }: ViewsViewProps) {
   const hours = hourBars(views);
   const zones = timezoneItems(views);
   const resume = resumeBlock(views);
+  const episodes = episodesDistribution(views);
   const leavers = leaverRows(views);
 
   return (
@@ -129,7 +131,7 @@ export function ViewsView({ views, periodDays, from, to }: ViewsViewProps) {
             yMin={ret.yMin}
             yMax={100}
             yTickCount={4}
-            xTickCount={6}
+            xTickCount={4}
             unit="%"
             decimals={0}
             area
@@ -200,9 +202,19 @@ export function ViewsView({ views, periodDays, from, to }: ViewsViewProps) {
             <SectionCard title="Épisodes par actif" subtitle="Épisodes distincts vus" bare />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
               <StatTile label="Moyenne" value={kpis[3].value === null ? "" : `${kpis[3].value} épisodes`} basis={100} />
-              <StatTile label="Médiane" value="" basis={100} />
+              <StatTile label="Médiane" value={episodes.median} basis={100} />
             </div>
-            <p style={MUTED_TEXT}>La répartition par nombre d&apos;épisodes vus et la médiane ne sont pas exposées par l&apos;API : [À MESURER].</p>
+            {episodes.hasData ? (
+              <ul style={{ ...LIST_RESET, display: "flex", flexDirection: "column", gap: 14 }}>
+                {episodes.bars.map((b) => (
+                  <li key={b.key}>
+                    <ProgressBar label={b.name} value={b.value} valueText={b.text} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={MUTED_TEXT}>Aucune séance sur la période.</p>
+            )}
           </section>
         </div>
 

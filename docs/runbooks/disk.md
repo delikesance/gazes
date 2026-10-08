@@ -6,6 +6,6 @@
 
 **Probable causes.** The sliding-window cache is not evicting (invariant 3 in AGENTS.md), an AV1 library that grew, logs or diagnostic files.
 
-**What Claude may do.** Annotate the issue with the breakdown a human provides, propose a retention or cache-size change as text. Purging the cache is declared as an action but returns 501: a human does it.
+**What Claude may do.** Annotate the issue with the breakdown a human provides, propose a retention or cache-size change as text. The torrent download cache and the AV1 library are not purge scopes: a human frees them. `purge_cache` only empties Redis caches and does not free this volume.
 
 **Verify.** The rule is back under the threshold for three consecutive evaluations; the 24 h effect shows the value after the fix.

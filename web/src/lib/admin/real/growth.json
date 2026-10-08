@@ -491,7 +491,8 @@
           "users": 2
         }
       ],
-      "cohort_size": 5
+      "cohort_size": 5,
+      "median_seconds": 7200
     },
     "visitor_to_signup": {
       "measured": false,

@@ -523,3 +523,16 @@ func TestFanEditFilterKeepsLegitReleases(t *testing.T) {
 		}
 	}
 }
+
+func TestMultiSortsBetweenVOSTFRAndEnglish(t *testing.T) {
+	identity := indexer.EpisodeIdentity{EpisodeNumber: 1, SeasonNumber: 1}
+	sources := []indexer.EpisodeSource{
+		indexer.RankSource(indexer.TorrentItem{InfoHash: "en", Title: "Example 2160p", Seeders: 1000}, identity, false),
+		indexer.RankSource(indexer.TorrentItem{InfoHash: "multi", Title: "Example MULTI 480p", Seeders: 1}, identity, false),
+		indexer.RankSource(indexer.TorrentItem{InfoHash: "sub", Title: "Example VOSTFR 480p", Seeders: 1}, identity, false),
+	}
+	indexer.SortEpisodeSources(sources)
+	if got := sources[0].InfoHash + "," + sources[1].InfoHash + "," + sources[2].InfoHash; got != "sub,multi,en" {
+		t.Fatalf("language tiers lost: %s", got)
+	}
+}
