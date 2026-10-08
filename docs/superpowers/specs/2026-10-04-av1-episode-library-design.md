@@ -209,6 +209,7 @@ Les écritures concurrentes avec le serveur passent par SQLite (WAL, transaction
 | `LIBRARY_RESERVE_PERCENT` | `10` | Réserve libre par disque (%). |
 | `LIBRARY_RESERVE_BYTES` | `50GB` | Réserve libre minimale par disque. |
 | `LIBRARY_STALL_TIMEOUT` | `24h` | Abandon d'un téléchargement sans progression. |
+| `LIBRARY_MIN_VIEWERS` | `2` | Utilisateurs distincts devant regarder un épisode avant son téléchargement et son encodage AV1 (1 = dès le premier). Les décomptes sont en mémoire : un redémarrage les remet à zéro. |
 | `LIBRARY_ENCODE_PRESET` | `8` | Preset SVT-AV1. |
 | `LIBRARY_ENCODE_CRF` | `30` | CRF SVT-AV1. |
 | `LIBRARY_ENCODE_THREADS` | `8` | Threads de l'encodeur. |
