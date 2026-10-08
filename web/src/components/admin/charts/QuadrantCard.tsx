@@ -56,7 +56,18 @@ export const QuadrantCard: React.FC<QuadrantCardProps> = ({
             {m.points.map((d, i) => {
               const r = d.diameter / 2;
               return (
-                <span key={i} title={d.tip} style={{ position: "absolute", left: `${d.leftPct.toFixed(2)}%`, bottom: `${d.bottomPct.toFixed(2)}%`, width: 0, height: 0 }}>
+                <span
+                  key={i}
+                  title={d.tip}
+                  // Clamped so a point on an edge (0 % or 100 %) stays whole instead of being cut by the frame.
+                  style={{
+                    position: "absolute",
+                    left: `clamp(${r}px, ${d.leftPct.toFixed(2)}%, calc(100% - ${r}px))`,
+                    bottom: `clamp(${r}px, ${d.bottomPct.toFixed(2)}%, calc(100% - ${r}px))`,
+                    width: 0,
+                    height: 0,
+                  }}
+                >
                   <span style={{ position: "absolute", left: -r, top: -r, width: d.diameter, height: d.diameter, borderRadius: 999, background: d.color }} />
                   <span
                     style={{ position: "absolute", ...(d.flip ? { right: r + 4 } : { left: r + 4 }), top: -8, whiteSpace: "nowrap", fontSize: 11, color: "#fafafa" }}

@@ -13,3 +13,11 @@ test('public routes keep the public chrome', () => {
     assert.equal(isBareChromePath(p), false, String(p));
   }
 });
+
+test('the chrome stays until the admin frame is mounted (a stranger’s 404 at /admin keeps the header)', async () => {
+  const { hidesChrome } = await import('../src/components/SiteChrome.logic.ts');
+  assert.equal(hidesChrome('/admin', false), false);
+  assert.equal(hidesChrome('/admin/views', true), true);
+  assert.equal(hidesChrome('/admin-preview', true), true);
+  assert.equal(hidesChrome('/anime/12', true), false);
+});

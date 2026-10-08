@@ -4,7 +4,7 @@ How the monitoring reaches Claude, and what to schedule. Nothing here runs by it
 
 ## 1. What the server does by itself
 
-Every minute (one replica, elected through Redis) the server evaluates the watch rules (`error_rate_pct`, `disk_pct`, `source_failures`; `startup_p95_s` and `stream_saturation_pct` are not measured yet). On a new breach it opens one issue (source `watch:<rule>`, severity high or medium, a runbook in `suggested_fix`) and, when configured, POSTs a webhook. After three healthy evaluations it notes "back to normal" on the issue and sends `watch.recovered`; it never closes an issue itself. Playback errors and the MCP call log older than the retention (default 180 days, 30 to 730) are pruned hourly.
+Every minute (one replica, elected through Redis) the server evaluates the watch rules (`error_rate_pct`, `startup_p95_s`, `disk_pct`, `source_failures`, and `stream_saturation_pct` once a stream limit is set). On a new breach it opens one issue (source `watch:<rule>`, severity high or medium, a runbook in `suggested_fix`) and, when configured, POSTs a webhook. After three healthy evaluations it notes "back to normal" on the issue and sends `watch.recovered`; it never closes an issue itself. Playback errors and the MCP call log older than the retention (default 180 days, 30 to 730) are pruned hourly.
 
 | Variable | Role |
 |---|---|

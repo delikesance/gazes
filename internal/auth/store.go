@@ -185,6 +185,9 @@ CREATE TABLE IF NOT EXISTS user_list_items (
 	created_at INTEGER NOT NULL,
 	PRIMARY KEY (list_id, anime_id)
 )`)},
+	// The admin growth page and the metrics rollup filter users by signup time (signups per
+	// day, users created before a day); without this index each of those is a full table scan.
+	{Version: 8, Name: "users_created_index", Up: dbmigrate.SQL(`CREATE INDEX IF NOT EXISTS users_created ON users(created_at)`)},
 }
 
 // OpenStore opens (creating if needed) dir/accounts.sqlite.
