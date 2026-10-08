@@ -240,6 +240,22 @@ var migrations = []dbmigrate.Migration{
 			max_end INTEGER NOT NULL DEFAULT 0
 		)`,
 	)},
+	// Per-day server load counters (bytes served, ffmpeg CPU, client mix, remux peak): see loadstats.
+	{Version: 9, Name: "metrics_load_daily", Up: dbmigrate.SQL(
+		`CREATE TABLE IF NOT EXISTS metrics_load_daily (
+			day TEXT PRIMARY KEY,
+			bytes_out INTEGER NOT NULL DEFAULT 0,
+			cpu_copy_ms INTEGER NOT NULL DEFAULT 0,
+			cpu_transcode_ms INTEGER NOT NULL DEFAULT 0,
+			sessions INTEGER NOT NULL DEFAULT 0,
+			sessions_apple INTEGER NOT NULL DEFAULT 0,
+			sessions_noav1 INTEGER NOT NULL DEFAULT 0,
+			sessions_transcode INTEGER NOT NULL DEFAULT 0,
+			remux_rejected INTEGER NOT NULL DEFAULT 0,
+			peak_remuxes INTEGER NOT NULL DEFAULT 0,
+			peak_ffmpeg INTEGER NOT NULL DEFAULT 0
+		)`,
+	)},
 }
 
 // Open opens (creating if needed) the admin database at path and migrates it.

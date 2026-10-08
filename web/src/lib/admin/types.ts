@@ -469,6 +469,24 @@ export interface AdminCosts {
       method: string;
     };
   };
+  /** Server load counters (absent on a backend older than the load metrics). */
+  load?: {
+    measured_days: number;
+    bytes_out: number;
+    cpu_seconds_copy: number;
+    cpu_seconds_transcode: number;
+    sessions: number;
+    apple_share: number | null;
+    no_av1_share: number | null;
+    transcode_share: number | null;
+    remux_rejected: number;
+    peak_remuxes: number;
+    remux_limit: number;
+    peak_ffmpeg: number;
+    live_remuxes: number;
+    live_ffmpeg: number;
+    since: string | null;
+  };
   costs: {
     currency_unit: string;
     server: {

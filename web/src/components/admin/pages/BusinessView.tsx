@@ -300,6 +300,10 @@ function milestoneRow(r: MonthRow, isoDate: string): Row {
   };
 }
 
+function fmtGB(bytes: number): string {
+  return fmtDec(bytes / 1e9, bytes >= 1e11 ? 0 : 1);
+}
+
 export function BusinessView({ costs, overview, periodDays, from, to, generatedAt }: BusinessViewProps) {
   const facts = useMemo(() => buildBaseline(costs, overview, periodDays), [costs, overview, periodDays]);
   const { baseline, defaults } = facts;
@@ -322,6 +326,7 @@ export function BusinessView({ costs, overview, periodDays, from, to, generatedA
   const first = rows[0];
   const last = rows[rows.length - 1];
   const limit = assumptions.streamLimit;
+  const load = costs.load;
 
   const breakdown = useMemo(() => costBreakdown(costs, baseline), [costs, baseline]);
   const sats = useMemo(
@@ -495,6 +500,28 @@ export function BusinessView({ costs, overview, periodDays, from, to, generatedA
           </ul>
         </section>
       </div>
+
+      <section aria-label="Charge mesurée" style={SURFACE}>
+        <SectionCard
+          bare
+          title="Charge mesurée du serveur"
+          subtitle={
+            load && load.measured_days > 0
+              ? `Compteurs enregistrés sur ${load.measured_days} jour${load.measured_days > 1 ? "s" : ""} de la période (depuis le ${load.since}).`
+              : "Aucune donnée de charge enregistrée sur cette période : les compteurs démarrent avec cette version."
+          }
+        />
+        <div style={WRAP_ROW}>
+          <StatTile label="Volume servi" value={load && load.measured_days > 0 ? fmtGB(load.bytes_out) : ""} unit="Go" missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+          <StatTile label="CPU ffmpeg (conversion H.264)" value={load && load.measured_days > 0 ? fmtDec(load.cpu_seconds_transcode / 3600, 2) : ""} unit="h CPU" missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+          <StatTile label="CPU ffmpeg (copie)" value={load && load.measured_days > 0 ? fmtDec(load.cpu_seconds_copy / 3600, 2) : ""} unit="h CPU" missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+          <StatTile label="Séances iPhone / iPad" value={load?.apple_share == null ? "" : fmtDec(load.apple_share * 100, 1)} unit="%" hint="iPad en mode bureau non détecté" missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+          <StatTile label="Clients sans AV1" value={load?.no_av1_share == null ? "" : fmtDec(load.no_av1_share * 100, 1)} unit="%" missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+          <StatTile label="Séances à convertir" value={load?.transcode_share == null ? "" : fmtDec(load.transcode_share * 100, 1)} unit="%" missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+          <StatTile label="Pic de remuxes" value={load && load.measured_days > 0 ? fmtInt(load.peak_remuxes) : ""} unit={load && load.remux_limit > 0 ? `/ ${fmtInt(load.remux_limit)}` : undefined} hint={load && load.remux_rejected > 0 ? `${fmtInt(load.remux_rejected)} refusé${load.remux_rejected > 1 ? "s" : ""}` : undefined} missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+          <StatTile label="Pic de processus ffmpeg" value={load && load.measured_days > 0 ? fmtInt(load.peak_ffmpeg) : ""} missingLabel={MISSING_MEASURE} size="sm" basis={160} />
+        </div>
+      </section>
 
       <section aria-label="Projection à 12 mois" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
