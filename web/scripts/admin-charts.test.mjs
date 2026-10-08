@@ -129,6 +129,15 @@ test('funnel: largest relative loss is flagged', () => {
   assert.equal(computeFunnel({ steps: [] }).rows.length, 0);
 });
 
+test('quadrants: points on the same spot share one label', () => {
+  const m = computeQuadrant({
+    points: [{ label: 'Alpha', x: 60, y: 40 }, { label: 'Beta', x: 14.3, y: 0 }, { label: 'Gamma', x: 14.3, y: 0 }],
+    xMin: 0, xMax: 80, yMin: 0, yMax: 50,
+  });
+  assert.deepEqual(m.points.map((p) => p.name), ['Alpha', 'Beta, Gamma', '']);
+  assert.ok(m.points[2].tip.startsWith('Gamma'));
+});
+
 test('quadrants: threshold on the mean, boundary goes up/right', () => {
   assert.equal(quadrantOf(50, 50, 50, 50), 'topRight');
   assert.equal(quadrantOf(49, 50, 50, 50), 'topLeft');

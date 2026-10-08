@@ -325,3 +325,25 @@ func TestRunWatchStopsWithItsContext(t *testing.T) {
 		t.Fatal("RunWatch never evaluated")
 	}
 }
+
+func TestWatchStartupP95(t *testing.T) {
+	e := opsEnv(t)
+	ctx := context.Background()
+	for i := 0; i < watchMinStartups-1; i++ {
+		e.svc.RecordStartup(ctx, 9000)
+	}
+	states, _ := e.svc.EvaluateWatch(ctx)
+	if st := e.ruleState(t, states, RuleStartup); st.State != WatchNotMeasured || st.Value != nil {
+		t.Fatalf("%d startups must stay unmeasured: %+v", watchMinStartups-1, st)
+	}
+	e.exec(t, `INSERT INTO playback_startups(ts, ms) VALUES (?, 60000)`, e.svc.now().Add(-2*time.Hour).Unix()) // outside the window
+	e.svc.RecordStartup(ctx, 9000)
+	states, _ = e.svc.EvaluateWatch(ctx)
+	st := e.ruleState(t, states, RuleStartup)
+	if st.State != WatchBreached || st.Value == nil || *st.Value != 9 {
+		t.Fatalf("p95 of 9 s against the 5 s default should breach: %+v", st)
+	}
+	if n := e.count(t, `SELECT COUNT(*) FROM issues WHERE source = 'watch:startup_p95_s'`); n != 1 {
+		t.Fatalf("breach should open one issue, got %d", n)
+	}
+}

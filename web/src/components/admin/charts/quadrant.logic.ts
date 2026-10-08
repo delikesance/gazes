@@ -143,6 +143,18 @@ export function computeQuadrant(p: QuadrantInput): QuadrantModel {
       quadrant: q,
     };
   });
+  // Points drawn on the same spot (e.g. several titles with no completion) would print their labels on top of
+  // each other: the first one carries all the names, the others keep their dot and tooltip only.
+  const spots = new Map<string, QuadrantPointModel>();
+  for (const pt of points) {
+    const key = pt.leftPct.toFixed(1) + ':' + pt.bottomPct.toFixed(1);
+    const first = spots.get(key);
+    if (!first) spots.set(key, pt);
+    else if (pt.name) {
+      first.name = first.name ? first.name + ', ' + pt.name : pt.name;
+      pt.name = '';
+    }
+  }
 
   const quadrants: QuadrantSummary[] = QUADRANT_KEYS.map((k) => {
     const list = pts.filter((d) => quadrantOf(d.x, d.y, xThr, yThr) === k).map((d) => d.label);

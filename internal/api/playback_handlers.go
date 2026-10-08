@@ -13,6 +13,7 @@ import (
 
 	"github.com/gazes/gazes/internal/admin"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/loadstats"
 	"github.com/gazes/gazes/internal/playback"
 	"github.com/go-chi/chi/v5"
 )
@@ -34,7 +35,7 @@ func (s *Server) ClosePlayback() {
 }
 func (s *Server) HandlePlaybackConfig(w http.ResponseWriter, r *http.Request) {
 	engine := "legacy"
-	if s.cfg != nil && s.cfg.PlaybackEngine == "hls" {
+	if s.cfg.UsesHLS() {
 		engine = "hls"
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -57,9 +58,20 @@ func (s *Server) HandlePlaybackCreate(w http.ResponseWriter, r *http.Request) {
 		Audio    int     `json:"audio_track"`
 		Position float64 `json:"position"`
 		NoAV1    bool    `json:"no_av1"`
+		Replaces string  `json:"replaces"` // the viewer's previous session (seek, audio switch), closed first
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2048)).Decode(&input); err != nil || !playbackHash.MatchString(input.Hash) || input.File < 0 || input.Audio < 0 {
 		playbackError(w, 400, "invalid_session")
+		return
+	}
+	if _, ok := s.playbackManager().Get(input.Replaces); ok {
+		s.playbackManager().Delete(input.Replaces)
+	}
+	// limit_concurrent_streams (admin): new sessions wait while the cap is reached, open ones play on.
+	if limit, full := s.streamLimitReached(r.Context(), s.playbackManager().ActiveSessions); full {
+		diagnostics.Logger(r.Context(), s.logger).Warn("playback.stream_limit", "limit", limit)
+		w.Header().Set("Retry-After", "30")
+		playbackError(w, http.StatusServiceUnavailable, "stream_limit_reached")
 		return
 	}
 	session, err := s.playbackManager().Create(r.Context(), input.Hash, input.File, input.Audio, input.Position, input.NoAV1)
@@ -77,8 +89,16 @@ func (s *Server) HandlePlaybackCreate(w http.ResponseWriter, r *http.Request) {
 		playbackError(w, status, code)
 		return
 	}
+	loadstats.Session(r.UserAgent(), input.NoAV1, session.NeedsTranscode())
 	diagnostics.Logger(r.Context(), s.logger).Info("playback.session_created", "session_id", session.ID, "timeline_origin", session.Origin, "position", session.Position)
 	writePlaybackJSON(w, session)
+}
+
+// streamLimitReached reports whether the admin stream cap (limit_concurrent_streams) is reached.
+// Without the admin panel there is no cap.
+func (s *Server) streamLimitReached(ctx context.Context, active func() int) (int, bool) {
+	limit := s.admin.StreamLimit(ctx)
+	return limit, limit > 0 && active() >= limit
 }
 func (s *Server) HandlePlaybackUpdate(w http.ResponseWriter, r *http.Request) {
 	var input struct {

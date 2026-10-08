@@ -276,6 +276,8 @@ button:disabled { cursor: default; opacity: .35; }
 
 body { min-height: 100vh; display: flex; flex-direction: column; }
 .site-content { flex: 1; }
+.site-chrome { display: contents; }
+body:has(.admin-shell) .site-chrome { display: none; }
 .site-content > main { min-height: 0; }
 .detail-page { position: relative; }
 .detail-breadcrumb { top: 68px; }

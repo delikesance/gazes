@@ -22,7 +22,8 @@ const MaxRollupDays = 400
 const dayLayout = "2006-01-02"
 
 // Rollup aggregates watch_sessions and users from the accounts database into
-// the admin database (metrics_daily, metrics_hourly, metrics_anime_daily).
+// the admin database (metrics_daily, metrics_hourly, metrics_anime_daily, and the per-day
+// aggregates of /views, /catalog and the users, growth and costs pages).
 //
 // Read-only choice: the accounts database is opened as a SECOND, separate
 // connection pool with `file:...?mode=ro` (SQLite URI, enforced by the engine)
@@ -108,9 +109,11 @@ func (r *Rollup) RollupRange(ctx context.Context, fromDay, toDay string) error {
 
 	viewsDays := make(map[string]*viewsAcc, nDays)
 	catDays := make(map[string]*catAcc, nDays)
+	userDays := make(map[string]map[int64]*userDayAgg, nDays)
 	for d := range days {
 		viewsDays[d] = newViewsAcc()
 		catDays[d] = newCatAcc()
+		userDays[d] = map[int64]*userDayAgg{}
 	}
 	rows, err := r.accounts.QueryContext(ctx, `SELECT user_id, anime_id, season_id, episode, title, started_at, watched_seconds, completed, start_position, end_position, duration, genres, format, audio_lang, sub_lang
 		FROM watch_sessions WHERE started_at >= ? AND started_at < ?`, lo, hi)
@@ -133,6 +136,12 @@ func (r *Rollup) RollupRange(ctx context.Context, fromDay, toDay string) error {
 		d := dayOf(started)
 		viewsDays[d].add(aid, sid, started, ep, title, startPos, endPos, secs, dur, int(comp))
 		catDays[d].add(aid, title, genresJSON, fmtRaw, started, secs, int(comp), audioLang, subLang)
+		ud := userDays[d][uid]
+		if ud == nil {
+			ud = &userDayAgg{}
+			userDays[d][uid] = ud
+		}
+		ud.add(started, secs, sid, ep)
 		a := days[d]
 		a.sessions++
 		a.secF += secs
@@ -207,6 +216,11 @@ func (r *Rollup) RollupRange(ctx context.Context, fromDay, toDay string) error {
 		return err
 	}
 
+	peaks, err := r.rollupPeaks(ctx, lo, hi)
+	if err != nil {
+		return err
+	}
+
 	// total_users at end of day: users before `lo` plus cumulative new users.
 	var base int64
 	if err := r.accounts.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at < ?`, lo).Scan(&base); err != nil {
@@ -219,14 +233,14 @@ func (r *Rollup) RollupRange(ctx context.Context, fromDay, toDay string) error {
 		d := from.AddDate(0, 0, i).Format(dayLayout)
 		a := days[d]
 		total += a.newUsers
-		if err := r.writeDay(ctx, d, a, animes[d], viewsDays[d], catDays[d], total, computed); err != nil {
+		if err := r.writeDay(ctx, d, a, animes[d], viewsDays[d], catDays[d], userDays[d], peaks[d], total, computed); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *Rollup) writeDay(ctx context.Context, day string, a *dayAgg, an map[int64]*animeAgg, v *viewsAcc, c *catAcc, total, computed int64) error {
+func (r *Rollup) writeDay(ctx context.Context, day string, a *dayAgg, an map[int64]*animeAgg, v *viewsAcc, c *catAcc, users map[int64]*userDayAgg, p peakDay, total, computed int64) error {
 	tx, err := r.admin.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -267,6 +281,9 @@ func (r *Rollup) writeDay(ctx context.Context, day string, a *dayAgg, an map[int
 	if err := writeCatalogDay(ctx, tx, day, c); err != nil {
 		return err
 	}
+	if err := writeActivityDay(ctx, tx, day, users, p, computed); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -287,6 +304,35 @@ func (r *Rollup) Backfill(ctx context.Context, now time.Time, days int) error {
 	}
 	n := now.UTC()
 	return r.RollupRange(ctx, n.AddDate(0, 0, -(days-1)).Format(dayLayout), n.Format(dayLayout))
+}
+
+// BackfillHistory recomputes every day from the first watch session (or the last minDays days,
+// whichever starts earlier) up to and including today, in ranges of at most MaxRollupDays.
+func (r *Rollup) BackfillHistory(ctx context.Context, now time.Time, minDays int) error {
+	n := now.UTC()
+	start := n.AddDate(0, 0, -(max(minDays, 1) - 1))
+	var first sql.NullInt64
+	if err := r.accounts.QueryRowContext(ctx, `SELECT MIN(started_at) FROM watch_sessions`).Scan(&first); err != nil {
+		return err
+	}
+	if first.Valid && first.Int64 >= 0 {
+		if t := time.Unix(first.Int64, 0).UTC(); t.Before(start) {
+			start = t
+		}
+	}
+	end, _ := time.Parse(dayLayout, n.Format(dayLayout))
+	from, _ := time.Parse(dayLayout, start.Format(dayLayout))
+	for !from.After(end) {
+		to := from.AddDate(0, 0, MaxRollupDays-1)
+		if to.After(end) {
+			to = end
+		}
+		if err := r.RollupRange(ctx, from.Format(dayLayout), to.Format(dayLayout)); err != nil {
+			return err
+		}
+		from = to.AddDate(0, 0, 1)
+	}
+	return nil
 }
 
 // Run calls RollupRecent immediately, then every interval (default 10 minutes

@@ -1,6 +1,10 @@
 package torrent
 
-import "time"
+import (
+	"time"
+
+	"golang.org/x/time/rate"
+)
 
 // EngineConfig holds configuration parameters for the torrent engine.
 type EngineConfig struct {
@@ -18,6 +22,7 @@ type EngineConfig struct {
 	Seed                       bool
 	Tunneled                   bool // behind a VPN: no inbound port, so no UPnP / NAT-PMP mapping
 	EnableTitForTat            bool
+	UploadBytesPerSec          int64 // global upload cap; 0 = unlimited
 	DefaultTrackers            []string
 	DHTBootstrapRouters        []string
 	// MetainfoFetchers download a private provider's .torrent, keyed by the provider
@@ -26,6 +31,19 @@ type EngineConfig struct {
 	MetainfoDir      string        // cached .torrent files; empty disables
 	CacheMaxBytes    int64         // resident payload cap enforced by LRU eviction; 0 disables
 	CacheIdleTTL     time.Duration // a torrent must be idle this long before it can be evicted
+}
+
+// uploadLimiter turns a bytes/s cap into the client's upload limiter. The burst
+// must cover one peer request chunk or a send would block forever.
+func uploadLimiter(bytesPerSec int64) *rate.Limiter {
+	if bytesPerSec <= 0 {
+		return rate.NewLimiter(rate.Inf, 0)
+	}
+	burst := int(bytesPerSec)
+	if burst < 1<<20 {
+		burst = 1 << 20
+	}
+	return rate.NewLimiter(rate.Limit(bytesPerSec), burst)
 }
 
 // DefaultEngineConfig returns optimized defaults for low-latency, fast-streaming operations.
@@ -43,7 +61,8 @@ func DefaultEngineConfig(dataDir string) EngineConfig {
 		EstablishedConnsPerTorrent: 100,              // Wide peer set: swarms often expose few reachable seeders
 		HalfOpenConnsPerTorrent:    50,               // Handshake throughput
 		Seed:                       false,
-		EnableTitForTat:            true, // Reciprocal unchoking for max download bandwidth
+		EnableTitForTat:            true,    // Reciprocal unchoking for max download bandwidth
+		UploadBytesPerSec:          2 << 20, // 2 MiB/s: enough for tit-for-tat, leaves the VPN line to viewers
 		CacheIdleTTL:               10 * time.Minute,
 		// Public, ratio-free trackers (ngosang/trackerslist, refreshed 2026-10-04), added to every torrent that is not private.
 		DefaultTrackers: []string{

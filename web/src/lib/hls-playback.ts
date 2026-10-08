@@ -86,9 +86,9 @@ export class HlsPlaybackController {
     try {
       const response = await fetch(`${getApiBase()}/playback/sessions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...diagnosticHeaders(this.diagnostic) }, signal: this.request.signal,
-        body: JSON.stringify({ info_hash: infoHash, file_index: fileIndex, audio_track: audioTrack, position, no_av1: !canDecodeAV1() }),
+        body: JSON.stringify({ info_hash: infoHash, file_index: fileIndex, audio_track: audioTrack, position, no_av1: !canDecodeAV1(), replaces: previous?.id }),
       });
-      if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error === 'seek_index_unavailable' ? 'Cette source ne possède pas d’index permettant une lecture fiable.' : 'Impossible de préparer cette source pour la lecture.'); }
+      if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error === 'seek_index_unavailable' ? 'Cette source ne possède pas d’index permettant une lecture fiable.' : body.error === 'stream_limit_reached' ? 'Le service est complet pour le moment. Réessayez dans quelques minutes.' : 'Impossible de préparer cette source pour la lecture.'); }
       const session = await response.json() as PlaybackSession;
       if (this.disposed || revision !== this.revision) { void this.deleteSession(session.id); return; }
       this.session = session; this.snapshot.duration = session.duration;
