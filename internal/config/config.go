@@ -10,32 +10,33 @@ import (
 
 // Config holds runtime configuration options for Gazes.
 type Config struct {
-	PlaybackEngine       string        `json:"playback_engine"`
-	PlaybackMemoryBytes  int64         `json:"playback_memory_bytes"`
-	PlaybackDiskBytes    int64         `json:"playback_disk_bytes"`
-	AppEnv               string        `json:"app_env"`
-	Host                 string        `json:"host"`
-	Port                 int           `json:"port"`
-	DataDir              string        `json:"data_dir"`
-	CacheDir             string        `json:"cache_dir"`
-	CatalogDir           string        `json:"catalog_dir"` // CATALOG_DIR: durable copy of the AniList catalog (SQLite), kept across deploys
-	LogLevel             string        `json:"log_level"`
-	EnableCORS           bool          `json:"enable_cors"`
-	CORSAllowedOrigins   []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
-	StreamTimeout        time.Duration `json:"stream_timeout"`
-	MaxMemoryCache       int64         `json:"max_memory_cache_bytes"`
-	TorrentPort          int           `json:"torrent_port"`
-	TorrentCacheMaxBytes int64         `json:"torrent_cache_max_bytes"`
-	AccountsDir          string        `json:"accounts_dir"`
-	AdminDBPath          string        `json:"admin_db_path"`
-	WatchWebhookURL      string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_URL: where watch events are POSTed (optional)
-	WatchWebhookSecret   string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
-	WatchDiskPath        string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
-	VPNControlURL        string        `json:"-"`                         // VPN_CONTROL_URL: gluetun control server; empty = no VPN
-	VPNRotateEvery       time.Duration `json:"-"`                         // VPN_ROTATE_EVERY: periodic exit-IP rotation; 0 disables
-	VPNRotateMinGap      time.Duration `json:"-"`                         // VPN_ROTATE_MIN_GAP: shortest time between two rotations
-	TrustProxy           bool          `json:"trust_proxy"`
-	TrustedProxies       []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
+	PlaybackEngine           string        `json:"playback_engine"`
+	PlaybackMemoryBytes      int64         `json:"playback_memory_bytes"`
+	PlaybackDiskBytes        int64         `json:"playback_disk_bytes"`
+	AppEnv                   string        `json:"app_env"`
+	Host                     string        `json:"host"`
+	Port                     int           `json:"port"`
+	DataDir                  string        `json:"data_dir"`
+	CacheDir                 string        `json:"cache_dir"`
+	CatalogDir               string        `json:"catalog_dir"` // CATALOG_DIR: durable copy of the AniList catalog (SQLite), kept across deploys
+	LogLevel                 string        `json:"log_level"`
+	EnableCORS               bool          `json:"enable_cors"`
+	CORSAllowedOrigins       []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
+	StreamTimeout            time.Duration `json:"stream_timeout"`
+	MaxMemoryCache           int64         `json:"max_memory_cache_bytes"`
+	TorrentPort              int           `json:"torrent_port"`
+	TorrentCacheMaxBytes     int64         `json:"torrent_cache_max_bytes"`
+	TorrentUploadBytesPerSec int64         `json:"torrent_upload_bytes_per_sec"`
+	AccountsDir              string        `json:"accounts_dir"`
+	AdminDBPath              string        `json:"admin_db_path"`
+	WatchWebhookURL          string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_URL: where watch events are POSTed (optional)
+	WatchWebhookSecret       string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
+	WatchDiskPath            string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
+	VPNControlURL            string        `json:"-"`                         // VPN_CONTROL_URL: gluetun control server; empty = no VPN
+	VPNRotateEvery           time.Duration `json:"-"`                         // VPN_ROTATE_EVERY: periodic exit-IP rotation; 0 disables
+	VPNRotateMinGap          time.Duration `json:"-"`                         // VPN_ROTATE_MIN_GAP: shortest time between two rotations
+	TrustProxy               bool          `json:"trust_proxy"`
+	TrustedProxies           []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
 	// title matching. API keys and bindings are intentionally never serialized.
 	ArrAuthoritative bool   `json:"arr_authoritative"`
@@ -58,6 +59,7 @@ type Config struct {
 	LibraryPoolDir            string        `json:"library_pool_dir"`
 	LibraryIndexDir           string        `json:"library_index_dir"`
 	LibraryEncodeWindow       string        `json:"library_encode_window"`
+	LibraryEncodePeak         string        `json:"library_encode_peak"`
 	LibraryReservePercent     int           `json:"library_reserve_percent"`
 	LibraryEncodePreset       int           `json:"library_encode_preset"`
 	LibraryEncodeCRF          int           `json:"library_encode_crf"`
@@ -65,6 +67,7 @@ type Config struct {
 	LibraryEncodePauseStreams int           `json:"library_encode_pause_streams"`
 	LibraryReserveBytes       int64         `json:"library_reserve_bytes"`
 	LibraryStallTimeout       time.Duration `json:"library_stall_timeout"`
+	LibraryMinViewers         int           `json:"library_min_viewers"`
 
 	// Optional cost inputs for the admin panel (nil = not provided, never defaulted).
 	CostServerMonth       *float64 `json:"cost_server_month,omitempty"`         // GAZES_COST_SERVER_MONTH: server cost per month
@@ -86,7 +89,7 @@ type Config struct {
 // Load loads configuration from environment variables with fallback defaults.
 func Load() *Config {
 	return &Config{
-		PlaybackEngine:           getEnv("PLAYBACK_ENGINE", "legacy"),
+		PlaybackEngine:           NormalizePlaybackEngine(getEnv("PLAYBACK_ENGINE", "legacy")),
 		PlaybackMemoryBytes:      getEnvInt64("PLAYBACK_MEMORY_BYTES", 64<<20),
 		PlaybackDiskBytes:        getEnvInt64("PLAYBACK_DISK_BYTES", 1<<30),
 		AppEnv:                   getEnv("APP_ENV", "development"),
@@ -102,6 +105,7 @@ func Load() *Config {
 		MaxMemoryCache:           getEnvInt64("MAX_MEMORY_CACHE_BYTES", 256*1024*1024), // 256MB default
 		TorrentPort:              getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
 		TorrentCacheMaxBytes:     getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
+		TorrentUploadBytesPerSec: getEnvInt64("TORRENT_UPLOAD_BYTES_PER_SEC", 2<<20),   // 2 MiB/s global upload cap; 0 = unlimited
 		AccountsDir:              getEnv("ACCOUNTS_DIR", "./accounts"),
 		AdminDBPath:              getEnv("GAZES_ADMIN_DB", filepath.Join(getEnv("ACCOUNTS_DIR", "./accounts"), "admin.sqlite")),
 		WatchWebhookURL:          getEnv("GAZES_WATCH_WEBHOOK_URL", ""),
@@ -124,13 +128,16 @@ func Load() *Config {
 		RedisNamespace:           getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
 		ResolverFastPhaseTimeout: getEnvDuration("RESOLVER_FAST_PHASE_TIMEOUT", 3*time.Second),
 
-		LibraryEnabled:            getEnvBool("LIBRARY_ENABLED", true),
-		LibraryPoolDir:            getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
-		LibraryIndexDir:           getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
-		LibraryEncodeWindow:       getEnv("LIBRARY_ENCODE_WINDOW", ""),
-		LibraryReservePercent:     getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
-		LibraryReserveBytes:       getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
-		LibraryStallTimeout:       getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
+		LibraryEnabled:        getEnvBool("LIBRARY_ENABLED", true),
+		LibraryPoolDir:        getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
+		LibraryIndexDir:       getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
+		LibraryEncodeWindow:   getEnv("LIBRARY_ENCODE_WINDOW", ""),
+		LibraryEncodePeak:     getEnv("LIBRARY_ENCODE_PEAK", ""),
+		LibraryReservePercent: getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
+		LibraryReserveBytes:   getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
+		LibraryStallTimeout:   getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
+		// Distinct users who must watch an episode before it is downloaded and AV1-encoded (1 = the first viewer).
+		LibraryMinViewers:         getEnvInt("LIBRARY_MIN_VIEWERS", 2),
 		LibraryEncodePreset:       getEnvInt("LIBRARY_ENCODE_PRESET", 8),
 		LibraryEncodeCRF:          getEnvInt("LIBRARY_ENCODE_CRF", 30),
 		LibraryEncodeThreads:      getEnvInt("LIBRARY_ENCODE_THREADS", 8),
@@ -232,4 +239,19 @@ func splitList(v string) []string {
 		}
 	}
 	return out
+}
+
+// NormalizePlaybackEngine maps the PLAYBACK_ENGINE value to "hls" or "legacy". Anything else
+// (a typo, an empty value) selects legacy, the per-viewer remux, so a bad value never changes
+// behavior silently towards the new engine.
+func NormalizePlaybackEngine(v string) string {
+	if strings.EqualFold(strings.TrimSpace(v), "hls") {
+		return "hls"
+	}
+	return "legacy"
+}
+
+// UsesHLS reports whether playback goes through the shared-segment HLS engine.
+func (c *Config) UsesHLS() bool {
+	return c != nil && NormalizePlaybackEngine(c.PlaybackEngine) == "hls"
 }

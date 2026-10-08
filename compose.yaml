@@ -116,11 +116,14 @@ services:
       APP_ENV: production
       HOST: 0.0.0.0
       PORT: "8090"
+      # legacy (per-viewer remux, 32 concurrent) or hls (segments shared between viewers). See docs/runbooks/playback-engine.md.
+      PLAYBACK_ENGINE: "${PLAYBACK_ENGINE:-legacy}"
       INDEXER_CONFIG_FILE: /run/gazes/indexers.json
       LOG_LEVEL: "${LOG_LEVEL:-debug}"
       LOG_DIR: /app/diagnostics
       VPN_CONTROL_URL: http://127.0.0.1:8000
       TORRENT_PORT: "${TORRENT_PORT:-42069}"
+      TORRENT_UPLOAD_BYTES_PER_SEC: "${TORRENT_UPLOAD_BYTES_PER_SEC:-2097152}"
       ACCOUNTS_DIR: /app/accounts
       # Required: caches, upstream rate limits and auth state live in the shared Redis (make redis-up).
       REDIS_URL: "redis://:${REDIS_PASSWORD:-}@gazes-redis:6379/0"

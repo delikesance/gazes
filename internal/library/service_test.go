@@ -189,3 +189,24 @@ func TestStateChangesAreLoggedFromTheStoreHook(t *testing.T) {
 		t.Errorf("library.encode logged %d times", n)
 	}
 }
+
+func TestRegisterWaitsForDistinctViewers(t *testing.T) {
+	env := newJanitorEnv(t, nil)
+	s := newServiceTest(t, env, &fakeFetcher{data: make([]byte, 10)}, func() time.Time { return janitorNow })
+	s.minViewers, s.viewers = 2, map[Key]map[int64]struct{}{}
+	for i := 0; i < 3; i++ {
+		if _, created, err := s.Register(7, svcReq(1)); err != ErrWaitingViewers || created {
+			t.Fatalf("same user #%d: created=%v err=%v, want ErrWaitingViewers", i, created, err)
+		}
+	}
+	if _, err := s.store.Get(svcReq(1).Key); err == nil {
+		t.Fatal("copy created after a single viewer")
+	}
+	if _, created, err := s.Register(8, svcReq(1)); err != nil || !created {
+		t.Fatalf("second viewer: created=%v err=%v", created, err)
+	}
+	// Once cached, any viewer only touches it.
+	if _, created, err := s.Register(9, svcReq(1)); err != nil || created {
+		t.Fatalf("third viewer: created=%v err=%v", created, err)
+	}
+}

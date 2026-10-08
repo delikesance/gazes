@@ -181,3 +181,53 @@ func TestVideoArgs(t *testing.T) {
 		t.Fatalf("transcode args = %q", got)
 	}
 }
+
+func TestTranscodedSegmentsAreKeyedAndCachedLonger(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	m := New(nil, nil, logger, Options{Directory: t.TempDir(), TranscodeTTL: 30 * time.Minute})
+	defer m.Close()
+	copySess := &Session{hash: "h", file: 1, audio: 0}
+	tcSess := &Session{hash: "h", file: 1, audio: 0, transcode: true}
+	if mediaKey(copySess, 3) == mediaKey(tcSess, 3) {
+		t.Fatal("copied and transcoded segments share a key")
+	}
+	if mediaKey(tcSess, 3) != mediaKey(&Session{ID: "other", hash: "h", file: 1, transcode: true}, 3) {
+		t.Fatal("two transcoding viewers of one episode must share a job")
+	}
+	now := time.Now()
+	mk := func(transcoded bool, idle time.Duration) *job {
+		d := make(chan struct{})
+		close(d)
+		dir := t.TempDir()
+		return &job{done: d, cancel: func() {}, owners: map[string]bool{}, used: now.Add(-idle), media: filepath.Join(dir, "media.m4s"), bytes: 10, transcoded: transcoded}
+	}
+	m.jobs["remux-idle"] = mk(false, 3*time.Minute)
+	m.jobs["x264-idle"] = mk(true, 10*time.Minute)
+	m.jobs["x264-stale"] = mk(true, time.Hour)
+	m.mu.Lock()
+	m.evict(now)
+	m.mu.Unlock()
+	if _, ok := m.jobs["remux-idle"]; ok {
+		t.Fatal("idle remux segment kept")
+	}
+	if _, ok := m.jobs["x264-idle"]; !ok {
+		t.Fatal("recent transcode evicted before its TTL")
+	}
+	if _, ok := m.jobs["x264-stale"]; ok {
+		t.Fatal("stale transcode kept past its TTL")
+	}
+	// Over the disk budget the remux segment goes first, whatever its age.
+	m.opts.DiskBytes = 15
+	m.jobs["remux-new"] = mk(false, 0)
+	m.jobs["x264-new"] = mk(true, 0)
+	m.jobs["x264-idle"].bytes = 10
+	m.mu.Lock()
+	m.evict(now)
+	m.mu.Unlock()
+	if _, ok := m.jobs["remux-new"]; ok {
+		t.Fatal("remux segment survived disk pressure before a transcode")
+	}
+	if _, ok := m.jobs["x264-new"]; !ok && len(m.jobs) == 0 {
+		t.Fatal("all transcodes evicted")
+	}
+}

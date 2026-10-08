@@ -198,3 +198,16 @@ func TestAPIRoutes(t *testing.T) {
 		}
 	})
 }
+
+func TestPlaybackConfigReportsEngine(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	for engine, want := range map[string]string{"": "legacy", "legacy": "legacy", "hls": "hls", "bogus": "legacy"} {
+		srv := api.NewServer(&config.Config{PlaybackEngine: engine, CacheDir: t.TempDir()}, logger, &mockIndexer{}, &mockTorrentEngine{}, stream.NewPipelineManager(logger))
+		rec := httptest.NewRecorder()
+		srv.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/playback/config", nil))
+		var body struct{ Engine string }
+		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil || body.Engine != want {
+			t.Errorf("PlaybackEngine=%q: got %q (err %v), want %q", engine, body.Engine, err, want)
+		}
+	}
+}

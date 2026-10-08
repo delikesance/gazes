@@ -1,0 +1,46 @@
+<template>
+  <style>
+@font-face{font-family:"DM Sans";font-weight:100 1000;font-style:normal;src:url("assets/fonts/dm-sans-var.woff2") format("woff2");}
+@font-face{font-family:"Fraunces";font-weight:100 900;font-style:normal;src:url("assets/fonts/fraunces-var.woff2") format("woff2");}
+
+    #root { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+    #root .clip { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+    #root .gz07-ground { background: #09090b; }
+    #root .gz07-stage { color: #fafafa; }
+    .gz07-logo {
+      position: absolute; left: 0; right: 0; top: 270px;
+      text-align: center; font-family: "Fraunces", Georgia, serif; font-weight: 600;
+      font-size: 300px; line-height: 1; letter-spacing: -0.03em; color: #fafafa;
+    }
+    .gz07-line {
+      position: absolute; left: 0; right: 0; top: 640px;
+      text-align: center; font-family: "DM Sans", system-ui, sans-serif; font-weight: 650;
+      font-size: 84px; line-height: 1.1; letter-spacing: -0.03em; text-transform: lowercase; color: #fafafa;
+    }
+    .gz07-w { display: inline-block; white-space: pre; }
+    .gz07-ac { color: #9b8afb; }
+  </style>
+
+  <div data-hf-id="hf-1ihn" id="root" data-composition-id="05-cta" data-start="0" data-duration="4" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-km6q" class="clip gz07-ground" data-start="0" data-duration="4" data-track-index="0"></div>
+    <div data-hf-id="hf-6wze" class="clip gz07-stage" data-start="0" data-duration="4" data-track-index="1">
+      <div data-hf-id="hf-jp98" class="gz07-logo" id="gz07-logo">gazes</div>
+      <div data-hf-id="hf-zqj4" class="gz07-line" id="gz07-line">
+        <span data-hf-id="hf-7xte" class="gz07-w">ton </span><span data-hf-id="hf-jbk5" class="gz07-w">prochain </span><span data-hf-id="hf-8tv7" class="gz07-w">anime </span><span data-hf-id="hf-v74p" class="gz07-w gz07-ac">t'attend.</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    var tl = gsap.timeline({ paused: true });
+    // Scene 1: the logo lands alone on the flat ground (spring-pop settle)
+    tl.fromTo("#gz07-logo", { opacity: 0, scale: 1.12, transformOrigin: "50% 50%" },
+      { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.4)" }, 0.05);
+    // Scene 2: closing line arrives word by word, then holds still
+    tl.fromTo(".gz07-w", { opacity: 0, y: 28 },
+      { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.16 }, 1.5);
+    window.__timelines["05-cta"] = tl;
+  </script>
+</template>

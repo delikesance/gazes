@@ -99,7 +99,7 @@ require (
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/time v0.15.0
 	lukechampine.com/blake3 v1.1.6 // indirect
 	modernc.org/libc v1.22.3 // indirect
 	modernc.org/mathutil v1.5.0 // indirect

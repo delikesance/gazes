@@ -22,21 +22,22 @@ func TestResolverFastPhaseTimeout(t *testing.T) {
 
 func TestLibraryConfigDefaults(t *testing.T) {
 	for _, k := range []string{"LIBRARY_ENABLED", "LIBRARY_POOL_DIR", "LIBRARY_INDEX_DIR", "LIBRARY_RESERVE_PERCENT", "LIBRARY_RESERVE_BYTES",
-		"LIBRARY_STALL_TIMEOUT", "LIBRARY_ENCODE_PRESET", "LIBRARY_ENCODE_CRF", "LIBRARY_ENCODE_THREADS", "LIBRARY_ENCODE_WINDOW", "LIBRARY_ENCODE_PAUSE_STREAMS"} {
+		"LIBRARY_STALL_TIMEOUT", "LIBRARY_ENCODE_PRESET", "LIBRARY_ENCODE_CRF", "LIBRARY_ENCODE_THREADS", "LIBRARY_ENCODE_WINDOW", "LIBRARY_ENCODE_PEAK", "LIBRARY_ENCODE_PAUSE_STREAMS"} {
 		t.Setenv(k, "")
 	}
 	c := Load()
 	if !c.LibraryEnabled || c.LibraryPoolDir != "/app/library-pool" || c.LibraryIndexDir != "/app/library-index" ||
 		c.LibraryReservePercent != 10 || c.LibraryReserveBytes != 50_000_000_000 || c.LibraryStallTimeout != 24*time.Hour ||
 		c.LibraryEncodePreset != 8 || c.LibraryEncodeCRF != 30 || c.LibraryEncodeThreads != 8 ||
-		c.LibraryEncodeWindow != "" || c.LibraryEncodePauseStreams != 3 {
+		c.LibraryEncodeWindow != "" || c.LibraryEncodePeak != "" || c.LibraryEncodePauseStreams != 3 {
 		t.Fatalf("defaults: %+v", c)
 	}
 	t.Setenv("LIBRARY_ENABLED", "false")
 	t.Setenv("LIBRARY_RESERVE_BYTES", "123")
 	t.Setenv("LIBRARY_ENCODE_WINDOW", "01:00-06:00")
+	t.Setenv("LIBRARY_ENCODE_PEAK", "18:00-23:00")
 	c = Load()
-	if c.LibraryEnabled || c.LibraryReserveBytes != 123 || c.LibraryEncodeWindow != "01:00-06:00" {
+	if c.LibraryEnabled || c.LibraryReserveBytes != 123 || c.LibraryEncodeWindow != "01:00-06:00" || c.LibraryEncodePeak != "18:00-23:00" {
 		t.Fatalf("overrides: %+v", c)
 	}
 }
@@ -50,5 +51,18 @@ func TestAdminDBPath(t *testing.T) {
 	t.Setenv("GAZES_ADMIN_DB", "/x/admin.sqlite")
 	if got := Load().AdminDBPath; got != "/x/admin.sqlite" {
 		t.Fatalf("override = %q", got)
+	}
+}
+
+func TestPlaybackEngineSelection(t *testing.T) {
+	for in, want := range map[string]string{"": "legacy", "legacy": "legacy", "hls": "hls", " HLS ": "hls", "hsl": "legacy"} {
+		t.Setenv("PLAYBACK_ENGINE", in)
+		if got := Load().PlaybackEngine; got != want {
+			t.Errorf("PLAYBACK_ENGINE=%q: got %q, want %q", in, got, want)
+		}
+	}
+	var nilCfg *Config
+	if nilCfg.UsesHLS() || (&Config{PlaybackEngine: "legacy"}).UsesHLS() || !(&Config{PlaybackEngine: "hls"}).UsesHLS() {
+		t.Error("UsesHLS must be true only for hls")
 	}
 }

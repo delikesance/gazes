@@ -1,0 +1,120 @@
+<template>
+  <div data-hf-id="hf-n7rn" id="root" data-composition-id="02-value" data-start="0" data-duration="10" data-width="1920" data-height="1080">
+    <style>
+@font-face{font-family:"DM Sans";font-weight:100 1000;font-style:normal;src:url("assets/fonts/dm-sans-var.woff2") format("woff2");}
+@font-face{font-family:"Fraunces";font-weight:100 900;font-style:normal;src:url("assets/fonts/fraunces-var.woff2") format("woff2");}
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: "DM Sans", system-ui, sans-serif; }
+      #root .clip { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      #root .v2-ground { background: #09090b; }
+      #root .v2-world { transform-origin: 137px 833px; }
+      #root .v2-page { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; display: block; }
+      #root .v2-row { position: absolute; left: 0; width: 3432px; height: 216px; display: flex; }
+      #root .v2-row img { flex: none; width: 150px; height: 216px; margin-right: 6px; object-fit: cover; display: block; }
+      #root .v2-veil { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: #09090b; opacity: 0; }
+      #root .v2-btn { position: absolute; left: 75px; top: 810px; width: 124px; height: 46px; border-radius: 23px; background: #fafafa; color: #09090b; font-weight: 600; font-size: 15px; letter-spacing: 0.01em; display: flex; align-items: center; justify-content: center; opacity: 0; }
+      #root .v2-ring { position: absolute; left: 69px; top: 804px; width: 136px; height: 58px; border-radius: 29px; border: 3px solid #9b8afb; opacity: 0; }
+      #root .v2-dot { position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #9b8afb; opacity: 0; }
+      #root .v2-ripple { position: absolute; left: 107px; top: 803px; width: 60px; height: 60px; border-radius: 50%; border: 3px solid #9b8afb; opacity: 0; }
+      #root .v2-text { position: absolute; left: 0; top: 0; width: 1480px; height: 300px; }
+      #root .v2-plate { position: absolute; left: 0; top: 0; width: 1480px; height: 300px; background: #09090b; opacity: 0; }
+      #root .v2-line { position: absolute; left: 70px; font-weight: 650; font-size: 120px; line-height: 1; letter-spacing: -0.03em; white-space: nowrap; opacity: 0; }
+      #root .v2-l1 { top: 24px; color: #fafafa; }
+      #root .v2-l2 { top: 150px; color: #9b8afb; font-size: 118px; }
+    </style>
+
+    <div data-hf-id="hf-9t56" class="clip v2-ground" data-start="0" data-duration="6.25" data-track-index="0"></div>
+
+    <div data-hf-id="hf-1qk1" class="clip v2-world" id="v2-world" data-layout-allow-overflow="" data-start="0" data-duration="6.25" data-track-index="1">
+      <img data-hf-id="hf-nnzw" class="v2-page" src="assets/scroll-000.png" alt="">
+      <div data-hf-id="hf-e7xu" id="v2-strips" style="position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;opacity:0"></div>
+      <div data-hf-id="hf-rf9w" class="v2-veil" id="v2-veil"></div>
+      <div data-hf-id="hf-1762" class="v2-btn" id="v2-btn">Regarder</div>
+      <div data-hf-id="hf-m1a8" class="v2-ring" id="v2-ring"></div>
+      <div data-hf-id="hf-yk6c" class="v2-ripple" id="v2-ripple"></div>
+      <div data-hf-id="hf-q3hm" class="v2-dot" id="v2-dot"></div>
+    </div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div data-hf-id="hf-i0o7" class="clip" style="pointer-events:none" data-start="6.9" data-duration="3.1" data-track-index="5">
+      <div data-hf-id="hf-z9le" class="v2-text" id="v2-text">
+        <div data-hf-id="hf-kifi" class="v2-plate" id="v2-plate"></div>
+        <div data-hf-id="hf-if9v" class="v2-line v2-l1" id="v2-l1">un clic.</div>
+        <div data-hf-id="hf-g6ks" class="v2-line v2-l2" id="v2-l2">gazes s'occupe du reste.</div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+        var tl = gsap.timeline({ paused: true });
+        var posters = [2, 3, 4, 5, 6];
+        var strips = document.getElementById("v2-strips");
+        var rows = [];
+        // 9 rows: first pass tiles the frame, second pass interleaves (tighter)
+        var cfg = [];
+        for (var k = 0; k < 5; k++) cfg.push({ top: k * 216, t: 0.55 + k * 0.38, z: 1 });
+        for (var j = 0; j < 4; j++) cfg.push({ top: 108 + j * 216, t: 2.15 + j * 0.2, z: 2 });
+        cfg.forEach(function (c, i) {
+          var row = document.createElement("div");
+          row.className = "v2-row";
+          row.style.top = c.top + "px";
+          row.style.zIndex = c.z;
+          row.style.opacity = "0";
+          for (var n = 0; n < 22; n++) {
+            var img = document.createElement("img");
+            img.src = "assets/poster-" + posters[(n + i * 2) % posters.length] + ".jpg";
+            row.appendChild(img);
+          }
+          strips.appendChild(row);
+          var dist = 1000 + i * 60;
+          var left = i % 2 === 0;
+          var x0 = left ? 0 : -1512;
+          var x1 = left ? -dist : -1512 + dist;
+          tl.fromTo(row, { opacity: 0, y: -40, x: x0 }, { opacity: 1, y: 0, x: x0, duration: 0.18, ease: "power2.out" }, c.t);
+          tl.fromTo(row, { x: x0 }, { x: x1, duration: 3.0 - c.t, ease: "power2.in" }, c.t);
+        });
+
+        // Scene 1: page holds, burst builds, veil darkens
+        tl.set(strips, { opacity: 1 }, 0.5);
+        tl.fromTo("#v2-veil", { opacity: 0 }, { opacity: 0.55, duration: 2.5, ease: "power1.in" }, 0.5);
+        // Scene 2: burst clears at once, back to the page
+        tl.set(strips, { opacity: 0 }, 3.0);
+        tl.set("#v2-veil", { opacity: 0 }, 3.0);
+
+        // slow push-in on the hold (camera drift)
+        tl.fromTo("#v2-world", { scale: 1 }, { scale: 1.04, duration: 3.05, ease: "power1.inOut" }, 3.0);
+
+        // button overlay + accent ring (silence before the drop)
+        tl.fromTo("#v2-btn", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 3.0);
+        tl.fromTo("#v2-ring", { opacity: 0, scale: 1.12 }, { opacity: 1, scale: 1, duration: 0.35, ease: "power2.out" }, 4.8);
+
+        // purple dot glides to the button and rests
+        tl.fromTo("#v2-dot", { opacity: 0, scale: 0.2, x: 1480, y: 330 }, { opacity: 1, scale: 1, x: 1480, y: 330, duration: 0.3, ease: "power2.out" }, 3.3);
+        tl.fromTo("#v2-dot", { x: 1480 }, { x: 137, duration: 1.7, ease: "power2.inOut" }, 3.4);
+        tl.fromTo("#v2-dot", { y: 330 }, { y: 833, duration: 1.7, ease: "sine.inOut" }, 3.4);
+        tl.fromTo("#v2-dot", { y: 833 }, { y: 838, duration: 0.9, ease: "sine.inOut" }, 5.1);
+
+        // Scene 3: click on the drop (6.0s)
+        tl.fromTo("#v2-dot", { scale: 1 }, { scale: 0.7, duration: 0.08, ease: "power2.out" }, 6.0);
+        tl.to("#v2-dot", { scale: 1, duration: 0.2, ease: "power2.out" }, 6.08);
+        tl.fromTo("#v2-btn", { scale: 1 }, { scale: 0.92, duration: 0.09, ease: "power2.out" }, 6.0);
+        tl.to("#v2-btn", { scale: 1, duration: 0.25, ease: "power3.out" }, 6.09);
+        tl.fromTo("#v2-ripple", { opacity: 0.9, scale: 0.4 }, { opacity: 0, scale: 2.2, duration: 0.4, ease: "power2.out" }, 6.0);
+
+        // Scene 4: dive into the screen, hard cut to the real player
+        tl.fromTo("#v2-world", { scale: 1.04, filter: "blur(0px)" }, { scale: 18, filter: "blur(10px)", duration: 0.17, ease: "power3.in" }, 6.08);
+
+        // headline on a flat plate, top-left
+        tl.fromTo("#v2-plate", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 7.0);
+        tl.fromTo("#v2-l1", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 7.0);
+        tl.fromTo("#v2-l2", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 7.6);
+
+        window.__timelines["02-value"] = tl;
+      })();
+    </script>
+  </div>
+</template>
