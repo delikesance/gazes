@@ -35,3 +35,12 @@ prowlarr-backup*.tar.gz
 # graphify outputs
 graphify-out/
 .claude/settings.local.json
+
+# Local environment backups and agent worktrees
+.env.bak*
+/.claude/worktrees/
+
+# HyperFrames runtime caches
+/videos/**/.hyperframes/
+/videos/**/.thumbnails/
+/videos/**/.waveform-cache/

@@ -195,6 +195,7 @@ func main() {
 				Threads:      cfg.LibraryEncodeThreads,
 				PauseStreams: cfg.LibraryEncodePauseStreams,
 				Window:       cfg.LibraryEncodeWindow,
+				PeakWindow:   cfg.LibraryEncodePeak,
 			},
 		}, torrentEngine, torrentEngine, logger)
 		if err != nil {
