@@ -174,7 +174,7 @@ export function GrowthView({ growth, periodDays, from, to }: GrowthViewProps) {
             <p style={MUTED_TEXT}>Aucun compte créé sur la période.</p>
           )}
           <p style={NOTE}>
-            Écart entre la création du compte et sa première séance. Le délai médian n&apos;est pas exposé par l&apos;API : [À MESURER].
+            Écart entre la création du compte et sa première séance. Le délai médian ne compte que les comptes qui ont déjà regardé.
           </p>
         </section>
 

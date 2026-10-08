@@ -10,7 +10,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Build, vet, typecheck and test the exact commit before it reaches the host.
+  # Steps live in deploy/ci-verify.sh so this job stays identical in every workflow.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install pnpm
+        run: npm install -g pnpm@11.25.0
+      - name: Verify
+        env:
+          GO_TEST_ADVISORY: "0"
+        run: bash deploy/ci-verify.sh
+
   deploy:
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -33,8 +54,28 @@ jobs:
           DEPLOY_PORT: "22"
           DEPLOY_PATH: /home/workstation/Projects/gazes
           DEPLOY_SHA: ${{ github.sha }}
+        # `make up` waits for every health check (compose --wait). If it fails, the
+        # host goes back to the commit it was running before and the job stays red.
         run: |
           ssh -i ~/.ssh/id_deploy -p "${DEPLOY_PORT:-22}" \
             -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -euo pipefail; cd '$DEPLOY_PATH'; git fetch origin main; git checkout --detach '$DEPLOY_SHA'; make up; docker image prune -f"
+            bash -s -- "$DEPLOY_PATH" "$DEPLOY_SHA" <<'REMOTE'
+          set -euo pipefail
+          deploy_path=$1 deploy_sha=$2
+          cd "$deploy_path"
+          prev_sha=$(git rev-parse HEAD)
+          git fetch origin main
+          git checkout --detach "$deploy_sha"
+          if ! make up; then
+            echo "Deploy of $deploy_sha failed; rolling back to $prev_sha" >&2
+            git checkout --detach "$prev_sha"
+            if make up; then
+              echo "Rolled back to $prev_sha" >&2
+            else
+              echo "Rollback to $prev_sha failed too: the stack needs a manual look" >&2
+            fi
+            exit 1
+          fi
+          docker image prune -f
+          REMOTE

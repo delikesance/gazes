@@ -430,6 +430,11 @@ func (s *Service) handleViews(w http.ResponseWriter, r *http.Request) {
 		viewsServerError(w)
 		return
 	}
+	epDist, err := s.viewsEpisodesDistribution(ctx, lo, hi)
+	if err != nil {
+		viewsServerError(w)
+		return
+	}
 	resume, first, err := s.viewsResume(ctx, lo, hi)
 	if err != nil {
 		viewsServerError(w)
@@ -444,6 +449,7 @@ func (s *Service) handleViews(w http.ResponseWriter, r *http.Request) {
 		"sessions_by_hour":         byHour,
 		"by_timezone":              tz,
 		"episodes_per_active_user": viewsMakeKPI(epu, epuPrev),
+		"episodes_per_user_dist":   epDist,
 		"resume_vs_first": map[string]any{
 			"resume": resume, "first": first,
 			"resume_pct": viewsRound(viewsPct(float64(resume), float64(resume+first)), 2),
@@ -528,6 +534,55 @@ func (s *Service) viewsEpisodesPerUser(ctx context.Context, lo, hi int64) (float
 		return 0, err
 	}
 	return float64(eps) / float64(users), nil
+}
+
+// viewsEpisodeBuckets splits active users by distinct episodes watched in the period.
+var viewsEpisodeBuckets = []struct {
+	key, label string
+	lo, hi     int64 // inclusive; hi 0 = no upper bound
+}{{"1", "1 épisode", 1, 1}, {"2_5", "2 à 5", 2, 5}, {"6_12", "6 à 12", 6, 12}, {"13_plus", "13 et plus", 13, 0}}
+
+// viewsEpisodesDistribution is the median of distinct episodes per active user and the
+// split of active users by that count (median null without any active user).
+func (s *Service) viewsEpisodesDistribution(ctx context.Context, lo, hi int64) (map[string]any, error) {
+	rows, err := s.accountsDB().QueryContext(ctx, `SELECT COUNT(*) FROM
+		(SELECT DISTINCT user_id, season_id, episode FROM watch_sessions WHERE started_at >= ? AND started_at < ?)
+		GROUP BY user_id ORDER BY 1`, lo, hi)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var counts []int64
+	for rows.Next() {
+		var n int64
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
+		counts = append(counts, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	var median *float64
+	if n := len(counts); n > 0 {
+		m := float64(counts[n/2])
+		if n%2 == 0 {
+			m = float64(counts[n/2-1]+counts[n/2]) / 2
+		}
+		median = &m
+	}
+	buckets := make([]map[string]any, 0, len(viewsEpisodeBuckets))
+	for _, b := range viewsEpisodeBuckets {
+		var users int64
+		for _, c := range counts {
+			if c >= b.lo && (b.hi == 0 || c <= b.hi) {
+				users++
+			}
+		}
+		buckets = append(buckets, map[string]any{"key": b.key, "label": b.label, "users": users,
+			"share_pct": viewsRound(viewsPct(float64(users), float64(len(counts))), 2)})
+	}
+	return map[string]any{"active_users": len(counts), "median": median, "buckets": buckets}, nil
 }
 
 // viewsResume counts sessions of the period whose episode the same user had already started

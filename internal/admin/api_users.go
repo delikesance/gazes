@@ -1,10 +1,13 @@
 package admin
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -21,9 +24,9 @@ import (
 // whose started_at falls in it (same definition as the metrics rollup). Every window is in
 // UTC. Windows named "7 d", "14 d", "30 d" are rolling instants before now.
 //
-// TODO(rollup): the per-user aggregates below (segments, directory, funnel) scan
-// watch_sessions through the (user_id, started_at) index for every user; a per-user rollup
-// table would make them O(users) instead of O(sessions).
+// The per-user aggregates (segments, directory, funnel, DAU/WAU/MAU, churn) read the per-user-day
+// rollup (metrics_user_daily) and scan watch_sessions only for the days it cannot answer exactly
+// (see userActivity), so they cost O(user-days) instead of O(sessions).
 
 const (
 	usersDay         = int64(86400)
@@ -58,48 +61,125 @@ func usersSegmentValid(k string) bool {
 	return false
 }
 
-// usersStatsCTE builds the per-user aggregate CTE "sg" (one row per user with its segment).
-// where is a fixed SQL fragment chosen by the caller (never client text); every client value
-// goes through named parameters.
-func usersStatsCTE(where string) string {
-	return `WITH st AS (
-	SELECT u.id AS id, u.pseudo AS pseudo, u.created_at AS created_at,
-		COUNT(w.session_id) AS n,
-		MIN(w.started_at) AS first_at,
-		MAX(w.started_at) AS last_at,
-		COALESCE(SUM(MAX(w.watched_seconds, 0)), 0) AS secs,
-		COALESCE(SUM(CASE WHEN w.started_at >= :d30 THEN MAX(w.watched_seconds, 0) END), 0) AS secs30,
-		COALESCE(SUM(CASE WHEN w.started_at >= :d7 THEN 1 END), 0) AS n7,
-		COALESCE(SUM(CASE WHEN w.started_at >= :d14 AND w.started_at < :d7 THEN 1 END), 0) AS n7p,
-		COALESCE(SUM(CASE WHEN w.started_at >= :d30 THEN 1 END), 0) AS n30,
-		COALESCE(SUM(CASE WHEN w.started_at >= :d60 AND w.started_at < :d30 THEN 1 END), 0) AS n30p,
-		COALESCE(SUM(CASE WHEN w.started_at >= :d44 AND w.started_at < :d14 THEN 1 END), 0) AS nprior,
-		MAX(CASE WHEN w.started_at < :d30 THEN w.started_at END) AS lb30
-	FROM users u LEFT JOIN watch_sessions w ON w.user_id = u.id
-	` + where + `
-	GROUP BY u.id
-), sg AS (
-	SELECT st.*, CASE
-		WHEN created_at >= :d7 THEN 'new'
-		WHEN n = 0 THEN 'never_watched'
-		WHEN last_at < :d30 THEN 'dormant'
-		WHEN last_at < :d14 AND nprior >= 4 THEN 'at_risk'
-		WHEN secs30 > 36000.0 * (MIN(:now - created_at, 2592000) / 604800.0) THEN 'power'
-		ELSE 'regular' END AS segment
-	FROM st
-)`
+// usersWindows are the rolling instants the segments are measured against.
+type usersWindows struct{ now, d7, d14, d30, d44, d60 int64 }
+
+func usersWindowsAt(now time.Time) usersWindows {
+	n := now.UTC().Unix()
+	return usersWindows{now: n, d7: n - 7*usersDay, d14: n - 14*usersDay, d30: n - 30*usersDay,
+		d44: n - 44*usersDay, d60: n - 60*usersDay}
 }
 
-func usersWindowArgs(now time.Time) []any {
-	n := now.UTC().Unix()
-	return []any{
-		sql.Named("now", n),
-		sql.Named("d7", n-7*usersDay),
-		sql.Named("d14", n-14*usersDay),
-		sql.Named("d30", n-30*usersDay),
-		sql.Named("d44", n-44*usersDay),
-		sql.Named("d60", n-60*usersDay),
+func (w usersWindows) cuts() []int64 { return []int64{w.d7, w.d14, w.d30, w.d44, w.d60} }
+
+// usersStat is one account with its whole session history folded in.
+type usersStat struct {
+	id              int64
+	pseudo          string
+	created         int64
+	n               int64   // sessions
+	secs            float64 // watched seconds
+	firstAt, lastAt int64   // valid when n > 0
+	secs30          float64
+	n7, n7p         int64 // sessions since d7, in [d14, d7)
+	n30, n30p       int64 // sessions since d30, in [d60, d30)
+	nprior          int64 // sessions in [d44, d14)
+	lb30            int64 // last session before d30, valid when hasLB30
+	hasLB30         bool
+	segment         string
+}
+
+// usersStats loads the accounts matching where (a fixed SQL fragment on users u chosen by the
+// caller, never client text; client values go through args) with their activity and segment.
+func (s *Service) usersStats(ctx context.Context, w usersWindows, where string, args ...any) ([]*usersStat, error) {
+	rows, err := s.accountsDB().QueryContext(ctx, `SELECT u.id, u.pseudo, u.created_at FROM users u `+where+` ORDER BY u.id`, args...)
+	if err != nil {
+		return nil, err
 	}
+	var out []*usersStat
+	byID := map[int64]*usersStat{}
+	for rows.Next() {
+		st := &usersStat{}
+		if err := rows.Scan(&st.id, &st.pseudo, &st.created); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, st)
+		byID[st.id] = st
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	var uids []int64 // nil: every user
+	if where != "" {
+		uids = make([]int64, 0, len(out))
+		for _, st := range out {
+			uids = append(uids, st.id)
+		}
+	}
+	recs, err := s.userActivity(ctx, math.MinInt64, math.MaxInt64, w.cuts(), uids, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range recs {
+		st := byID[r.uid]
+		if st == nil {
+			continue
+		}
+		// A record lies on one side of every window bound: its first session stands for all.
+		if st.n == 0 || r.first < st.firstAt {
+			st.firstAt = r.first
+		}
+		if st.n == 0 || r.last > st.lastAt {
+			st.lastAt = r.last
+		}
+		st.n += r.n
+		st.secs += r.secs
+		t := r.first
+		if t >= w.d30 {
+			st.secs30 += r.secs
+			st.n30 += r.n
+		} else {
+			if !st.hasLB30 || r.last > st.lb30 {
+				st.lb30, st.hasLB30 = r.last, true
+			}
+			if t >= w.d60 {
+				st.n30p += r.n
+			}
+		}
+		if t >= w.d7 {
+			st.n7 += r.n
+		} else if t >= w.d14 {
+			st.n7p += r.n
+		}
+		if t >= w.d44 && t < w.d14 {
+			st.nprior += r.n
+		}
+	}
+	for _, st := range out {
+		st.segment = usersSegmentOf(st, w)
+	}
+	return out, nil
+}
+
+// usersSegmentOf applies the segment rules in order, first match wins.
+func usersSegmentOf(st *usersStat, w usersWindows) string {
+	switch {
+	case st.created >= w.d7:
+		return "new"
+	case st.n == 0:
+		return "never_watched"
+	case st.lastAt < w.d30:
+		return "dormant"
+	case st.lastAt < w.d14 && st.nprior >= 4:
+		return "at_risk"
+	case st.secs30 > 36000.0*(float64(min(w.now-st.created, 2592000))/604800.0):
+		return "power"
+	}
+	return "regular"
 }
 
 func (s *Service) mountUsers(r chi.Router) {
@@ -139,6 +219,13 @@ func usersPctPtr(n, d int64) *float64 {
 	return &v
 }
 
+func usersB2I(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func usersRFC3339(ts int64) string { return time.Unix(ts, 0).UTC().Format(time.RFC3339) }
 
 // handleUsersSummary feeds the "Utilisateurs" page: KPI row, segments, seniority and
@@ -148,52 +235,36 @@ func (s *Service) handleUsersSummary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	now := s.now().UTC()
 	nowU := now.Unix()
-	args := usersWindowArgs(now)
+	win := usersWindowsAt(now)
 	db := s.accountsDB()
 
-	var total, a7, a7p, a30, a30p, noSess, dormant, totalPrev, noSessPrev, dormantPrev int64
-	err := db.QueryRowContext(ctx, usersStatsCTE("")+`
-SELECT COUNT(*),
-	COALESCE(SUM(n7 > 0), 0), COALESCE(SUM(n7p > 0), 0),
-	COALESCE(SUM(n30 > 0), 0), COALESCE(SUM(n30p > 0), 0),
-	COALESCE(SUM(n = 0), 0),
-	COALESCE(SUM(n > 0 AND last_at < :d30), 0),
-	COALESCE(SUM(created_at < :d30), 0),
-	COALESCE(SUM(created_at < :d30 AND (first_at IS NULL OR first_at >= :d30)), 0),
-	COALESCE(SUM(lb30 IS NOT NULL AND lb30 < :d60), 0)
-FROM st`, args...).Scan(&total, &a7, &a7p, &a30, &a30p, &noSess, &dormant, &totalPrev, &noSessPrev, &dormantPrev)
+	stats, err := s.usersStats(ctx, win, "")
 	if err != nil {
 		usersInternal(w, err)
 		return
 	}
-
+	var total, a7, a7p, a30, a30p, noSess, dormant, totalPrev, noSessPrev, dormantPrev int64
 	type segAgg struct {
 		n    int64
 		secs float64
 	}
 	segs := map[string]segAgg{}
-	rows, err := db.QueryContext(ctx, usersStatsCTE("")+`
-SELECT segment, COUNT(*), COALESCE(SUM(secs), 0) FROM sg GROUP BY segment`, args...)
-	if err != nil {
-		usersInternal(w, err)
-		return
+	for _, st := range stats {
+		total++
+		a7 += usersB2I(st.n7 > 0)
+		a7p += usersB2I(st.n7p > 0)
+		a30 += usersB2I(st.n30 > 0)
+		a30p += usersB2I(st.n30p > 0)
+		noSess += usersB2I(st.n == 0)
+		dormant += usersB2I(st.n > 0 && st.lastAt < win.d30)
+		totalPrev += usersB2I(st.created < win.d30)
+		noSessPrev += usersB2I(st.created < win.d30 && (st.n == 0 || st.firstAt >= win.d30))
+		dormantPrev += usersB2I(st.hasLB30 && st.lb30 < win.d60)
+		a := segs[st.segment]
+		a.n++
+		a.secs += st.secs
+		segs[st.segment] = a
 	}
-	for rows.Next() {
-		var k string
-		var a segAgg
-		if err := rows.Scan(&k, &a.n, &a.secs); err != nil {
-			rows.Close()
-			usersInternal(w, err)
-			return
-		}
-		segs[k] = a
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		usersInternal(w, err)
-		return
-	}
-	rows.Close()
 	segOut := make([]map[string]any, 0, len(usersSegments))
 	for _, sd := range usersSegments {
 		a := segs[sd.key]
@@ -232,10 +303,13 @@ SELECT segment, COUNT(*), COALESCE(SUM(secs), 0) FROM sg GROUP BY segment`, args
 	}
 
 	// Active sessions: only counts, no token_hash and no user_id leave the query.
-	var valid, expiring int64
+	var valid, expiring, exp24, exp48 int64
 	if err := db.QueryRowContext(ctx, `SELECT COALESCE(SUM(expires_at > :now), 0),
-		COALESCE(SUM(expires_at > :now AND expires_at <= :soon), 0) FROM sessions`,
-		sql.Named("now", nowU), sql.Named("soon", nowU+7*usersDay)).Scan(&valid, &expiring); err != nil {
+		COALESCE(SUM(expires_at > :now AND expires_at <= :soon), 0),
+		COALESCE(SUM(expires_at > :now AND expires_at <= :d1), 0),
+		COALESCE(SUM(expires_at > :d1 AND expires_at <= :d2), 0) FROM sessions`,
+		sql.Named("now", nowU), sql.Named("soon", nowU+7*usersDay),
+		sql.Named("d1", nowU+usersDay), sql.Named("d2", nowU+2*usersDay)).Scan(&valid, &expiring, &exp24, &exp48); err != nil {
 		usersInternal(w, err)
 		return
 	}
@@ -250,8 +324,21 @@ SELECT segment, COUNT(*), COALESCE(SUM(secs), 0) FROM sg GROUP BY segment`, args
 		},
 		"segments":        segOut,
 		"seniority":       senior,
-		"active_sessions": map[string]int64{"valid": valid, "expiring_7d": expiring},
+		"active_sessions": map[string]int64{"valid": valid, "expiring_7d": expiring, "expiring_24h": exp24, "expiring_24_48h": exp48},
 	})
+}
+
+// medianSeconds is the median of the delays (mean of the two middle values when even), nil when empty.
+func medianSeconds(v []int64) *int64 {
+	if len(v) == 0 {
+		return nil
+	}
+	slices.Sort(v)
+	m := v[len(v)/2]
+	if len(v)%2 == 0 {
+		m = (v[len(v)/2-1] + m) / 2
+	}
+	return &m
 }
 
 func usersInternal(w http.ResponseWriter, err error) {
@@ -261,14 +348,33 @@ func usersInternal(w http.ResponseWriter, err error) {
 	writeAPIError(w, http.StatusInternalServerError, "internal", "query failed")
 }
 
-// usersSortColumns is the whitelist of ORDER BY expressions; the client only picks a key.
-var usersSortColumns = map[string]string{
-	"user_id":       "id",
-	"created_at":    "created_at",
-	"last_activity": "last_at",
-	"sessions":      "n",
-	"watch_hours":   "secs",
-	"pseudo":        "pseudo COLLATE NOCASE",
+// usersSortColumns is the whitelist of sort keys; each compares two accounts like the former
+// ORDER BY expression (SQLite order: an account without session has a NULL last activity, which
+// sorts first ascending; pseudo is COLLATE NOCASE, which folds ASCII letters only).
+var usersSortColumns = map[string]func(a, b *usersStat) int{
+	"user_id":    func(a, b *usersStat) int { return cmp.Compare(a.id, b.id) },
+	"created_at": func(a, b *usersStat) int { return cmp.Compare(a.created, b.created) },
+	"last_activity": func(a, b *usersStat) int {
+		switch {
+		case a.n == 0 || b.n == 0:
+			return cmp.Compare(usersB2I(a.n > 0), usersB2I(b.n > 0))
+		}
+		return cmp.Compare(a.lastAt, b.lastAt)
+	},
+	"sessions":    func(a, b *usersStat) int { return cmp.Compare(a.n, b.n) },
+	"watch_hours": func(a, b *usersStat) int { return cmp.Compare(a.secs, b.secs) },
+	"pseudo":      func(a, b *usersStat) int { return strings.Compare(usersNoCase(a.pseudo), usersNoCase(b.pseudo)) },
+}
+
+// usersNoCase folds A-Z to a-z and nothing else (SQLite's NOCASE collation).
+func usersNoCase(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + 'a' - 'A'
+		}
+	}
+	return string(b)
 }
 
 func usersEscapeLike(q string) string {
@@ -328,12 +434,12 @@ func (s *Service) handleUsersList(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusForbidden, "forbidden", "sorting by pseudo is only available to admin sessions")
 		return
 	}
-	dir := "DESC"
+	desc := true
 	switch strings.ToLower(q.Get("dir")) {
 	case "":
 	case "desc":
 	case "asc":
-		dir = "ASC"
+		desc = false
 	default:
 		writeAPIError(w, http.StatusBadRequest, "bad_dir", "dir must be asc or desc")
 		return
@@ -344,63 +450,55 @@ func (s *Service) handleUsersList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	args := usersWindowArgs(s.now())
 	where := ""
+	var args []any
 	if search != "" {
-		where = `WHERE u.pseudo LIKE :like ESCAPE '\'`
-		args = append(args, sql.Named("like", "%"+usersEscapeLike(search)+"%"))
+		where = `WHERE u.pseudo LIKE ? ESCAPE '\'`
+		args = append(args, "%"+usersEscapeLike(search)+"%")
 	}
-	args = append(args, sql.Named("seg", segment))
-	filter := ` WHERE (:seg = '' OR segment = :seg)`
-	db := s.accountsDB()
-
-	var total int64
-	if err := db.QueryRowContext(ctx, usersStatsCTE(where)+` SELECT COUNT(*) FROM sg`+filter, args...).Scan(&total); err != nil {
-		usersInternal(w, err)
-		return
-	}
-	// col and dir come from the whitelists above, never from the client.
-	listArgs := append(append([]any{}, args...), sql.Named("limit", page.Limit), sql.Named("offset", page.Offset))
-	rows, err := db.QueryContext(ctx, usersStatsCTE(where)+
-		` SELECT id, pseudo, created_at, last_at, n, secs, segment FROM sg`+filter+
-		` ORDER BY `+col+` `+dir+`, id ASC LIMIT :limit OFFSET :offset`, listArgs...)
+	stats, err := s.usersStats(ctx, usersWindowsAt(s.now()), where, args...)
 	if err != nil {
 		usersInternal(w, err)
 		return
 	}
+	matched := stats[:0]
+	for _, st := range stats {
+		if segment == "" || st.segment == segment {
+			matched = append(matched, st)
+		}
+	}
+	total := int64(len(matched))
+	slices.SortFunc(matched, func(a, b *usersStat) int {
+		c := col(a, b)
+		if desc {
+			c = -c
+		}
+		if c != 0 {
+			return c
+		}
+		return cmp.Compare(a.id, b.id)
+	})
+	lo := min(page.Offset, len(matched))
+	hi := min(lo+page.Limit, len(matched))
 	users := []usersRow{}
 	idx := map[int64]int{}
 	var ids []any
-	for rows.Next() {
-		var u usersRow
-		var pseudo string
-		var created int64
-		var last sql.NullInt64
-		var secs float64
-		if err := rows.Scan(&u.UserID, &pseudo, &created, &last, &u.Sessions, &secs, &u.Segment); err != nil {
-			rows.Close()
-			usersInternal(w, err)
-			return
-		}
+	for _, st := range matched[lo:hi] {
+		u := usersRow{UserID: st.id, CreatedAt: usersRFC3339(st.created), Sessions: st.n,
+			WatchHours: st.secs / 3600, Segment: st.segment}
 		if !viaToken {
+			pseudo := st.pseudo
 			u.Pseudo = &pseudo
 		}
-		u.CreatedAt = usersRFC3339(created)
-		if last.Valid {
-			v := usersRFC3339(last.Int64)
+		if st.n > 0 {
+			v := usersRFC3339(st.lastAt)
 			u.LastActivity = &v
 		}
-		u.WatchHours = secs / 3600
 		idx[u.UserID] = len(users)
 		ids = append(ids, u.UserID)
 		users = append(users, u)
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		usersInternal(w, err)
-		return
-	}
-	rows.Close()
+	db := s.accountsDB()
 
 	if len(ids) > 0 {
 		// Most watched anime of the users on this page (at most MaxLimit users): one query.
@@ -446,18 +544,16 @@ func (s *Service) handleUserDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	db := s.accountsDB()
-	args := append(usersWindowArgs(s.now()), sql.Named("uid", id))
-	var pseudo, segment string
-	var created int64
-	err = db.QueryRowContext(ctx, usersStatsCTE(`WHERE u.id = :uid`)+` SELECT pseudo, created_at, segment FROM sg`, args...).Scan(&pseudo, &created, &segment)
-	if errors.Is(err, sql.ErrNoRows) {
-		writeAPIError(w, http.StatusNotFound, "not_found", "user not found")
-		return
-	}
+	stats, err := s.usersStats(ctx, usersWindowsAt(s.now()), `WHERE u.id = ?`, id)
 	if err != nil {
 		usersInternal(w, err)
 		return
 	}
+	if len(stats) == 0 {
+		writeAPIError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	pseudo, created, segment := stats[0].pseudo, stats[0].created, stats[0].segment
 
 	type sess struct {
 		AnimeID        int64   `json:"anime_id"`
@@ -563,32 +659,28 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 	fromDay, toDay, prevToDay := fromT.Unix()/usersDay, toT.Unix()/usersDay, prevToT.Unix()/usersDay
 	dayStr := func(d int64) string { return time.Unix(d*usersDay, 0).UTC().Format(dayLayout) }
 
-	// --- DAU / WAU / MAU: one aggregated pass over distinct (day, user) pairs, then sliding
-	// windows in memory (no correlated subquery per day).
-	// TODO(rollup): metrics_daily only stores a distinct count per day, which cannot give
-	// WAU/MAU; a daily (day, user_id) rollup would replace this scan.
-	byDay := map[int64][]int64{}
-	rows, err := db.QueryContext(ctx, `SELECT DISTINCT started_at / 86400, user_id FROM watch_sessions
-		WHERE started_at >= ? AND started_at < ?`, (fromDay-29)*usersDay, (toDay+1)*usersDay)
+	// --- DAU / WAU / MAU: distinct (day, user) pairs from the per-user-day rollup, then sliding
+	// windows in memory (no correlated subquery per day). The same pairs answer the previous
+	// period's figures.
+	actLo, actHi := min(fromDay, prevToDay)-29, max(toDay, prevToDay)+1
+	recs, err := s.userActivity(ctx, actLo*usersDay, actHi*usersDay, nil, nil, false)
 	if err != nil {
 		usersInternal(w, err)
 		return
 	}
-	for rows.Next() {
-		var d, uid int64
-		if err := rows.Scan(&d, &uid); err != nil {
-			rows.Close()
-			usersInternal(w, err)
-			return
+	daySets := map[int64]map[int64]struct{}{}
+	for _, rc := range recs {
+		if daySets[rc.day] == nil {
+			daySets[rc.day] = map[int64]struct{}{}
 		}
-		byDay[d] = append(byDay[d], uid)
+		daySets[rc.day][rc.uid] = struct{}{}
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		usersInternal(w, err)
-		return
+	byDay := map[int64][]int64{}
+	for d, set := range daySets {
+		for u := range set {
+			byDay[d] = append(byDay[d], u)
+		}
 	}
-	rows.Close()
 	type actPoint struct {
 		Day string `json:"day"`
 		DAU int    `json:"dau"`
@@ -619,22 +711,16 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 	}
 	cur := series[len(series)-1]
 
-	countActive := func(lo, hi int64) (int, error) {
-		var n int
-		err := db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT user_id) FROM watch_sessions WHERE started_at >= ? AND started_at < ?`,
-			lo*usersDay, (hi+1)*usersDay).Scan(&n)
-		return n, err
-	}
-	var pDAU, pWAU, pMAU int
-	for _, x := range []struct {
-		dst *int
-		lo  int64
-	}{{&pDAU, prevToDay}, {&pWAU, prevToDay - 6}, {&pMAU, prevToDay - 29}} {
-		if *x.dst, err = countActive(x.lo, prevToDay); err != nil {
-			usersInternal(w, err)
-			return
+	countActive := func(lo, hi int64) int {
+		seen := map[int64]struct{}{}
+		for d := lo; d <= hi; d++ {
+			for u := range daySets[d] {
+				seen[u] = struct{}{}
+			}
 		}
+		return len(seen)
 	}
+	pDAU, pWAU, pMAU := countActive(prevToDay, prevToDay), countActive(prevToDay-6, prevToDay), countActive(prevToDay-29, prevToDay)
 	stick, pStick := 0.0, 0.0
 	if cur.MAU > 0 {
 		stick = float64(cur.DAU) / float64(cur.MAU) * 100
@@ -644,8 +730,7 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- signups per week and cumulative users.
-	// TODO(rollup): users.created_at is not indexed; metrics_daily.new_users/total_users
-	// hold the same figures once the rollup is complete.
+	// Both queries use the users_created index (accounts migration 8).
 	weekStart := func(d int64) int64 { // Monday of the week containing day d (1970-01-01 was a Thursday)
 		return d - ((d+3)%7+7)%7
 	}
@@ -691,29 +776,25 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- cohort of accounts created in the period: funnel, retention, time to first session.
-	cr, err := db.QueryContext(ctx, `SELECT u.id, u.created_at, COUNT(w.session_id),
-		COUNT(DISTINCT w.season_id || ':' || w.episode), COALESCE(MIN(w.started_at), 0),
-		COALESCE(SUM(CASE WHEN w.started_at / 86400 = u.created_at / 86400 + 1 THEN 1 END), 0),
-		COALESCE(SUM(CASE WHEN w.started_at / 86400 = u.created_at / 86400 + 7 THEN 1 END), 0),
-		COALESCE(SUM(CASE WHEN w.started_at / 86400 = u.created_at / 86400 + 14 THEN 1 END), 0),
-		COALESCE(SUM(CASE WHEN w.started_at / 86400 = u.created_at / 86400 + 30 THEN 1 END), 0)
-		FROM users u LEFT JOIN watch_sessions w ON w.user_id = u.id
-		WHERE u.created_at >= ? AND u.created_at < ? GROUP BY u.id`, fromDay*usersDay, (toDay+1)*usersDay)
+	cr, err := db.QueryContext(ctx, `SELECT id, created_at FROM users WHERE created_at >= ? AND created_at < ? ORDER BY id`,
+		fromDay*usersDay, (toDay+1)*usersDay)
 	if err != nil {
 		usersInternal(w, err)
 		return
 	}
+	cohortIDs := []int64{}
+	cohortIdx := map[int64]int{}
 	var cohort []growthCohortUser
 	for cr.Next() {
-		var c growthCohortUser
-		var id, a1, a7, a14, a30 int64
-		if err := cr.Scan(&id, &c.created, &c.n, &c.eps, &c.first, &a1, &a7, &a14, &a30); err != nil {
+		var id, created int64
+		if err := cr.Scan(&id, &created); err != nil {
 			cr.Close()
 			usersInternal(w, err)
 			return
 		}
-		c.d1, c.d7, c.d14, c.d30 = a1 > 0, a7 > 0, a14 > 0, a30 > 0
-		cohort = append(cohort, c)
+		cohortIdx[id] = len(cohort)
+		cohortIDs = append(cohortIDs, id)
+		cohort = append(cohort, growthCohortUser{created: created})
 	}
 	if err := cr.Err(); err != nil {
 		cr.Close()
@@ -721,6 +802,43 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cr.Close()
+	// Their whole history (sessions synced from before signup included), with distinct episodes.
+	crecs, err := s.userActivity(ctx, math.MinInt64, math.MaxInt64, nil, cohortIDs, true)
+	if err != nil {
+		usersInternal(w, err)
+		return
+	}
+	cohortEps := make([]map[string]struct{}, len(cohort))
+	for _, rc := range crecs {
+		i, ok := cohortIdx[rc.uid]
+		if !ok {
+			continue
+		}
+		c := &cohort[i]
+		if c.n == 0 || rc.first < c.first {
+			c.first = rc.first
+		}
+		c.n += rc.n
+		if cohortEps[i] == nil {
+			cohortEps[i] = map[string]struct{}{}
+		}
+		for _, k := range rc.eps {
+			cohortEps[i][k] = struct{}{}
+		}
+		switch rc.day - c.created/usersDay {
+		case 1:
+			c.d1 = true
+		case 7:
+			c.d7 = true
+		case 14:
+			c.d14 = true
+		case 30:
+			c.d30 = true
+		}
+	}
+	for i := range cohort {
+		cohort[i].eps = int64(len(cohortEps[i]))
+	}
 
 	// today is the current (incomplete) UTC day: day n after signup is measurable once
 	// signupDay + n < today.
@@ -814,7 +932,11 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 
 	// Time to first session.
 	ttf := [5]int64{}
+	var delays []int64
 	for _, c := range cohort {
+		if c.n > 0 {
+			delays = append(delays, max(c.first-c.created, 0))
+		}
 		switch dt := c.first - c.created; {
 		case c.n == 0:
 			ttf[4]++
@@ -838,33 +960,26 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 	// windows ending now; independent of ?period=).
 	nowU := now.Unix()
 	curLo, prevLo := nowU-30*usersDay, nowU-60*usersDay
-	chr, err := db.QueryContext(ctx, `SELECT MAX(started_at < ?), MAX(started_at >= ?) FROM watch_sessions
-		WHERE started_at >= ? AND started_at <= ? GROUP BY user_id`, curLo, curLo, prevLo, nowU)
+	chRecs, err := s.userActivity(ctx, prevLo, nowU+1, []int64{curLo}, nil, false)
 	if err != nil {
 		usersInternal(w, err)
 		return
 	}
+	inPrev, inCur := map[int64]bool{}, map[int64]bool{}
+	for _, rc := range chRecs {
+		if rc.first < curLo {
+			inPrev[rc.uid] = true
+		} else {
+			inCur[rc.uid] = true
+		}
+	}
 	var prevActive, churned int64
-	for chr.Next() {
-		var inPrev, inCur int64
-		if err := chr.Scan(&inPrev, &inCur); err != nil {
-			chr.Close()
-			usersInternal(w, err)
-			return
-		}
-		if inPrev > 0 {
-			prevActive++
-			if inCur == 0 {
-				churned++
-			}
+	for u := range inPrev {
+		prevActive++
+		if !inCur[u] {
+			churned++
 		}
 	}
-	if err := chr.Err(); err != nil {
-		chr.Close()
-		usersInternal(w, err)
-		return
-	}
-	chr.Close()
 
 	writeData(w, p, map[string]any{
 		"activity": map[string]usersKPI{
@@ -878,7 +993,7 @@ func (s *Service) handleGrowth(w http.ResponseWriter, r *http.Request) {
 		"cumulative_users":      cumul,
 		"funnel":                funnel,
 		"cohorts":               cohorts,
-		"time_to_first_session": map[string]any{"cohort_size": nAll, "buckets": ttfOut},
+		"time_to_first_session": map[string]any{"cohort_size": nAll, "buckets": ttfOut, "median_seconds": medianSeconds(delays)},
 		"churn": map[string]any{"previous_window_active": prevActive, "churned": churned,
 			"churn_pct": usersPctPtr(churned, prevActive), "window_days": 30},
 		"not_measured":        []string{"visitor_to_signup", "acquisition_sources"},

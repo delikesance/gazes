@@ -491,7 +491,8 @@
           "users": 0
         }
       ],
-      "cohort_size": 0
+      "cohort_size": 0,
+      "median_seconds": null
     },
     "visitor_to_signup": {
       "measured": false,

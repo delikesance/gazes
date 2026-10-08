@@ -216,8 +216,32 @@ var migrations = []dbmigrate.Migration{
 		)`,
 		`CREATE INDEX IF NOT EXISTS playback_startups_ts ON playback_startups(ts)`,
 	)},
+	// Per-user-day activity behind the users and growth pages (segments, directory, funnel,
+	// DAU/WAU/MAU, churn) and the per-day concurrency peaks behind /costs. A day's
+	// metrics_activity_daily row is its coverage marker: it is written in the same transaction as
+	// the day's metrics_user_daily rows, including for a day without any session.
+	{Version: 8, Name: "user_activity_rollup", Up: dbmigrate.SQL(
+		`CREATE TABLE IF NOT EXISTS metrics_user_daily (
+			day TEXT NOT NULL,
+			user_id INTEGER NOT NULL,
+			sessions INTEGER NOT NULL DEFAULT 0,
+			watch_seconds REAL NOT NULL DEFAULT 0,
+			first_at INTEGER NOT NULL,
+			last_at INTEGER NOT NULL,
+			episodes TEXT NOT NULL DEFAULT '[]',
+			PRIMARY KEY (day, user_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS metrics_user_daily_user ON metrics_user_daily(user_id, day)`,
+		`CREATE TABLE IF NOT EXISTS metrics_activity_daily (
+			day TEXT PRIMARY KEY,
+			computed_at INTEGER NOT NULL,
+			peak_own INTEGER NOT NULL DEFAULT 0,
+			peak_full INTEGER NOT NULL DEFAULT 0,
+			max_end INTEGER NOT NULL DEFAULT 0
+		)`,
+	)},
 	// Per-day server load counters (bytes served, ffmpeg CPU, client mix, remux peak): see loadstats.
-	{Version: 8, Name: "metrics_load_daily", Up: dbmigrate.SQL(
+	{Version: 9, Name: "metrics_load_daily", Up: dbmigrate.SQL(
 		`CREATE TABLE IF NOT EXISTS metrics_load_daily (
 			day TEXT PRIMARY KEY,
 			bytes_out INTEGER NOT NULL DEFAULT 0,
