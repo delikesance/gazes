@@ -11,7 +11,7 @@ export function AdminSidebar({ pseudo }: { pseudo?: string }) {
         <span className="admin-wordmark">gazes<span>.</span></span>
         <span className="admin-chip">Admin</span>
       </div>
-      <nav aria-label="Sections de l'administration" className="admin-nav">
+      <nav id="admin-sections" aria-label="Sections de l'administration" className="admin-nav">
         {ADMIN_NAV.map((item) => {
           const current = item.href === "/admin" ? pathname === "/admin" : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (

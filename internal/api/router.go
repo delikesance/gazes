@@ -16,6 +16,7 @@ import (
 	"github.com/gazes/gazes/internal/imagecache"
 	"github.com/gazes/gazes/internal/indexer"
 	"github.com/gazes/gazes/internal/library"
+	"github.com/gazes/gazes/internal/loadstats"
 	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/playback"
 	"github.com/gazes/gazes/internal/stream"
@@ -58,6 +59,7 @@ type Server struct {
 	mcpEnabled      bool
 	mcpOrigins      []string
 	errorSink       admin.ErrorSink
+	opsWarm         chan struct{} // slots of the warm_cache background resolutions
 	calendarCache   calendarFeeds
 }
 
@@ -262,7 +264,7 @@ func (s *Server) setupRoutes() {
 		api.Get("/metadata", s.HandleMetadata)
 
 		// Video Streaming & Subtitles Routes
-		api.Get("/stream", s.HandleStream)
+		api.With(loadstats.CountBytes).Get("/stream", s.HandleStream)
 		api.With(s.rateLimit("stream-raw", 120, time.Minute)).Get("/stream/raw", s.HandleStreamRaw)
 		api.With(s.rateLimit("subtitles", 60, time.Minute)).Get("/subtitles", s.HandleSubtitles)
 		api.Get("/playback/config", s.HandlePlaybackConfig)
@@ -270,7 +272,7 @@ func (s *Server) setupRoutes() {
 		api.Put("/playback/sessions/{session}", s.HandlePlaybackUpdate)
 		api.Delete("/playback/sessions/{session}", s.HandlePlaybackDelete)
 		api.Get("/playback/sessions/{session}/index.m3u8", s.HandlePlaybackPlaylist)
-		api.Get("/playback/sessions/{session}/{segment}/{asset}", s.HandlePlaybackMedia)
+		api.With(loadstats.CountBytes).Get("/playback/sessions/{session}/{segment}/{asset}", s.HandlePlaybackMedia)
 	})
 
 	s.router = r

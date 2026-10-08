@@ -8,7 +8,7 @@ import { errorCode } from "@/lib/error-code";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AnimeCatalogCard } from "./AnimeCatalogCard";
 import { FeaturedAnimeCarousel } from "./FeaturedAnimeCarousel";
@@ -74,16 +74,17 @@ export function CatalogBrowser({
   const isSuggestions = tab === "suggestions" || tab === "popular";
   const needsData = !(discovery && !isSuggestions);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const search = new URLSearchParams(window.location.search);
-      setQ(search.get("q") ?? initialQuery ?? "");
-      setGenre(search.get("genres") ?? search.get("genre") ?? initialGenre ?? "");
-      setExclude(search.get("exclude") ?? initialExclude ?? "");
-      setTab(search.get("tab") ?? initialTab ?? "trending");
-      setPage(Math.max(1, Number(search.get("page")) || initialPage || 1));
-    }
-  }, [initialQuery, initialGenre, initialTab, initialPage]);
+  // The page re-renders with the URL's parameters after each navigation: follow them.
+  const urlKey = JSON.stringify([initialQuery, initialGenre, initialExclude, initialTab, initialPage]);
+  const [prevUrlKey, setPrevUrlKey] = useState(urlKey);
+  if (urlKey !== prevUrlKey) {
+    setPrevUrlKey(urlKey);
+    setQ(initialQuery);
+    setGenre(initialGenre);
+    setExclude(initialExclude);
+    setTab(initialTab);
+    setPage(Math.max(1, initialPage || 1));
+  }
 
   function update(values: Record<string, string>, scroll = true, replace = false) {
     const current = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -91,11 +92,20 @@ export function CatalogBrowser({
     (replace ? router.replace : router.push)(`/?${current.toString()}`, { scroll });
   }
 
+  // A new request starts from a clean loading state; the initial one keeps the server-rendered data.
+  const requestKey = JSON.stringify([q, genre, exclude, tab, page, retry, needsData, isSuggestions]);
+  const [prevRequestKey, setPrevRequestKey] = useState(requestKey);
+  if (requestKey !== prevRequestKey) {
+    setPrevRequestKey(requestKey);
+    if (needsData) {
+      setLoading(true);
+      setError("");
+    }
+  }
+
   useEffect(() => {
     if (!needsData) return;
     let active = true;
-    setLoading(true);
-    setError("");
     const request = q || genre || exclude ? searchCatalog(q, genre, page, 24, exclude) : isSuggestions ? getCatalogForYou(watchedSeeds(), recentSessions(), listHidden(), page, 28) : getCatalogSeasonal(page, 24);
     request.then(result => {
       if (active) {

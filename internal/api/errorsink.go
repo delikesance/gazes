@@ -51,7 +51,7 @@ func (s *Server) recordSourceError(ctx context.Context, seasonID, ep int, err er
 // wireAdminPlayback gives the admin playback/costs routes their collaborators: the active
 // session count (HLS engine only), the cache diagnostics and the optional cost inputs.
 func (s *Server) wireAdminPlayback() {
-	if s.cfg != nil && s.cfg.PlaybackEngine == "hls" {
+	if s.cfg.UsesHLS() {
 		s.admin.SetPlaybackStats(activeSessions(func() int { return s.playbackManager().ActiveSessions() }))
 	}
 	s.admin.SetCacheDiagnostics(func(ctx context.Context) any { return s.cacheDiagnostics(ctx) })

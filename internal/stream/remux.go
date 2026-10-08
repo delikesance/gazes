@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gazes/gazes/internal/diagnostics"
+	"github.com/gazes/gazes/internal/loadstats"
 	"io"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ErrRemuxFailed marks an ffmpeg remux that exited with an error (not a client disconnect).
@@ -25,6 +27,8 @@ const (
 	maxRemuxes          = 32
 	maxRemuxesPerClient = 8
 )
+
+func init() { loadstats.SetRemuxLimit(maxRemuxes) }
 
 var remuxGate = struct {
 	sync.Mutex
@@ -40,6 +44,7 @@ func acquireRemux(client string) (release func(), ok bool) {
 		return nil, false
 	}
 	remuxGate.total++
+	loadstats.RemuxOpened()
 	if client != "" {
 		remuxGate.perClient[client]++
 	}
@@ -47,6 +52,7 @@ func acquireRemux(client string) (release func(), ok bool) {
 		remuxGate.Lock()
 		defer remuxGate.Unlock()
 		remuxGate.total--
+		loadstats.RemuxClosed()
 		if client != "" {
 			if remuxGate.perClient[client]--; remuxGate.perClient[client] <= 0 {
 				delete(remuxGate.perClient, client)
@@ -60,6 +66,7 @@ func RemuxStream(ctx context.Context, w http.ResponseWriter, src io.Reader, logg
 	logger = diagnostics.Logger(ctx, logger)
 	release, ok := acquireRemux(opts.Client)
 	if !ok {
+		loadstats.RemuxRefused()
 		w.Header().Set("Retry-After", "2")
 		http.Error(w, "too many concurrent remuxes", http.StatusServiceUnavailable)
 		return nil
@@ -152,7 +159,14 @@ func RemuxStream(ctx context.Context, w http.ResponseWriter, src io.Reader, logg
 
 	logger.Info("starting on-the-fly ffmpeg remux pipeline", "input", inputSrc, "time_offset", opts.TimeOffset, "video_codec", opts.VideoCodec, "audio_codec", opts.AudioCodec, "video_mode", "copy", "audio_track", opts.AudioTrackIndex)
 
-	if err := cmd.Run(); err != nil {
+	loadstats.FFmpegStarted()
+	err := cmd.Run()
+	var cpu time.Duration
+	if cmd.ProcessState != nil {
+		cpu = cmd.ProcessState.UserTime() + cmd.ProcessState.SystemTime()
+	}
+	loadstats.FFmpegDone(cpu, false)
+	if err != nil {
 		// If context was cancelled (client disconnected / seeked), this is normal behavior
 		if ctx.Err() != nil {
 			logger.Debug("ffmpeg pipeline aborted by client disconnect")

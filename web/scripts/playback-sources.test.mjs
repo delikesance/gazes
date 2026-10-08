@@ -25,3 +25,8 @@ test('full discovery adds fallbacks without changing the active source or retryi
  assert.deepEqual(extendPlaybackSources(current,full,1).map(s=>s.id),['failed','active','new','pending']);
  assert.deepEqual(extendPlaybackSources(current,full,3).map(s=>s.id),['failed','active','pending','new']);
 });
+test('an unconfirmed MULTI release ranks between VOSTFR and English-only, whatever its swarm',()=>{
+ const tagged=(id,tag,breakdown,seeders)=>({...source(id,breakdown.swarm,seeders),language_tag:tag,score_breakdown:{quality:3,...breakdown}});
+ const result=playbackSources([tagged('en','OTHER',{french:0,multi:0,swarm:60},1000),tagged('multi','MULTI',{french:0,multi:2,swarm:8},1),tagged('sub','VOSTFR',{french:100,multi:0,swarm:8},1)]);
+ assert.deepEqual(result.map(s=>s.id),['sub','multi','en']);
+});

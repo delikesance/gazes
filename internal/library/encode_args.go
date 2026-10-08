@@ -20,6 +20,7 @@ type EncodeSettings struct {
 	Preset, CRF, Threads int    // SVT-AV1 preset, CRF and logical processors (lp)
 	PauseStreams         int    // pause while at least this many streams are active (0 = never)
 	Window               string // "HH:MM-HH:MM" local-time window, "" = always
+	PeakWindow           string // "HH:MM-HH:MM" local-time peak hours during which encoding is paused, "" = none
 }
 
 func (s EncodeSettings) ffmpeg() string {

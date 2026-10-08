@@ -79,6 +79,7 @@ func main() {
 	torrentCfg.ListenPort = cfg.TorrentPort
 	torrentCfg.Tunneled = cfg.VPNControlURL != ""
 	torrentCfg.CacheMaxBytes = cfg.TorrentCacheMaxBytes
+	torrentCfg.UploadBytesPerSec = cfg.TorrentUploadBytesPerSec
 	torrentCfg.MetainfoDir = filepath.Join(cfg.CacheDir, "metainfo")
 	if cfg.C411APIKey != "" {
 		// C411 names a torrent by its infohash; its .torrent holds the private announce URL.
@@ -188,12 +189,14 @@ func main() {
 			ReservePercent: cfg.LibraryReservePercent,
 			ReserveBytes:   cfg.LibraryReserveBytes,
 			Stall:          cfg.LibraryStallTimeout,
+			MinViewers:     cfg.LibraryMinViewers,
 			Encode: library.EncodeSettings{
 				Preset:       cfg.LibraryEncodePreset,
 				CRF:          cfg.LibraryEncodeCRF,
 				Threads:      cfg.LibraryEncodeThreads,
 				PauseStreams: cfg.LibraryEncodePauseStreams,
 				Window:       cfg.LibraryEncodeWindow,
+				PeakWindow:   cfg.LibraryEncodePeak,
 			},
 		}, torrentEngine, torrentEngine, logger)
 		if err != nil {
@@ -312,6 +315,11 @@ func startAdmin(cfg *config.Config, logger *slog.Logger, redis *kv.Client) (*adm
 		defer close(watchDone)
 		svc.RunWatch(ctx, admin.DefaultWatchInterval, elect("admin-watch", admin.DefaultWatchInterval-10*time.Second))
 	}()
+	loadDone := make(chan struct{})
+	go func() {
+		defer close(loadDone)
+		svc.RunLoadFlush(ctx, admin.DefaultLoadFlushInterval)
+	}()
 	go func() {
 		defer close(done)
 		if e := elect("admin-backfill", time.Hour); e == nil || e(ctx) {
@@ -325,6 +333,7 @@ func startAdmin(cfg *config.Config, logger *slog.Logger, redis *kv.Client) (*adm
 		cancel()
 		<-done
 		<-watchDone
+		<-loadDone
 		svc.Close()
 		store.Close()
 	}

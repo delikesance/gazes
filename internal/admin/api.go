@@ -27,6 +27,7 @@ type Service struct {
 	watchMu   sync.Mutex        // one evaluation of the watch rules at a time
 	toolsFn   func() []ToolInfo // MCP tool catalogue, set by the API layer (nil = none)
 	donations *donations.Store  // donations (nil = the donations pages answer 503)
+	hooks     OpsHooks          // effects of the runtime actions (ops_runtime.go), guarded by mu
 
 	mu       sync.Mutex
 	tokenMWs map[string]func(http.Handler) http.Handler
@@ -90,15 +91,22 @@ const viewsBackfillDays = 90
 
 // BackfillIfEmpty recomputes the last days days when metrics_daily has no row yet, and the last
 // 90 days when the per-day /views aggregates have none (an upgrade from before they existed).
+// When the per-user activity has no day yet it rolls up the whole session history instead: the
+// users pages aggregate every session ever, and each day left out would be scanned on every call.
 func (s *Service) BackfillIfEmpty(ctx context.Context, days int) error {
-	var daily, views int
+	var daily, views, activity int
 	if err := s.adminDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM metrics_daily`).Scan(&daily); err != nil {
 		return err
 	}
 	if err := s.adminDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM metrics_views_daily`).Scan(&views); err != nil {
 		return err
 	}
+	if err := s.adminDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM metrics_activity_daily`).Scan(&activity); err != nil {
+		return err
+	}
 	switch {
+	case activity == 0:
+		return s.rollup.BackfillHistory(ctx, s.now(), days)
 	case daily == 0:
 		// Nothing rolled up yet: the caller's window.
 	case views == 0:

@@ -162,6 +162,13 @@ func (g *Governor) ClearCooldown(ctx context.Context) {
 	}
 }
 
+// Blocked returns the remaining flat cooldown set by Penalize (0 when none), ignoring the circuit
+// breaker: a deliberate pause rather than an upstream failure.
+func (g *Governor) Blocked(ctx context.Context) time.Duration { return g.flatCooldown(ctx) }
+
+// BreakerOpen returns how long the circuit breaker stays open (0 when closed).
+func (g *Governor) BreakerOpen(ctx context.Context) time.Duration { return g.healthCooldown(ctx) }
+
 // Cooldown returns the remaining shared cooldown (0 when none): the longer of the flat Penalize
 // cooldown and the circuit breaker's open time. It never takes a half-open probe.
 func (g *Governor) Cooldown(ctx context.Context) time.Duration {

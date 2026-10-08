@@ -163,8 +163,8 @@ func seedUsers(t *testing.T, e *usersEnv) {
 	for i := 0; i < 12; i++ {
 		e.watch(t, 5, 400, "Delta", i+1, ago(1)-int64(i*60), 60)
 	}
-	// sessions table: 3 valid (2 expiring within 7 d), 1 expired.
-	for i, exp := range []float64{-3, 3, 5, 20} {
+	// sessions table: 5 valid (4 expiring within 7 d, 1 within 24 h, 1 in 24-48 h), 1 expired.
+	for i, exp := range []float64{-3, 0.5, 1.5, 3, 5, 20} {
 		if _, err := e.rw.Exec(`INSERT INTO sessions(token_hash,user_id,expires_at,last_seen) VALUES(?,?,?,?)`,
 			fmt.Sprint("hash-", i), 1, e.now.Unix()+int64(exp*86400), e.now.Unix()); err != nil {
 			t.Fatal(err)
@@ -243,7 +243,7 @@ func TestUsersSummary(t *testing.T) {
 				}
 			}
 			as := d["active_sessions"].(map[string]any)
-			if num(t, as["valid"]) != 3 || num(t, as["expiring_7d"]) != 2 {
+			if num(t, as["valid"]) != 5 || num(t, as["expiring_7d"]) != 4 || num(t, as["expiring_24h"]) != 1 || num(t, as["expiring_24_48h"]) != 1 {
 				t.Errorf("active_sessions = %v", as)
 			}
 		})
@@ -577,6 +577,10 @@ func TestGrowth(t *testing.T) {
 				t.Errorf("ttf %v", m)
 			}
 		}
+		// delays of the 6 accounts with a session: 10 min, 30 min, 1 h ×3, 3 d 1 h
+		if m := d["time_to_first_session"].(map[string]any)["median_seconds"]; m == nil || num(t, m) != 3600 {
+			t.Errorf("ttf median = %v, want 3600", m)
+		}
 		ch := d["churn"].(map[string]any)
 		if num(t, ch["previous_window_active"]) != 2 || num(t, ch["churned"]) != 1 || !near(num(t, ch["churn_pct"]), 50) {
 			t.Errorf("churn = %v", ch)
@@ -624,6 +628,9 @@ func TestGrowth(t *testing.T) {
 		}
 		if num(t, d["funnel"].(map[string]any)["cohort_size"]) != 0 {
 			t.Errorf("%v", d["funnel"])
+		}
+		if m := d["time_to_first_session"].(map[string]any)["median_seconds"]; m != nil {
+			t.Errorf("ttf median without accounts = %v, want null", m)
 		}
 	})
 }

@@ -126,6 +126,90 @@ func (m *MultiProvider) SetRedis(c *kv.Client) {
 	}
 }
 
+// ProviderNames lists the wrapped providers, in their configured order.
+func (m *MultiProvider) ProviderNames() []string {
+	out := make([]string, 0, len(m.states))
+	for _, s := range m.states {
+		out = append(out, s.provider.Name())
+	}
+	return out
+}
+
+func (m *MultiProvider) state(name string) *providerState {
+	for _, s := range m.states {
+		if s.provider.Name() == name {
+			return s
+		}
+	}
+	return nil
+}
+
+// ProviderHealth is the operational state of one provider.
+type ProviderHealth struct {
+	Paused   time.Duration // remaining deliberate pause (Pause), 0 when none
+	Cooldown time.Duration // remaining circuit-breaker open time, 0 when closed
+}
+
+// Health reports the pause and breaker state of the named provider (false when unknown).
+func (m *MultiProvider) Health(ctx context.Context, name string) (ProviderHealth, bool) {
+	s := m.state(name)
+	if s == nil {
+		return ProviderHealth{}, false
+	}
+	return ProviderHealth{Paused: s.gov.Blocked(ctx), Cooldown: s.gov.BreakerOpen(ctx)}, true
+}
+
+// Pause stops calling the named provider for d, on every instance sharing Redis. Its queries fail
+// at once as a cooling-down provider, so resolutions use the other providers.
+func (m *MultiProvider) Pause(ctx context.Context, name string, d time.Duration) bool {
+	s := m.state(name)
+	if s == nil {
+		return false
+	}
+	s.gov.Penalize(ctx, d)
+	return true
+}
+
+// Resume lifts a Pause of the named provider.
+func (m *MultiProvider) Resume(ctx context.Context, name string) bool {
+	s := m.state(name)
+	if s == nil {
+		return false
+	}
+	s.gov.ClearCooldown(ctx)
+	return true
+}
+
+// Retry closes the circuit breaker of the named provider, so its next query is sent instead of
+// waiting for the backoff. A pause is left alone.
+func (m *MultiProvider) Retry(ctx context.Context, name string) bool {
+	s := m.state(name)
+	if s == nil {
+		return false
+	}
+	s.gov.Success(ctx)
+	return true
+}
+
+// PurgeCache drops the shared query results of every provider and returns how many were removed.
+func (m *MultiProvider) PurgeCache(ctx context.Context) (int, error) {
+	n := 0
+	for _, s := range m.states {
+		s.mu.Lock()
+		clear(s.cache)
+		s.mu.Unlock()
+		if s.rcache == nil {
+			continue
+		}
+		k, err := s.rcache.Purge(ctx)
+		n += k
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, nil
+}
+
 func (m *MultiProvider) Name() string { return "public indexers" }
 func (m *MultiProvider) Search(ctx context.Context, o SearchOptions) ([]TorrentItem, error) {
 	return m.run(ctx, o, false)
@@ -388,6 +472,10 @@ func (s *providerState) callFor(caller, ctx context.Context, o SearchOptions, la
 	paced := !s.pace.IsZero()
 	// Reports must survive the cancellation of the call's own context.
 	report := context.WithoutCancel(ctx)
+	if paused := s.gov.Blocked(report); paused > 0 {
+		diagnostics.Log(caller, slog.LevelDebug, "provider.paused", "provider", name, "remaining_ms", paused.Milliseconds())
+		return nil, errCoolingDown
+	}
 	adm := s.gov.Admit(report)
 	if !adm.Allowed {
 		diagnostics.Log(caller, slog.LevelDebug, "provider.cooldown", "provider", name, "remaining_ms", adm.Remaining.Milliseconds())

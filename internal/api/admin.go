@@ -30,5 +30,6 @@ func (s *Server) mountAdmin(r chi.Router) {
 		s.admin.SetRoleSetter(s.auth)
 	}
 	s.wireAdminPlayback()
+	s.wireAdminOps()
 	s.admin.Mount(r)
 }

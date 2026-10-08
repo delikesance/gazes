@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { AdminShell } from "@/components/admin/layout/AdminShell";
-import { AdminApiError, adminGet } from "@/lib/admin/api";
+import { adminGet } from "@/lib/admin/api";
+import { gateFailureCode, isAdminRefusal } from "@/lib/admin/gate";
 import { getApiBase } from "@/lib/api";
 import "./admin.css";
 
@@ -30,12 +31,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   try {
     await adminGet("/me", { cookie });
   } catch (error) {
-    // 401 (signed out) and 403 (not an admin) both answer 404: the panel must not reveal that it exists, and
-    // a /login redirect would confirm it. A 404 from the API means the admin API is not mounted on this
-    // backend (not configured or an older build): there is no panel either. Other failures (API down, 5xx)
-    // surface through the error boundary.
-    if (error instanceof AdminApiError && (error.status === 401 || error.status === 403 || error.status === 404)) notFound();
-    throw error;
+    // Every failure answers 404, so the panel never reveals that it exists. 401 (signed out) and 403 (not an
+    // admin) are refusals, and a /login redirect would confirm the panel; a 404 from the API means it is not
+    // mounted on this backend. An outage (API down, 5xx) also answers 404: the visitor is not identified yet,
+    // so an error page or a retry button would tell a stranger that something lives here. Admins reload.
+    if (!isAdminRefusal(error)) console.error(`admin gate unavailable: ${gateFailureCode(error)}`);
+    notFound();
   }
   return <AdminShell pseudo={await pseudoOf(cookie)}>{children}</AdminShell>;
 }
