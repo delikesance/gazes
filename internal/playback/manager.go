@@ -230,8 +230,14 @@ func (m *Manager) removeSession(id string) {
 		}
 	}
 }
+// mediaKey identifies one produced segment. The rendition (copy or H.264 transcode) is part of it so that
+// a client that cannot decode AV1 never receives a segment cached for one that can, and vice versa.
 func mediaKey(s *Session, n int) string {
-	return fmt.Sprintf("%s/%d/%d/%d", s.hash, s.file, s.audio, n)
+	rendition := "copy"
+	if s.transcode {
+		rendition = "h264"
+	}
+	return fmt.Sprintf("%s/%d/%d/%s/%d", s.hash, s.file, s.audio, rendition, n)
 }
 func (m *Manager) wanted(s *Session, key string) bool {
 	for n, seg := range s.index.Segments {
