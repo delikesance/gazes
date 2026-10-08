@@ -79,6 +79,7 @@ func main() {
 	torrentCfg.ListenPort = cfg.TorrentPort
 	torrentCfg.Tunneled = cfg.VPNControlURL != ""
 	torrentCfg.CacheMaxBytes = cfg.TorrentCacheMaxBytes
+	torrentCfg.UploadBytesPerSec = cfg.TorrentUploadBytesPerSec
 	torrentCfg.MetainfoDir = filepath.Join(cfg.CacheDir, "metainfo")
 	if cfg.C411APIKey != "" {
 		// C411 names a torrent by its infohash; its .torrent holds the private announce URL.
