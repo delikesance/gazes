@@ -189,12 +189,14 @@ func main() {
 			ReservePercent: cfg.LibraryReservePercent,
 			ReserveBytes:   cfg.LibraryReserveBytes,
 			Stall:          cfg.LibraryStallTimeout,
+			MinViewers:     cfg.LibraryMinViewers,
 			Encode: library.EncodeSettings{
 				Preset:       cfg.LibraryEncodePreset,
 				CRF:          cfg.LibraryEncodeCRF,
 				Threads:      cfg.LibraryEncodeThreads,
 				PauseStreams: cfg.LibraryEncodePauseStreams,
 				Window:       cfg.LibraryEncodeWindow,
+				PeakWindow:   cfg.LibraryEncodePeak,
 			},
 		}, torrentEngine, torrentEngine, logger)
 		if err != nil {

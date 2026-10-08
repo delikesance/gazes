@@ -59,6 +59,7 @@ type Config struct {
 	LibraryPoolDir            string        `json:"library_pool_dir"`
 	LibraryIndexDir           string        `json:"library_index_dir"`
 	LibraryEncodeWindow       string        `json:"library_encode_window"`
+	LibraryEncodePeak         string        `json:"library_encode_peak"`
 	LibraryReservePercent     int           `json:"library_reserve_percent"`
 	LibraryEncodePreset       int           `json:"library_encode_preset"`
 	LibraryEncodeCRF          int           `json:"library_encode_crf"`
@@ -66,6 +67,7 @@ type Config struct {
 	LibraryEncodePauseStreams int           `json:"library_encode_pause_streams"`
 	LibraryReserveBytes       int64         `json:"library_reserve_bytes"`
 	LibraryStallTimeout       time.Duration `json:"library_stall_timeout"`
+	LibraryMinViewers         int           `json:"library_min_viewers"`
 
 	// Optional cost inputs for the admin panel (nil = not provided, never defaulted).
 	CostServerMonth       *float64 `json:"cost_server_month,omitempty"`         // GAZES_COST_SERVER_MONTH: server cost per month
@@ -87,7 +89,7 @@ type Config struct {
 // Load loads configuration from environment variables with fallback defaults.
 func Load() *Config {
 	return &Config{
-		PlaybackEngine:           getEnv("PLAYBACK_ENGINE", "legacy"),
+		PlaybackEngine:           NormalizePlaybackEngine(getEnv("PLAYBACK_ENGINE", "legacy")),
 		PlaybackMemoryBytes:      getEnvInt64("PLAYBACK_MEMORY_BYTES", 64<<20),
 		PlaybackDiskBytes:        getEnvInt64("PLAYBACK_DISK_BYTES", 1<<30),
 		AppEnv:                   getEnv("APP_ENV", "development"),
@@ -126,13 +128,16 @@ func Load() *Config {
 		RedisNamespace:           getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
 		ResolverFastPhaseTimeout: getEnvDuration("RESOLVER_FAST_PHASE_TIMEOUT", 3*time.Second),
 
-		LibraryEnabled:            getEnvBool("LIBRARY_ENABLED", true),
-		LibraryPoolDir:            getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
-		LibraryIndexDir:           getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
-		LibraryEncodeWindow:       getEnv("LIBRARY_ENCODE_WINDOW", ""),
-		LibraryReservePercent:     getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
-		LibraryReserveBytes:       getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
-		LibraryStallTimeout:       getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
+		LibraryEnabled:        getEnvBool("LIBRARY_ENABLED", true),
+		LibraryPoolDir:        getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
+		LibraryIndexDir:       getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
+		LibraryEncodeWindow:   getEnv("LIBRARY_ENCODE_WINDOW", ""),
+		LibraryEncodePeak:     getEnv("LIBRARY_ENCODE_PEAK", ""),
+		LibraryReservePercent: getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
+		LibraryReserveBytes:   getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
+		LibraryStallTimeout:   getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
+		// Distinct users who must watch an episode before it is downloaded and AV1-encoded (1 = the first viewer).
+		LibraryMinViewers:         getEnvInt("LIBRARY_MIN_VIEWERS", 2),
 		LibraryEncodePreset:       getEnvInt("LIBRARY_ENCODE_PRESET", 8),
 		LibraryEncodeCRF:          getEnvInt("LIBRARY_ENCODE_CRF", 30),
 		LibraryEncodeThreads:      getEnvInt("LIBRARY_ENCODE_THREADS", 8),
@@ -234,4 +239,19 @@ func splitList(v string) []string {
 		}
 	}
 	return out
+}
+
+// NormalizePlaybackEngine maps the PLAYBACK_ENGINE value to "hls" or "legacy". Anything else
+// (a typo, an empty value) selects legacy, the per-viewer remux, so a bad value never changes
+// behavior silently towards the new engine.
+func NormalizePlaybackEngine(v string) string {
+	if strings.EqualFold(strings.TrimSpace(v), "hls") {
+		return "hls"
+	}
+	return "legacy"
+}
+
+// UsesHLS reports whether playback goes through the shared-segment HLS engine.
+func (c *Config) UsesHLS() bool {
+	return c != nil && NormalizePlaybackEngine(c.PlaybackEngine) == "hls"
 }

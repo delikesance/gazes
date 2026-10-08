@@ -34,7 +34,7 @@ func (s *Server) ClosePlayback() {
 }
 func (s *Server) HandlePlaybackConfig(w http.ResponseWriter, r *http.Request) {
 	engine := "legacy"
-	if s.cfg != nil && s.cfg.PlaybackEngine == "hls" {
+	if s.cfg.UsesHLS() {
 		engine = "hls"
 	}
 	w.Header().Set("Cache-Control", "no-store")
