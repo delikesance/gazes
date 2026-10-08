@@ -2,6 +2,11 @@
   display: flex; flex-direction: column; min-height: 100dvh; background: var(--admin-bg); color: var(--admin-fg); font-family: var(--font-dm-sans), system-ui, sans-serif; line-height: 1.4; }
 .admin-main { flex: 1; min-width: 0; padding: 24px 16px 32px; display: flex; flex-direction: column; gap: 28px; }
 .admin-sidebar { display: flex; flex-direction: column; gap: 24px; padding: 24px 16px; border-top: 1px solid var(--admin-border); }
+.admin-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 0; }
+.admin-topbar-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; font-weight: 500; font-size: 14px; color: var(--admin-fg); text-decoration: none; background: var(--admin-surface); box-shadow: inset 0 0 0 1px var(--admin-border); }
+.admin-topbar-link:hover { background: #1c1c1f; }
+.admin-topbar-link:focus-visible { outline: 2px solid var(--admin-fg); outline-offset: 3px; }
+#admin-sections { scroll-margin-top: 16px; }
 .admin-brand { display: flex; align-items: center; gap: 10px; }
 .admin-wordmark { font-size: 20px; font-weight: 650; letter-spacing: -.04em; }
 .admin-wordmark span { color: var(--admin-accent); }
@@ -26,8 +31,13 @@
 .admin-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 56px 24px; border-radius: 20px; background: var(--admin-card); box-shadow: inset 0 0 0 1px var(--admin-border); text-align: center; }
 .admin-empty h2 { margin: 0; font-size: 18px; font-weight: 500; }
 .admin-empty p { margin: 0; font-size: 13px; color: var(--admin-muted); }
+.admin-retry { margin-top: 14px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--admin-accent); color: #09090b; font: 500 13px var(--font-dm-sans), system-ui, sans-serif; cursor: pointer; }
+.admin-retry:hover { filter: brightness(.94); }
+.admin-retry:disabled { opacity: .6; cursor: progress; }
+.admin-retry:focus-visible { outline: 2px solid var(--admin-fg); outline-offset: 3px; }
 @media (min-width: 900px) {
   .admin-shell { flex-direction: row-reverse; }
+  .admin-topbar { display: none; }
   .admin-sidebar { position: sticky; top: 0; align-self: flex-start; height: 100dvh; width: 260px; flex: none; padding: 28px 20px; border-top: 0; border-right: 1px solid var(--admin-border); overflow-y: auto; }
   .admin-account { margin-top: auto; }
   .admin-main { padding: 32px 40px 48px; }

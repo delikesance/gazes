@@ -211,7 +211,9 @@ test('growth: delay, churn and cumulative blocks', () => {
   assert.equal(d.hasData, true);
   assert.equal(nbsp(d.tiles[1].value), '40,0 %');
   assert.equal(nbsp(d.tiles[2].value), '60,0 %');
-  assert.equal(d.tiles[0].value, '', 'the median delay is not exposed: [À MESURER]');
+  assert.equal(nbsp(d.tiles[0].value), '2,0 h', 'median signup → first session delay');
+  assert.equal(G.delayModel(real('growth.empty').data).tiles[0].value, '', 'no account watched: [À MESURER]');
+  assert.deepEqual([30, 600, 5400, 3 * 86400].map((s) => nbsp(G.delayText(s))), ['< 1 min', '10 min', '1,5 h', '3,0 j']);
   assert.equal(d.bars[4].tone, 'muted');
   const churn = G.churnModel(g);
   assert.equal(churn.measured, true);

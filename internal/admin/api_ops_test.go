@@ -455,37 +455,39 @@ func TestActionInvalidArgs(t *testing.T) {
 	}
 }
 
-func TestNotImplementedActionsNeverHaveEffect(t *testing.T) {
+func TestEveryDeclaredActionIsImplemented(t *testing.T) {
 	e := opsEnv(t)
 	cat := e.do(t, "GET", "/ops/actions", "", e.as("diag"))
 	items := pbList(t, cat.data, "items")
-	impl := map[string]bool{}
+	if len(items) != 11 {
+		t.Fatalf("catalogue = %s", cat.body)
+	}
 	for _, it := range items {
-		m := it.(map[string]any)
-		impl[m["name"].(string)] = m["implemented"].(bool)
-	}
-	for _, n := range []string{"set_issue_status", "create_issue", "add_note", "set_alert_threshold"} {
-		if !impl[n] {
-			t.Errorf("%s should be implemented", n)
+		if m := it.(map[string]any); m["implemented"] != true {
+			t.Errorf("%s is not implemented", m["name"])
 		}
 	}
-	stubs := []struct{ name, tok string }{
-		{"retry_source", "ops"}, {"warm_cache", "ops"}, {"requeue_av1", "ops"},
-		{"pause_source", "cfg"}, {"purge_cache", "cfg"}, {"limit_concurrent_streams", "cfg"}, {"schedule_maintenance", "cfg"},
-	}
-	for _, s := range stubs {
-		if impl[s.name] {
-			t.Errorf("%s should be declared not implemented", s.name)
-		}
-		for _, body := range []string{`{}`, `{"dry_run":false,"justification":"j","expected_effect":"e"}`} {
-			r := e.action(t, s.name, body, s.tok)
-			if r.code != 501 || !strings.Contains(string(r.body), "not_implemented") {
-				t.Fatalf("%s %s = %d %s", s.name, body, r.code, r.body)
+}
+
+func TestRuntimeActionsWithoutCollaboratorHaveNoEffect(t *testing.T) {
+	e := opsEnv(t) // no SetOpsHooks, no playback stats: as in the standalone MCP binary
+	for _, c := range []struct{ name, tok, args string }{
+		{"retry_source", "ops", `{"source":"nyaa"}`},
+		{"warm_cache", "ops", `{"season_id":1,"episode":1}`},
+		{"requeue_av1", "ops", `{"season_id":1,"episode":1,"lang":"vf"}`},
+		{"pause_source", "cfg", `{"source":"nyaa","minutes":30}`},
+		{"purge_cache", "cfg", `{"scope":"episode_sources"}`},
+		{"limit_concurrent_streams", "cfg", `{"max_streams":10}`},
+	} {
+		for _, extra := range []string{``, `,"dry_run":false,"justification":"j","expected_effect":"e"`} {
+			r := e.action(t, c.name, `{"args":`+c.args+extra+`}`, c.tok)
+			if r.code != 503 || !strings.Contains(string(r.body), "unavailable") {
+				t.Fatalf("%s %s = %d %s", c.name, extra, r.code, r.body)
 			}
 		}
 	}
 	if n := e.count(t, `SELECT COUNT(*) FROM approvals`); n != 0 {
-		t.Fatal("a not implemented action filed an approval")
+		t.Fatal("an unavailable action filed an approval")
 	}
 }
 

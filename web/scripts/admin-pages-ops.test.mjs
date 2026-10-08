@@ -68,6 +68,16 @@ test('overview: top anime, signups, insights, playback tiles', () => {
   assert.deepEqual(O.latestErrors(null, ''), []);
 });
 
+test('views: median and split of distinct episodes per active user', () => {
+  const e = V.episodesDistribution(real('views').data);
+  assert.equal(e.hasData, true);
+  assert.equal(nbsp(e.median), '1,5 épisodes');
+  assert.deepEqual(e.bars.map((b) => [b.key, b.value]), [['1', 50], ['2_5', 50], ['6_12', 0], ['13_plus', 0]]);
+  assert.equal(nbsp(e.bars[0].text), '2 · 50,0 %');
+  const empty = V.episodesDistribution(real('views.empty').data);
+  assert.deepEqual([empty.hasData, empty.median], [false, ''], 'no active user: [À MESURER]');
+});
+
 test('views: durations, retention, hours, timezones, leavers', () => {
   const v = real('views').data;
   const d = V.durationBars(v);

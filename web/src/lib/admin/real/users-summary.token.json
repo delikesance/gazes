@@ -2,6 +2,8 @@
   "generated_at": "2026-10-05T11:16:17Z",
   "data": {
     "active_sessions": {
+      "expiring_24_48h": 0,
+      "expiring_24h": 0,
       "expiring_7d": 2,
       "valid": 3
     },
