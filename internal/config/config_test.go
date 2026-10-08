@@ -52,3 +52,16 @@ func TestAdminDBPath(t *testing.T) {
 		t.Fatalf("override = %q", got)
 	}
 }
+
+func TestPlaybackEngineSelection(t *testing.T) {
+	for in, want := range map[string]string{"": "legacy", "legacy": "legacy", "hls": "hls", " HLS ": "hls", "hsl": "legacy"} {
+		t.Setenv("PLAYBACK_ENGINE", in)
+		if got := Load().PlaybackEngine; got != want {
+			t.Errorf("PLAYBACK_ENGINE=%q: got %q, want %q", in, got, want)
+		}
+	}
+	var nilCfg *Config
+	if nilCfg.UsesHLS() || (&Config{PlaybackEngine: "legacy"}).UsesHLS() || !(&Config{PlaybackEngine: "hls"}).UsesHLS() {
+		t.Error("UsesHLS must be true only for hls")
+	}
+}
