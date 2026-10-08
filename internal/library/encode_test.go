@@ -263,27 +263,29 @@ func (r *sigRecorder) last() syscall.Signal {
 	return r.sigs[len(r.sigs)-1]
 }
 
-func TestEncoderPausesWhenBusyAndOutsideWindow(t *testing.T) {
-	for _, tc := range []string{"streams", "window"} {
+func TestEncoderPausesWhenBusyOutsideWindowOrPeak(t *testing.T) {
+	for _, tc := range []string{"streams", "window", "peak"} {
 		t.Run(tc, func(t *testing.T) {
 			s := EncodeSettings{}
 			var active atomic.Int32
-			var outside atomic.Bool
-			if tc == "streams" {
+			var blocked atomic.Bool // outside the window, or inside peak hours
+			noon, night := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC), time.Date(2026, 1, 1, 2, 0, 0, 0, time.UTC)
+			switch tc {
+			case "streams":
 				s.PauseStreams = 3
-				active.Store(3)
-			} else {
+			case "window":
 				s.Window = "01:00-09:00"
-				outside.Store(true)
+			case "peak":
+				s.PeakWindow = "11:00-14:00"
 			}
 			gate := filepath.Join(t.TempDir(), "go")
 			env := newEncEnv(t, fmt.Sprintf("while [ ! -f %q ]; do sleep 0.02; done\n%s", gate, writeOutput(400)), s)
 			env.enc.active = func() int { return int(active.Load()) }
 			env.enc.clock = func() time.Time {
-				if outside.Load() {
-					return time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+				if blocked.Load() {
+					return noon
 				}
-				return time.Date(2026, 1, 1, 2, 0, 0, 0, time.UTC)
+				return night
 			}
 			rec := &sigRecorder{}
 			env.enc.signal = rec.send
@@ -293,6 +295,13 @@ func TestEncoderPausesWhenBusyAndOutsideWindow(t *testing.T) {
 			go func() { env.enc.Run(ctx); close(done) }()
 			defer func() { cancel(); <-done }()
 
+			// Encoding starts unpaused, then the condition kicks in.
+			waitFor(t, func() bool {
+				st, _ := env.store.EncoderStatus()
+				return st.Key != nil && *st.Key == env.key && !st.Paused
+			})
+			active.Store(3)
+			blocked.Store(true)
 			waitFor(t, func() bool {
 				st, _ := env.store.EncoderStatus()
 				return st.Paused && st.Key != nil && *st.Key == env.key
@@ -301,7 +310,7 @@ func TestEncoderPausesWhenBusyAndOutsideWindow(t *testing.T) {
 				t.Fatalf("last signal %v, want SIGSTOP", rec.last())
 			}
 			active.Store(0)
-			outside.Store(false)
+			blocked.Store(false)
 			waitFor(t, func() bool {
 				st, _ := env.store.EncoderStatus()
 				return !st.Paused && st.Key != nil
@@ -314,6 +323,21 @@ func TestEncoderPausesWhenBusyAndOutsideWindow(t *testing.T) {
 			}
 			waitFor(t, func() bool { return env.entry(t).State == StateAV1 })
 		})
+	}
+}
+
+func TestEncoderDoesNotStartWhilePaused(t *testing.T) {
+	env := newEncEnv(t, writeOutput(400), EncodeSettings{PeakWindow: "11:00-14:00"})
+	env.enc.clock = func() time.Time { return time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC) }
+	if env.enc.encodeNext(context.Background()) {
+		t.Fatal("encode started during peak hours")
+	}
+	if st := env.entry(t).State; st != StateOriginal {
+		t.Fatalf("entry claimed during peak hours: %v", st)
+	}
+	env.enc.clock = func() time.Time { return time.Date(2026, 1, 1, 2, 0, 0, 0, time.UTC) }
+	if !env.enc.encodeNext(context.Background()) {
+		t.Fatal("encode did not start off-peak")
 	}
 }
 

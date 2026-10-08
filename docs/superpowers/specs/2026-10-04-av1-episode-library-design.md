@@ -148,6 +148,7 @@ nice -n 19 ffmpeg -nostdin -y -i <original> -map 0 \
 ```
 
 - Plage horaire : `LIBRARY_ENCODE_WINDOW` (`HH:MM-HH:MM`, vide = en continu). Hors plage, l'encodage en cours est suspendu (`SIGSTOP`) puis repris (`SIGCONT`) à la plage suivante.
+- Heures de pointe : `LIBRARY_ENCODE_PEAK` (`HH:MM-HH:MM`, vide = aucune). Pendant ces heures l'encodage est suspendu comme hors plage ; c'est l'inverse de `LIBRARY_ENCODE_WINDOW`, les deux se combinent. Aucun nouvel encodage ne démarre tant qu'une pause est active.
 - Pause quand le serveur est chargé : si les lectures actives ≥ `LIBRARY_ENCODE_PAUSE_STREAMS` (3), `SIGSTOP` ; reprise quand elles redescendent.
 - Vérification avant validation :
   - durée à ±1 s de l'original ;
@@ -213,6 +214,7 @@ Les écritures concurrentes avec le serveur passent par SQLite (WAL, transaction
 | `LIBRARY_ENCODE_CRF` | `30` | CRF SVT-AV1. |
 | `LIBRARY_ENCODE_THREADS` | `8` | Threads de l'encodeur. |
 | `LIBRARY_ENCODE_WINDOW` | vide | Plage horaire d'encodage. |
+| `LIBRARY_ENCODE_PEAK` | vide | Heures de pointe où l'encodage est suspendu. |
 | `LIBRARY_ENCODE_PAUSE_STREAMS` | `3` | Lectures actives qui suspendent l'encodage. |
 
 ## Déploiement
