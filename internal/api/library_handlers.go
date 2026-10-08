@@ -202,6 +202,9 @@ func (s *Server) HandleLibraryRegister(w http.ResponseWriter, r *http.Request) {
 		ReleaseName: body.ReleaseName,
 	})
 	switch {
+	case errors.Is(err, library.ErrWaitingViewers):
+		writeLibraryJSON(w, http.StatusAccepted, map[string]any{"created": false, "state": "pending"})
+		return
 	case errors.Is(err, library.ErrRateLimited), errors.Is(err, library.ErrBusy):
 		libraryError(w, http.StatusTooManyRequests, "too many cached episodes, try again later")
 		return
