@@ -46,6 +46,7 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 	clientConfig.MetainfoSourcesClient = &http.Client{Timeout: 8 * time.Second, Transport: &http.Transport{DialContext: safeDialContext}}
 	// Allow uploading when EnableTitForTat or Seed is enabled so peers reciprocate with full download bandwidth
 	clientConfig.NoUpload = !cfg.EnableTitForTat && !cfg.Seed
+	clientConfig.UploadRateLimiter = uploadLimiter(cfg.UploadBytesPerSec)
 	clientConfig.DisableUTP = cfg.DisableUTP
 	clientConfig.DisableTCP = cfg.DisableTCP
 	clientConfig.DisablePEX = false
@@ -129,6 +130,7 @@ func NewClientEngine(cfg EngineConfig, logger *slog.Logger) (*ClientEngine, erro
 		"conns_per_torrent", cfg.EstablishedConnsPerTorrent,
 		"lookahead_pieces", cfg.LookaheadPieceCount,
 		"tit_for_tat", cfg.EnableTitForTat,
+		"upload_limit_kib_s", cfg.UploadBytesPerSec>>10,
 		"listen_port", client.LocalPort(),
 		"cache_max_gb", cfg.CacheMaxBytes>>30,
 	)

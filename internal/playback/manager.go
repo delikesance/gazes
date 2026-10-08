@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/gazes/gazes/internal/diagnostics"
-	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/loadstats"
+	"github.com/gazes/gazes/internal/metadata"
 	"github.com/gazes/gazes/internal/torrent"
 	"github.com/google/uuid"
 )
@@ -30,6 +30,9 @@ import (
 type Options struct {
 	Directory, RawURL      string
 	MemoryBytes, DiskBytes int64
+	// TranscodeTTL is how long finished H.264 transcodes stay cached after their last use (default 30 min).
+	// A live x264 encode costs 1-2 cores, so a second viewer of the same episode should reuse it.
+	TranscodeTTL time.Duration
 }
 type Session struct {
 	ID          string                  `json:"id"`
@@ -54,6 +57,7 @@ type job struct {
 	used        time.Time
 	bytes       int64
 	memory      []byte
+	transcoded  bool // produced by x264: costly to redo, kept longer and evicted last
 }
 type Manager struct {
 	mu       sync.Mutex
@@ -73,6 +77,9 @@ func New(engine torrent.Engine, analyzer metadata.Analyzer, logger *slog.Logger,
 	}
 	if opts.DiskBytes <= 0 {
 		opts.DiskBytes = 1 << 30
+	}
+	if opts.TranscodeTTL <= 0 {
+		opts.TranscodeTTL = 30 * time.Minute
 	}
 	m := &Manager{engine: engine, analyzer: analyzer, logger: logger, opts: opts, sessions: map[string]*Session{}, jobs: map[string]*job{}, closed: make(chan struct{}), workers: make(chan struct{}, 4)}
 	go m.sweep()
@@ -234,8 +241,10 @@ func (m *Manager) removeSession(id string) {
 		}
 	}
 }
+// mediaKey includes the transcode flag: a copied and an H.264 segment of the same position are different bytes,
+// and sessions with the same flag share one job (and so one x264 run).
 func mediaKey(s *Session, n int) string {
-	return fmt.Sprintf("%s/%d/%d/%d", s.hash, s.file, s.audio, n)
+	return fmt.Sprintf("%s/%d/%d/%t/%d", s.hash, s.file, s.audio, s.transcode, n)
 }
 func (m *Manager) wanted(s *Session, key string) bool {
 	for n, seg := range s.index.Segments {
@@ -279,7 +288,7 @@ func (m *Manager) Media(ctx context.Context, id string, n int, init bool, w http
 		// Production belongs to viewers, not one HTTP connection (init/media share
 		// it). Preserve diagnostics, but cancel through session leases or timeout.
 		workCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 25*time.Second)
-		j = &job{done: make(chan struct{}), cancel: cancel, owners: map[string]bool{}, used: time.Now()}
+		j = &job{done: make(chan struct{}), cancel: cancel, owners: map[string]bool{}, used: time.Now(), transcoded: s.transcode}
 		m.jobs[key] = j
 		snapshot := cloneSession(s)
 		go m.produce(workCtx, key, j, snapshot, n)
@@ -469,33 +478,50 @@ func (m *Manager) sweep() {
 			return
 		case now := <-ticker.C:
 			m.mu.Lock()
-			for id, s := range m.sessions {
-				if now.Sub(s.used) > 60*time.Second {
-					m.removeSession(id)
-				}
-			}
-			var keys []string
-			var total int64
-			for key, j := range m.jobs {
-				select {
-				case <-j.done:
-					if j.err == nil {
-						total += j.bytes
-						keys = append(keys, key)
-					}
-				default:
-				}
-			}
-			sort.Slice(keys, func(a, b int) bool { return m.jobs[keys[a]].used.Before(m.jobs[keys[b]].used) })
-			for _, key := range keys {
-				j := m.jobs[key]
-				if total > m.opts.DiskBytes || now.Sub(j.used) > 2*time.Minute {
-					os.RemoveAll(filepath.Dir(j.media))
-					delete(m.jobs, key)
-					total -= j.bytes
-				}
-			}
+			m.evict(now)
 			m.mu.Unlock()
+		}
+	}
+}
+
+// evict drops idle sessions and finished segments (m.mu held). Remux segments expire after 2 minutes; costly
+// x264 transcodes live TranscodeTTL so a second viewer reuses them, and go last when the disk budget is exceeded.
+func (m *Manager) evict(now time.Time) {
+	for id, s := range m.sessions {
+		if now.Sub(s.used) > 60*time.Second {
+			m.removeSession(id)
+		}
+	}
+	var keys []string
+	var total int64
+	for key, j := range m.jobs {
+		select {
+		case <-j.done:
+			if j.err == nil {
+				total += j.bytes
+				keys = append(keys, key)
+			}
+		default:
+		}
+	}
+	// Cheap remux segments are evicted before costly transcodes, then least recently used first.
+	sort.Slice(keys, func(a, b int) bool {
+		ja, jb := m.jobs[keys[a]], m.jobs[keys[b]]
+		if ja.transcoded != jb.transcoded {
+			return jb.transcoded
+		}
+		return ja.used.Before(jb.used)
+	})
+	for _, key := range keys {
+		j := m.jobs[key]
+		ttl := 2 * time.Minute
+		if j.transcoded {
+			ttl = m.opts.TranscodeTTL
+		}
+		if total > m.opts.DiskBytes || now.Sub(j.used) > ttl {
+			os.RemoveAll(filepath.Dir(j.media))
+			delete(m.jobs, key)
+			total -= j.bytes
 		}
 	}
 }
