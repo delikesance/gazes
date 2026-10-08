@@ -10,32 +10,33 @@ import (
 
 // Config holds runtime configuration options for Gazes.
 type Config struct {
-	PlaybackEngine       string        `json:"playback_engine"`
-	PlaybackMemoryBytes  int64         `json:"playback_memory_bytes"`
-	PlaybackDiskBytes    int64         `json:"playback_disk_bytes"`
-	AppEnv               string        `json:"app_env"`
-	Host                 string        `json:"host"`
-	Port                 int           `json:"port"`
-	DataDir              string        `json:"data_dir"`
-	CacheDir             string        `json:"cache_dir"`
-	CatalogDir           string        `json:"catalog_dir"` // CATALOG_DIR: durable copy of the AniList catalog (SQLite), kept across deploys
-	LogLevel             string        `json:"log_level"`
-	EnableCORS           bool          `json:"enable_cors"`
-	CORSAllowedOrigins   []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
-	StreamTimeout        time.Duration `json:"stream_timeout"`
-	MaxMemoryCache       int64         `json:"max_memory_cache_bytes"`
-	TorrentPort          int           `json:"torrent_port"`
-	TorrentCacheMaxBytes int64         `json:"torrent_cache_max_bytes"`
-	AccountsDir          string        `json:"accounts_dir"`
-	AdminDBPath          string        `json:"admin_db_path"`
-	WatchWebhookURL      string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_URL: where watch events are POSTed (optional)
-	WatchWebhookSecret   string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
-	WatchDiskPath        string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
-	VPNControlURL        string        `json:"-"`                         // VPN_CONTROL_URL: gluetun control server; empty = no VPN
-	VPNRotateEvery       time.Duration `json:"-"`                         // VPN_ROTATE_EVERY: periodic exit-IP rotation; 0 disables
-	VPNRotateMinGap      time.Duration `json:"-"`                         // VPN_ROTATE_MIN_GAP: shortest time between two rotations
-	TrustProxy           bool          `json:"trust_proxy"`
-	TrustedProxies       []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
+	PlaybackEngine           string        `json:"playback_engine"`
+	PlaybackMemoryBytes      int64         `json:"playback_memory_bytes"`
+	PlaybackDiskBytes        int64         `json:"playback_disk_bytes"`
+	AppEnv                   string        `json:"app_env"`
+	Host                     string        `json:"host"`
+	Port                     int           `json:"port"`
+	DataDir                  string        `json:"data_dir"`
+	CacheDir                 string        `json:"cache_dir"`
+	CatalogDir               string        `json:"catalog_dir"` // CATALOG_DIR: durable copy of the AniList catalog (SQLite), kept across deploys
+	LogLevel                 string        `json:"log_level"`
+	EnableCORS               bool          `json:"enable_cors"`
+	CORSAllowedOrigins       []string      `json:"cors_allowed_origins"` // empty with EnableCORS = any origin
+	StreamTimeout            time.Duration `json:"stream_timeout"`
+	MaxMemoryCache           int64         `json:"max_memory_cache_bytes"`
+	TorrentPort              int           `json:"torrent_port"`
+	TorrentCacheMaxBytes     int64         `json:"torrent_cache_max_bytes"`
+	TorrentUploadBytesPerSec int64         `json:"torrent_upload_bytes_per_sec"`
+	AccountsDir              string        `json:"accounts_dir"`
+	AdminDBPath              string        `json:"admin_db_path"`
+	WatchWebhookURL          string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_URL: where watch events are POSTed (optional)
+	WatchWebhookSecret       string        `json:"-"`                         // GAZES_WATCH_WEBHOOK_SECRET: HMAC key of the X-Gazes-Signature header (optional)
+	WatchDiskPath            string        `json:"watch_disk_path,omitempty"` // GAZES_WATCH_DISK_PATH: directory whose volume the disk_pct rule measures (optional)
+	VPNControlURL            string        `json:"-"`                         // VPN_CONTROL_URL: gluetun control server; empty = no VPN
+	VPNRotateEvery           time.Duration `json:"-"`                         // VPN_ROTATE_EVERY: periodic exit-IP rotation; 0 disables
+	VPNRotateMinGap          time.Duration `json:"-"`                         // VPN_ROTATE_MIN_GAP: shortest time between two rotations
+	TrustProxy               bool          `json:"trust_proxy"`
+	TrustedProxies           []string      `json:"trusted_proxies"` // with TrustProxy: the only peers believed; empty = any
 	// In authoritative mode, explicit AniList -> *Arr bindings replace all local
 	// title matching. API keys and bindings are intentionally never serialized.
 	ArrAuthoritative bool   `json:"arr_authoritative"`
@@ -102,6 +103,7 @@ func Load() *Config {
 		MaxMemoryCache:           getEnvInt64("MAX_MEMORY_CACHE_BYTES", 256*1024*1024), // 256MB default
 		TorrentPort:              getEnvInt("TORRENT_PORT", 42069),                     // publish this TCP+UDP port for inbound peers
 		TorrentCacheMaxBytes:     getEnvInt64("TORRENT_CACHE_MAX_BYTES", 40<<30),       // 40 GiB of resident payload, LRU-evicted
+		TorrentUploadBytesPerSec: getEnvInt64("TORRENT_UPLOAD_BYTES_PER_SEC", 2<<20),   // 2 MiB/s global upload cap; 0 = unlimited
 		AccountsDir:              getEnv("ACCOUNTS_DIR", "./accounts"),
 		AdminDBPath:              getEnv("GAZES_ADMIN_DB", filepath.Join(getEnv("ACCOUNTS_DIR", "./accounts"), "admin.sqlite")),
 		WatchWebhookURL:          getEnv("GAZES_WATCH_WEBHOOK_URL", ""),

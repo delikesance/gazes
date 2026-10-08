@@ -107,7 +107,7 @@ make down         # Stop, preserving volumes
 
 #### VPN (Mullvad)
 
-The backend runs inside the network namespace of a [gluetun](https://github.com/qdm12/gluetun) container (Mullvad, WireGuard): torrent peers, trackers, AniList and indexers all leave through the tunnel, and gluetun's firewall blocks any other route, so nothing leaks if the VPN drops. Mullvad offers no port forwarding, so peers cannot connect in (outbound only) and `TORRENT_PORT` is no longer published.
+The backend runs inside the network namespace of a [gluetun](https://github.com/qdm12/gluetun) container (Mullvad, WireGuard): torrent peers, trackers, AniList and indexers all leave through the tunnel, and gluetun's firewall blocks any other route, so nothing leaks if the VPN drops. Mullvad offers no port forwarding, so peers cannot connect in (outbound only) and `TORRENT_PORT` is no longer published. Upload is capped by `TORRENT_UPLOAD_BYTES_PER_SEC` (default 2097152 = 2 MiB/s, `0` = unlimited) so seeding cannot starve viewers on the shared tunnel.
 
 The exit IP rotates: gluetun picks a random server among `VPN_COUNTRIES` each time the tunnel restarts, which the backend triggers every `VPN_ROTATE_EVERY` (default 30m, `0` disables) and immediately when AniList answers 429/502/503 (at most once per `VPN_ROTATE_MIN_GAP`, default 10m; the shared AniList cooldown is lifted since the new IP did not earn it). A rotation briefly cuts peer connections: the timer postpones it while someone streams or downloads (at most 4 ticks), the AniList-triggered one does not wait. Hostname lookups use Docker's resolver (needed for `gazes-redis`, `prowlarr`), not the tunnel. Every stack that uses the same keys counts as one Mullvad device (5 per account); the dev stack shares the `.env` keys.
 
