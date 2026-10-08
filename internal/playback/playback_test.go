@@ -181,3 +181,16 @@ func TestVideoArgs(t *testing.T) {
 		t.Fatalf("transcode args = %q", got)
 	}
 }
+
+// A transcoding client (no_av1) and a copy client watching the same episode must never share a segment job or cached rendition.
+func TestMediaKeySeparatesRenditions(t *testing.T) {
+	copyView := &Session{ID: "a", hash: "hash", file: 1, audio: 0}
+	h264View := &Session{ID: "b", hash: "hash", file: 1, audio: 0, transcode: true}
+	if mediaKey(copyView, 3) == mediaKey(h264View, 3) {
+		t.Fatalf("copy and H.264 renditions share cache key %q", mediaKey(copyView, 3))
+	}
+	other := &Session{ID: "c", hash: "hash", file: 1, audio: 0}
+	if mediaKey(copyView, 3) != mediaKey(other, 3) {
+		t.Fatal("identical renditions must keep sharing a key")
+	}
+}
