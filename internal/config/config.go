@@ -58,6 +58,7 @@ type Config struct {
 	LibraryPoolDir            string        `json:"library_pool_dir"`
 	LibraryIndexDir           string        `json:"library_index_dir"`
 	LibraryEncodeWindow       string        `json:"library_encode_window"`
+	LibraryEncodePeak         string        `json:"library_encode_peak"`
 	LibraryReservePercent     int           `json:"library_reserve_percent"`
 	LibraryEncodePreset       int           `json:"library_encode_preset"`
 	LibraryEncodeCRF          int           `json:"library_encode_crf"`
@@ -128,6 +129,7 @@ func Load() *Config {
 		LibraryPoolDir:            getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
 		LibraryIndexDir:           getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
 		LibraryEncodeWindow:       getEnv("LIBRARY_ENCODE_WINDOW", ""),
+		LibraryEncodePeak:         getEnv("LIBRARY_ENCODE_PEAK", ""),
 		LibraryReservePercent:     getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
 		LibraryReserveBytes:       getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
 		LibraryStallTimeout:       getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
