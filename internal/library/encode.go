@@ -216,6 +216,18 @@ func (e *Encoder) encodeNext(ctx context.Context) bool {
 // race) so the caller can try the next one.
 func (e *Encoder) encode(ctx context.Context, ent Entry) bool {
 	k := ent.Key
+	if strings.EqualFold(ent.VideoCodec, "av1") {
+		// Already AV1: a re-encode costs a full SVT-AV1 run for, at best, a generation-loss copy of the same size.
+		if _, err := e.update(k, func(en *Entry) error {
+			if en.State == StateOriginal && en.EncodeSkipped == "" {
+				en.EncodeSkipped = "already_av1"
+			}
+			return nil
+		}); err != nil && !errors.Is(err, ErrNotFound) {
+			slog.Warn("library: encoder skip", "key", k.String(), "err", err)
+		}
+		return false
+	}
 	src, err := e.pool.Path(ent.DiskID, ent.RelPath)
 	if errors.Is(err, ErrDiskAbsent) {
 		return e.markUnavailable(k, nil)
