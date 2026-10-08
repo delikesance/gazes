@@ -188,6 +188,7 @@ func main() {
 			ReservePercent: cfg.LibraryReservePercent,
 			ReserveBytes:   cfg.LibraryReserveBytes,
 			Stall:          cfg.LibraryStallTimeout,
+			MinViewers:     cfg.LibraryMinViewers,
 			Encode: library.EncodeSettings{
 				Preset:       cfg.LibraryEncodePreset,
 				CRF:          cfg.LibraryEncodeCRF,

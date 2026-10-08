@@ -22,13 +22,21 @@ const (
 // ErrRateLimited means the user already created the maximum number of new copies this hour.
 var ErrRateLimited = errors.New("library: too many new copies")
 
+// ErrWaitingViewers means the episode is not cached yet: fewer distinct users than MinViewers have watched it.
+var ErrWaitingViewers = errors.New("library: waiting for more viewers")
+
+// maxPendingKeys bounds the in-memory viewer tallies of episodes not cached yet.
+const maxPendingKeys = 10000
+
 // Options configures Open.
 type Options struct {
 	PoolDir, IndexDir, FFmpeg, FFprobe string
 	ReservePercent                     int
 	ReserveBytes                       int64
 	Stall                              time.Duration
-	Encode                             EncodeSettings
+	// MinViewers is the number of distinct users who must register an episode before it is downloaded; below 2 every registration downloads.
+	MinViewers int
+	Encode     EncodeSettings
 }
 
 // Copy is a ready-to-serve copy of an episode, as exposed by the API.
@@ -55,6 +63,9 @@ type Service struct {
 
 	regMu sync.Mutex
 	rate  map[int64][]time.Time
+	// minViewers and viewers gate the first download; viewers is in memory, so a restart resets the tallies.
+	minViewers int
+	viewers    map[Key]map[int64]struct{}
 
 	wg        sync.WaitGroup
 	closeOnce sync.Once
@@ -94,10 +105,11 @@ func Open(opts Options, inner torrent.Engine, fetcher Fetcher, logger *slog.Logg
 	prober := FFprobe(opts.FFprobe)
 	svc := &Service{
 		store: store, pool: pool, engine: eng, logger: logger, clock: clock,
-		acq:     NewAcquirer(store, pool, fetcher, prober, clock, opts.Stall, maxActiveDownload),
-		enc:     NewEncoder(store, pool, prober, eng.ActiveStreams, opts.Encode, clock),
-		janitor: NewJanitor(store, pool, eng.InUse, clock),
-		rate:    map[int64][]time.Time{},
+		acq:        NewAcquirer(store, pool, fetcher, prober, clock, opts.Stall, maxActiveDownload),
+		enc:        NewEncoder(store, pool, prober, eng.ActiveStreams, opts.Encode, clock),
+		janitor:    NewJanitor(store, pool, eng.InUse, clock),
+		rate:       map[int64][]time.Time{},
+		minViewers: opts.MinViewers, viewers: map[Key]map[int64]struct{}{},
 	}
 	svc.enc.inUse = eng.InUse
 	svc.enc.free = func(diskID string, need int64) { _, _ = svc.janitor.Free(diskID, need) }
@@ -190,11 +202,14 @@ func logChange(old, cur *Entry) {
 	}
 }
 
-// Register starts caching req for userID. It reports whether a new copy was created; an existing copy is only touched.
+// Register starts caching req for userID once MinViewers distinct users registered it (else ErrWaitingViewers). It reports whether a new copy was created; an existing copy is only touched.
 func (s *Service) Register(userID int64, req Request) (Entry, bool, error) {
 	s.regMu.Lock()
 	defer s.regMu.Unlock()
 	now := s.clock()
+	if s.minViewers > 1 && !s.enoughViewers(userID, req.Key) {
+		return Entry{}, false, ErrWaitingViewers
+	}
 	recent := s.recent(userID, now)
 	if len(recent) >= newCopiesPerHour {
 		// Over the limit: touching an existing copy is still fine, creating one is not.
@@ -234,6 +249,28 @@ func (s *Service) Register(userID int64, req Request) (Entry, bool, error) {
 		s.rate[userID] = append(recent, now)
 	}
 	return e, created, nil
+}
+
+// enoughViewers records userID as a viewer of k and reports whether the episode may be downloaded: a copy already in the index always may.
+func (s *Service) enoughViewers(userID int64, k Key) bool {
+	if _, err := s.store.Get(k); err == nil {
+		delete(s.viewers, k)
+		return true
+	}
+	set := s.viewers[k]
+	if set == nil {
+		if len(s.viewers) >= maxPendingKeys {
+			s.viewers = map[Key]map[int64]struct{}{}
+		}
+		set = map[int64]struct{}{}
+		s.viewers[k] = set
+	}
+	set[userID] = struct{}{}
+	if len(set) < s.minViewers {
+		return false
+	}
+	delete(s.viewers, k)
+	return true
 }
 
 func (s *Service) recent(userID int64, now time.Time) []time.Time {
