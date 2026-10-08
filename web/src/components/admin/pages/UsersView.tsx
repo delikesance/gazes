@@ -113,7 +113,7 @@ export function UsersView({ summary, list, detail, detailError, query, generated
   const tiles = detail ? detailTiles(detail, selectedRow, generatedAt) : [];
   const history = detail ? historyItems(detail, generatedAt) : [];
   const progress = detail ? progressItems(detail) : [];
-  const { valid, expiring_7d: expiring } = summary.active_sessions;
+  const { valid, expiring_7d: expiring, expiring_24h: expiring24, expiring_24_48h: expiring48 } = summary.active_sessions;
   const total = summary.kpis.total.value;
   const detailTitle = detail ? (detail.pseudo ?? `Compte #${detail.user_id}`) : query.user !== null ? `Compte #${query.user}` : "Aucun compte sélectionné";
 
@@ -308,6 +308,8 @@ export function UsersView({ summary, list, detail, detailError, query, generated
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
             <StatTile label="Sessions valides" value={fmtInt(valid)} size="sm" basis={120} />
             <StatTile label="Expirent sous 7 jours" value={fmtInt(expiring)} size="sm" basis={120} />
+            <StatTile label="Expirent sous 24 h" value={fmtInt(expiring24)} size="sm" basis={120} />
+            <StatTile label="Expirent entre 24 et 48 h" value={fmtInt(expiring48)} size="sm" basis={120} />
             <StatTile label="En ligne (moins de 5 min)" value="" size="sm" basis={120} />
           </div>
           <ProgressBar
@@ -317,7 +319,7 @@ export function UsersView({ summary, list, detail, detailError, query, generated
             tone={valid > 0 && expiring / valid >= 0.3 ? "danger" : "accent"}
           />
           <p style={MUTED_TEXT}>
-            L&apos;échéance fine (moins de 24 h, 24 à 48 h) et le nombre de comptes en ligne ne sont pas exposés par l&apos;API : [À MESURER].
+            Comptes en ligne : [À MESURER] (une session n&apos;enregistre son dernier passage qu&apos;une fois par jour).
           </p>
         </section>
       </div>

@@ -59,6 +59,7 @@ type Server struct {
 	mcpEnabled      bool
 	mcpOrigins      []string
 	errorSink       admin.ErrorSink
+	opsWarm         chan struct{} // slots of the warm_cache background resolutions
 	calendarCache   calendarFeeds
 }
 

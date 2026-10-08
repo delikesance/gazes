@@ -298,3 +298,50 @@ func TestVisitorDoesNotJoinABackgroundLoad(t *testing.T) {
 	}
 	close(release)
 }
+
+func TestCachePurgeDropsTheWholeDomainOnly(t *testing.T) {
+	c, _ := newClient(t)
+	ctx := context.Background()
+	a := NewCache[doc](c, "d", CacheOptions{})
+	other := NewCache[doc](c, "d", CacheOptions{}) // another instance of the same domain
+	sibling := NewCache[doc](c, "dx", CacheOptions{})
+	a.Put(ctx, "1", &doc{N: 1}, time.Minute)
+	a.Put(ctx, "2", &doc{N: 2}, time.Minute)
+	sibling.Put(ctx, "1", &doc{N: 3}, time.Minute)
+
+	n, err := a.Purge(ctx)
+	if err != nil || n != 2 {
+		t.Fatalf("purge = %d, %v", n, err)
+	}
+	for _, k := range []string{"1", "2"} {
+		if _, ok := a.Peek(ctx, k); ok {
+			t.Errorf("%s still in this instance", k)
+		}
+		if _, ok := other.Peek(ctx, k); ok {
+			t.Errorf("%s still in Redis", k)
+		}
+	}
+	if v, ok := sibling.Peek(ctx, "1"); !ok || v.N != 3 {
+		t.Fatal("purging d removed a key of dx")
+	}
+}
+
+func TestGovernorBlockedIsTheFlatCooldownOnly(t *testing.T) {
+	c, _ := newClient(t)
+	ctx := context.Background()
+	g := c.NewGovernor("g", 60, 60, 0)
+	if g.Blocked(ctx) != 0 || g.BreakerOpen(ctx) != 0 {
+		t.Fatal("a fresh governor is not blocked")
+	}
+	g.Penalize(ctx, time.Minute)
+	if d := g.Blocked(ctx); d <= 0 || d > time.Minute {
+		t.Fatalf("blocked = %v", d)
+	}
+	if g.BreakerOpen(ctx) != 0 {
+		t.Fatal("a pause is not a breaker failure")
+	}
+	g.ClearCooldown(ctx)
+	if g.Blocked(ctx) != 0 {
+		t.Fatal("cleared cooldown still blocks")
+	}
+}
