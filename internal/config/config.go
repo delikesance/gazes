@@ -65,6 +65,7 @@ type Config struct {
 	LibraryEncodePauseStreams int           `json:"library_encode_pause_streams"`
 	LibraryReserveBytes       int64         `json:"library_reserve_bytes"`
 	LibraryStallTimeout       time.Duration `json:"library_stall_timeout"`
+	LibraryMinViewers         int           `json:"library_min_viewers"`
 
 	// Optional cost inputs for the admin panel (nil = not provided, never defaulted).
 	CostServerMonth       *float64 `json:"cost_server_month,omitempty"`         // GAZES_COST_SERVER_MONTH: server cost per month
@@ -124,13 +125,15 @@ func Load() *Config {
 		RedisNamespace:           getEnv("REDIS_NAMESPACE", "gazes"), // isolates per-stack state (auth) on a shared Redis
 		ResolverFastPhaseTimeout: getEnvDuration("RESOLVER_FAST_PHASE_TIMEOUT", 3*time.Second),
 
-		LibraryEnabled:            getEnvBool("LIBRARY_ENABLED", true),
-		LibraryPoolDir:            getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
-		LibraryIndexDir:           getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
-		LibraryEncodeWindow:       getEnv("LIBRARY_ENCODE_WINDOW", ""),
-		LibraryReservePercent:     getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
-		LibraryReserveBytes:       getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
-		LibraryStallTimeout:       getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
+		LibraryEnabled:        getEnvBool("LIBRARY_ENABLED", true),
+		LibraryPoolDir:        getEnv("LIBRARY_POOL_DIR", "/app/library-pool"),
+		LibraryIndexDir:       getEnv("LIBRARY_INDEX_DIR", "/app/library-index"),
+		LibraryEncodeWindow:   getEnv("LIBRARY_ENCODE_WINDOW", ""),
+		LibraryReservePercent: getEnvInt("LIBRARY_RESERVE_PERCENT", 10),
+		LibraryReserveBytes:   getEnvInt64("LIBRARY_RESERVE_BYTES", 50_000_000_000),
+		LibraryStallTimeout:   getEnvDuration("LIBRARY_STALL_TIMEOUT", 24*time.Hour),
+		// Distinct users who must watch an episode before it is downloaded and AV1-encoded (1 = the first viewer).
+		LibraryMinViewers:         getEnvInt("LIBRARY_MIN_VIEWERS", 2),
 		LibraryEncodePreset:       getEnvInt("LIBRARY_ENCODE_PRESET", 8),
 		LibraryEncodeCRF:          getEnvInt("LIBRARY_ENCODE_CRF", 30),
 		LibraryEncodeThreads:      getEnvInt("LIBRARY_ENCODE_THREADS", 8),
